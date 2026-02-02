@@ -1,5 +1,5 @@
-import React from 'react';
-import { User, UserPlus, X, Edit, Trash2, Lock, Unlock, Award } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { User, UserPlus, X, Edit, Trash2, Lock, Unlock, Award, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function StaffManagement({
     staffList,
@@ -20,17 +20,63 @@ export default function StaffManagement({
     handleRemoveSubject,
     setActiveTab
 }) {
+    const [searchTerm, setSearchTerm] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 8;
+
+    // Filter Logic
+    const filteredStaff = useMemo(() => {
+        if (!searchTerm) return staffList;
+        const lowerTerm = searchTerm.toLowerCase();
+        return staffList.filter(staff =>
+            (staff.fullName || "").toLowerCase().includes(lowerTerm) ||
+            (staff.email || "").toLowerCase().includes(lowerTerm) ||
+            (staff.username || "").toLowerCase().includes(lowerTerm) ||
+            (staff.department || "").toLowerCase().includes(lowerTerm)
+        );
+    }, [staffList, searchTerm]);
+
+    // Pagination Logic
+    const totalPages = Math.ceil(filteredStaff.length / itemsPerPage);
+    const displayedStaff = filteredStaff.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+
+    // Reset page when search changes
+    React.useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm]);
+
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Staff Management</h2>
-                <div className="flex gap-3">
-                    <button onClick={() => setActiveTab("hod-dean")} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2">
-                        <Award className="w-4 h-4" /> Assign HOD/Dean
-                    </button>
-                    <button onClick={() => setShowAddStaff(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
-                        <UserPlus className="w-4 h-4" /> Add Staff
-                    </button>
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Staff Management</h2>
+                    <p className="text-sm text-gray-500 mt-1">{staffList.length} total staff members</p>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                    {/* Search Bar */}
+                    <div className="relative">
+                        <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                        <input
+                            type="text"
+                            placeholder="Search staff..."
+                            className="text-sm border border-gray-300 rounded-lg pl-9 pr-3 py-2 w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="flex gap-2">
+                        <button onClick={() => setActiveTab("hod-dean")} className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2 whitespace-nowrap">
+                            <Award className="w-4 h-4" /> Assign HOD/Dean
+                        </button>
+                        <button onClick={() => setShowAddStaff(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 whitespace-nowrap">
+                            <UserPlus className="w-4 h-4" /> Add Staff
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -96,7 +142,7 @@ export default function StaffManagement({
 
             {/* Staff List */}
             <div className="space-y-4">
-                {staffList.map((staff) => (
+                {displayedStaff.map((staff) => (
                     <div key={staff.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition">
                         <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -110,9 +156,9 @@ export default function StaffManagement({
                                         <p className="text-xs text-gray-500">@{staff.username || "No username"}</p>
                                     </div>
                                     <span className={`px-2 py-1 rounded text-xs font-medium ${staff.role === 'hod' ? 'bg-purple-100 text-purple-800' :
-                                            staff.role === 'dean' ? 'bg-red-100 text-red-800' :
-                                                staff.status === 'active' ? 'bg-green-100 text-green-800' :
-                                                    staff.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
+                                        staff.role === 'dean' ? 'bg-red-100 text-red-800' :
+                                            staff.status === 'active' ? 'bg-green-100 text-green-800' :
+                                                staff.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
                                         }`}>
                                         {staff.role === 'hod' ? 'HOD' : staff.role === 'dean' ? 'DEAN' : staff.role?.toUpperCase() || 'STAFF'}
                                     </span>
@@ -182,14 +228,39 @@ export default function StaffManagement({
                     </div>
                 ))}
 
-                {staffList.length === 0 && (
+                {filteredStaff.length === 0 && (
                     <div className="text-center py-12 text-gray-500">
                         <User className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-                        <p className="text-lg font-medium">No staff members yet</p>
-                        <p className="text-sm mt-1">Add your first staff member to get started</p>
+                        <p className="text-lg font-medium">{searchTerm ? "No staff found matching search" : "No staff members yet"}</p>
+                        <p className="text-sm mt-1">{searchTerm ? "Try a different search term" : "Add your first staff member to get started"}</p>
                     </div>
                 )}
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
+                    <p className="text-sm text-gray-500">
+                        Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredStaff.length)} of {filteredStaff.length} staff
+                    </p>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <ChevronRight className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -22,19 +22,19 @@ const App = () => {
         }}
       />
       {/* <DesktopOnly> */}
-        <Suspense
-          fallback={<div className="text-center mt-10">Loading...</div>}
-        >
-          <Routes>
-            <Route path="/" element={<Login />} />
-            <Route path="/uploadQuestions" element={<UploadQuestions/>} />
-            <Route path="/admin-dashboard" element={<AdminDashboard />} />
-            <Route path="/view-paper/:id" element={<QuestionPaperView />} />
-            <Route path="/seed" element={<SeedAdmin />} />
-          </Routes>
-        </Suspense>
+      <Suspense
+        fallback={<div className="text-center mt-10">Loading...</div>}
+      >
+        <Routes>
+          <Route path="/" element={<Login />} />
+          <Route path="/staff-portal" element={<UploadQuestions />} />
+          <Route path="/admin-dashboard" element={<AdminDashboard />} />
+          <Route path="/view-paper/:id" element={<QuestionPaperView />} />
+          <Route path="/seed" element={<SeedAdmin />} />
+        </Routes>
+      </Suspense>
       {/* </DesktopOnly> */}
-  </>
+    </>
   );
 };
 

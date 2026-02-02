@@ -23,7 +23,7 @@ export default function Login() {
       const usersRef = collection(db, "users");
       const q = query(usersRef, where("status", "==", "active"));
       const querySnapshot = await getDocs(q);
-      
+
       const users = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
@@ -40,20 +40,20 @@ export default function Login() {
     }
   };
   const ADMIN_ACCOUNTS = {
-    "hod": { 
-      email: "hod@exam.com", 
+    "hod": {
+      email: "hod@exam.com",
       role: "hod",
-      bypassEmailVerification: true 
+      bypassEmailVerification: true
     },
-    "dean": { 
-      email: "dean@exam.com", 
+    "dean": {
+      email: "dean@exam.com",
       role: "dean",
-      bypassEmailVerification: true 
+      bypassEmailVerification: true
     },
-    "admin": { 
-      email: "admin@exam.com", 
+    "admin": {
+      email: "admin@exam.com",
       role: "admin",
-      bypassEmailVerification: true 
+      bypassEmailVerification: true
     }
   };
   // Open dropdown and fetch users
@@ -122,8 +122,8 @@ export default function Login() {
 
   // Find user's email by username
   const findUserEmailByUsername = async (username) => {
-     const lowercaseUsername = username.toLowerCase();
-    
+    const lowercaseUsername = username.toLowerCase();
+
     // Check for admin accounts first
     if (ADMIN_ACCOUNTS[lowercaseUsername]) {
       return ADMIN_ACCOUNTS[lowercaseUsername].email;
@@ -132,21 +132,21 @@ export default function Login() {
       const usersRef = collection(db, "users");
       const q = query(usersRef, where("username", "==", username));
       const querySnapshot = await getDocs(q);
-      
+
       if (!querySnapshot.empty) {
         const userDoc = querySnapshot.docs[0];
         const userData = userDoc.data();
-        
+
         // Check if user is active
         if (userData.status !== "active") {
           throw new Error("Account is not active. Please contact administrator.");
         }
-        
+
         // Check if email is verified
         // if (!userData.emailVerified) {
         //   throw new Error("Please verify your email before logging in.");
         // }
-        
+
         return userData.email;
       } else {
         throw new Error("Username not found.");
@@ -167,18 +167,18 @@ export default function Login() {
       // 1. Find the email associated with the username
       // This function also validates user status and email verification
       const userEmail = await findUserEmailByUsername(formValues.username);
-      
+
       // 2. Sign in with email and password
       const userCredential = await signInWithEmailAndPassword(
-        auth, 
-        userEmail, 
+        auth,
+        userEmail,
         formValues.password
       );
-       
+
       // 3. Check if email is verified
       const lowercaseUsername = formValues.username.toLowerCase();
       const isAdminAccount = ADMIN_ACCOUNTS[lowercaseUsername];
-      
+
       if (!isAdminAccount && !userCredential.user.emailVerified) {
         await signOut(auth);
         throw new Error("Please verify your email before logging in.");
@@ -196,74 +196,74 @@ export default function Login() {
         const userSnap = await getDoc(userRef);
         const userData = userSnap.data();
         role = userData?.role || "staff";
-        
+
         // Also check if status is active (duplicate check but safe)
         if (userData?.status !== "active") {
-           throw new Error("Account is not active. Please contact administrator.");
+          throw new Error("Account is not active. Please contact administrator.");
         }
       }
 
       // 5. Success - navigate based on role
       toast.success("Login successful!");
-      
+
       if (role === "hod" || role === "dean" || role === "admin") {
-        navigate("/admin-dashboard", { 
-          state: { 
+        navigate("/admin-dashboard", {
+          state: {
             username: formValues.username,
             userId: userCredential.user.uid,
             role: role
-          } 
+          }
         });
       } else {
-        navigate("/uploadQuestions", { 
-          state: { 
+        navigate("/staff-portal", {
+          state: {
             username: formValues.username,
-            userId: userCredential.user.uid 
-          } 
+            userId: userCredential.user.uid
+          }
         });
       }
 
     } catch (error) {
       console.error("Login error:", error);
-      
+
       let errorMessage = "Login failed. ";
-      
+
       switch (error.code || error.message) {
         case 'auth/user-not-found':
         case 'Username not found.':
           errorMessage = "Username not found. Please check your username.";
           setErrors(prev => ({ ...prev, username: "Username not found" }));
           break;
-          
+
         case 'auth/wrong-password':
           errorMessage = "Incorrect password. Please try again.";
           setErrors(prev => ({ ...prev, password: "Incorrect password" }));
           break;
-          
+
         case 'auth/too-many-requests':
           errorMessage = "Too many failed attempts. Please try again later.";
           break;
-          
+
         case 'auth/user-disabled':
           errorMessage = "Account has been disabled. Please contact administrator.";
           break;
-          
+
         case 'Please verify your email before logging in.':
           errorMessage = "Email not verified. Please check your inbox for the verification link.";
           break;
-          
+
         case 'Account is not active. Please contact administrator.':
           errorMessage = "Account exists but is not active in the system. Contact Admin.";
           break;
-          
+
         default:
           if (error.message.includes("verify your email")) {
-             errorMessage = "Please verify your email before logging in.";
+            errorMessage = "Please verify your email before logging in.";
           } else {
-             errorMessage = error.message;
+            errorMessage = error.message;
           }
       }
-      
+
       setFirebaseError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -310,9 +310,8 @@ export default function Login() {
                     onChange={(e) => handleChange(field.name, e.target.value)}
                     onFocus={() => field.dropdown && handleUsernameFocus()}
                     onBlur={() => field.dropdown && setTimeout(() => setShowDropdown(false), 150)}
-                    className={`w-full rounded-md border border-gray-300 bg-white pl-11 pr-11 py-2 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none ${
-                      errors[field.name] ? "border-red-500" : "border-gray-300"
-                    }`}
+                    className={`w-full rounded-md border border-gray-300 bg-white pl-11 pr-11 py-2 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none ${errors[field.name] ? "border-red-500" : "border-gray-300"
+                      }`}
                     disabled={isLoading}
                   />
 

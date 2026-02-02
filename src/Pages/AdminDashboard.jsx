@@ -23,7 +23,8 @@ import {
   serverTimestamp,
   onSnapshot,
   deleteDoc,
-  arrayRemove
+  arrayRemove,
+  addDoc
 } from "firebase/firestore";
 import { db, auth } from "../../fireBaseConfig";
 import {
@@ -117,6 +118,7 @@ export default function AdminDashboard() {
     threeMark: { total: 0, available: 0 },
     fiveMark: { total: 0, available: 0 }
   });
+
 
   // Check authentication and role
   useEffect(() => {
@@ -624,6 +626,24 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteSubject = async (subjectId, subjectCode) => {
+    // Check if subject is assigned to any staff
+    const assignedStaff = staffList.filter(staff =>
+      staff.assignedSubjects && staff.assignedSubjects.includes(subjectCode)
+    );
+
+    if (assignedStaff.length > 0) {
+      toast.error(`Cannot delete ${subjectCode}. It is assigned to ${assignedStaff.length} staff member(s).`);
+      return;
+    }
+
+    // Check if subject has generated or scheduled papers
+    const relatedPapers = questionPapers.filter(paper => paper.subjectCode === subjectCode);
+
+    if (relatedPapers.length > 0) {
+      toast.error(`Cannot delete ${subjectCode}. There are ${relatedPapers.length} question paper(s) associated with it.`);
+      return;
+    }
+
     if (window.confirm(`Delete subject ${subjectCode}? This cannot be undone.`)) {
       try {
         await deleteDoc(doc(db, "subjects", subjectId));
@@ -748,45 +768,42 @@ export default function AdminDashboard() {
   };
 
   const generateRandomQuestions = () => {
-    if (!paperForm.subjectCode) {
-      toast.error("Please select a subject");
-      return;
-    }
-
     const selected = [];
+    let hasError = false;
 
-    // 1 Mark Questions
-    if (paperForm.oneMarkQuestions > 0) {
-      if (availableQuestions.oneMark.length < paperForm.oneMarkQuestions) {
-        toast.error(`Not enough 1-mark questions! need ${paperForm.oneMarkQuestions}, have ${availableQuestions.oneMark.length}`);
-      }
-
+    // 1-mark questions
+    if (availableQuestions.oneMark.length < paperForm.oneMarkQuestions) {
+      toast.error(`Not enough 1-mark questions! Need ${paperForm.oneMarkQuestions}, have ${availableQuestions.oneMark.length}`);
+      hasError = true;
+    } else {
       const shuffled = [...availableQuestions.oneMark].sort(() => Math.random() - 0.5);
       selected.push(...shuffled.slice(0, paperForm.oneMarkQuestions));
     }
 
-    // 3 Mark Questions
-    if (paperForm.threeMarkQuestions > 0) {
-      if (availableQuestions.threeMark.length < paperForm.threeMarkQuestions) {
-        toast.error(`Not enough 3-mark questions! need ${paperForm.threeMarkQuestions}, have ${availableQuestions.threeMark.length}`);
-      }
-
+    // 3-mark questions
+    if (availableQuestions.threeMark.length < paperForm.threeMarkQuestions) {
+      toast.error(`Not enough 3-mark questions! Need ${paperForm.threeMarkQuestions}, have ${availableQuestions.threeMark.length}`);
+      hasError = true;
+    } else {
       const shuffled = [...availableQuestions.threeMark].sort(() => Math.random() - 0.5);
       selected.push(...shuffled.slice(0, paperForm.threeMarkQuestions));
     }
 
-    // 5 Mark Questions
-    if (paperForm.fiveMarkQuestions > 0) {
-      if (availableQuestions.fiveMark.length < paperForm.fiveMarkQuestions) {
-        toast.error(`Not enough 5-mark questions! need ${paperForm.fiveMarkQuestions}, have ${availableQuestions.fiveMark.length}`);
-      }
-
+    // 5-mark questions
+    if (availableQuestions.fiveMark.length < paperForm.fiveMarkQuestions) {
+      toast.error(`Not enough 5-mark questions! Need ${paperForm.fiveMarkQuestions}, have ${availableQuestions.fiveMark.length}`);
+      hasError = true;
+    } else {
       const shuffled = [...availableQuestions.fiveMark].sort(() => Math.random() - 0.5);
       selected.push(...shuffled.slice(0, paperForm.fiveMarkQuestions));
     }
 
+    if (hasError) {
+      return;
+    }
+
     setSelectedQuestions(selected);
-    toast.success(`Selected ${selected.length} questions randomly`);
+    toast.success("Questions selected for paper!");
   };
 
   const generatePaperImmediately = async () => {
