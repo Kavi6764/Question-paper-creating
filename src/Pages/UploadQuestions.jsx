@@ -159,11 +159,23 @@ export default function StaffPortal() {
                 }));
 
                 const assigned = allSubjects.filter(subject =>
-                  newStaffData.assignedSubjects?.includes(subject.subjectCode) ||
-                  subject.staffId === staffId
+                  (newStaffData.assignedSubjects?.includes(subject.subjectCode) ||
+                    subject.staffId === staffId) &&
+                  subject.subjectCode // Ensure subjectCode exists
                 );
 
-                setMySubjects(assigned);
+                // Deduplicate by subjectCode
+                const uniqueAssigned = [];
+                const seenCodes = new Set();
+
+                assigned.forEach(subject => {
+                  if (!seenCodes.has(subject.subjectCode)) {
+                    uniqueAssigned.push(subject);
+                    seenCodes.add(subject.subjectCode);
+                  }
+                });
+
+                setMySubjects(uniqueAssigned);
 
                 const totalQuestions = assigned.reduce((sum, subject) => {
                   if (subject.units) {
@@ -176,7 +188,7 @@ export default function StaffPortal() {
 
                 setStats(prev => ({
                   ...prev,
-                  totalSubjects: assigned.length,
+                  totalSubjects: uniqueAssigned.length,
                   totalQuestions: totalQuestions
                 }));
               });
@@ -472,9 +484,23 @@ export default function StaffPortal() {
       });
 
       // 3. Update or create subject document
-      const subjectDocId = `${staffData.id}_${subjectCode}`;
-      const subjectRef = doc(db, "subjects", subjectDocId);
-      const subjectSnap = await getDoc(subjectRef);
+      let subjectRef;
+      let subjectSnap;
+
+      // Try to find existing subject by code first (including Admin created ones)
+      const q = query(collection(db, "subjects"), where("subjectCode", "==", subjectCode));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        // Use existing subject
+        subjectRef = querySnapshot.docs[0].ref;
+        subjectSnap = await getDoc(subjectRef);
+      } else {
+        // Fallback: Create new subject with staff-specific ID
+        const subjectDocId = `${staffData.id}_${subjectCode}`;
+        subjectRef = doc(db, "subjects", subjectDocId);
+        subjectSnap = await getDoc(subjectRef);
+      }
 
       const unitKey = `unit${unit}`;
 
@@ -774,7 +800,15 @@ export default function StaffPortal() {
                 <p className="text-sm text-gray-600">My Subjects</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">{stats.totalSubjects}</p>
                 <p className="text-xs text-gray-500 mt-1">
-                  {mySubjects.map(s => s.subjectCode).join(', ') || 'No subjects'}
+                  {(() => {
+                    const validCodes = mySubjects
+                      .map(s => s.subjectCode)
+                      .filter(code => code && code.trim().length > 0);
+
+                    if (validCodes.length === 0) return 'No subjects';
+                    if (validCodes.length <= 3) return validCodes.join(', ');
+                    return `${validCodes.slice(0, 3).join(', ')} +${validCodes.length - 3} more`;
+                  })()}
                 </p>
               </div>
               <div className="p-3 bg-blue-100 rounded-lg">
@@ -1301,128 +1335,130 @@ export default function StaffPortal() {
 
           {/* Right Column - Preview Panel */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 sticky top-6">
-              <div className="p-6 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900">File Preview</h3>
-                {file && (
-                  <p className="text-sm text-gray-500 mt-1">
-                    Previewing: {file.name}
-                  </p>
-                )}
-              </div>
+            <div className="sticky top-6 space-y-6">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+                <div className="p-6 border-b border-gray-200">
+                  <h3 className="text-lg font-medium text-gray-900">File Preview</h3>
+                  {file && (
+                    <p className="text-sm text-gray-500 mt-1">
+                      Previewing: {file.name}
+                    </p>
+                  )}
+                </div>
 
-              <div className="p-6">
-                {previewData.length > 0 ? (
-                  <>
-                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
-                      {paginatedPreview.map((item) => (
-                        <div key={item.id} className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition">
-                          <div className="flex justify-between items-start mb-2">
-                            <span className="font-medium text-gray-900">{item.questionNo}</span>
-                            <span className={`px-2 py-1 text-xs rounded-full ${item.difficulty === 'Easy' ? 'bg-green-100 text-green-800' :
-                              item.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                                'bg-red-100 text-red-800'
-                              }`}>
-                              {item.difficulty}
-                            </span>
+                <div className="p-6">
+                  {previewData.length > 0 ? (
+                    <>
+                      <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                        {paginatedPreview.map((item) => (
+                          <div key={item.id} className="p-4 border border-gray-200 rounded-lg hover:border-blue-300 transition">
+                            <div className="flex justify-between items-start mb-2">
+                              <span className="font-medium text-gray-900">{item.questionNo}</span>
+                              <span className={`px-2 py-1 text-xs rounded-full ${item.difficulty === 'Easy' ? 'bg-green-100 text-green-800' :
+                                item.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-red-100 text-red-800'
+                                }`}>
+                                {item.difficulty}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.question}</p>
+                            <div className="flex justify-between text-sm text-gray-500">
+                              <span>Unit {item.unit}</span>
+                              <span className="font-medium">{item.marks} marks</span>
+                            </div>
                           </div>
-                          <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.question}</p>
-                          <div className="flex justify-between text-sm text-gray-500">
-                            <span>Unit {item.unit}</span>
-                            <span className="font-medium">{item.marks} marks</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {totalPreviewPages > 1 && (
-                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
-                        <button
-                          onClick={() => setPreviewPage(prev => Math.max(0, prev - 1))}
-                          disabled={previewPage === 0}
-                          className="text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50"
-                        >
-                          ← Previous
-                        </button>
-                        <span className="text-sm text-gray-600">
-                          {previewPage + 1} / {totalPreviewPages}
-                        </span>
-                        <button
-                          onClick={() => setPreviewPage(prev => Math.min(totalPreviewPages - 1, prev + 1))}
-                          disabled={previewPage === totalPreviewPages - 1}
-                          className="text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50"
-                        >
-                          Next →
-                        </button>
+                        ))}
                       </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="text-center py-8">
-                    <FileSpreadsheet className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <p className="text-gray-500">No file selected</p>
-                    <p className="text-sm text-gray-400 mt-1">Upload a file to see preview</p>
-                  </div>
-                )}
 
-                {/* Quick Actions */}
-                <div className="mt-6 space-y-3">
-                  <button
-                    onClick={downloadTemplate}
-                    className="w-full flex items-center justify-center gap-2 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition font-medium"
-                  >
-                    <Download size={18} />
-                    Download Template
-                  </button>
+                      {totalPreviewPages > 1 && (
+                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                          <button
+                            onClick={() => setPreviewPage(prev => Math.max(0, prev - 1))}
+                            disabled={previewPage === 0}
+                            className="text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50"
+                          >
+                            ← Previous
+                          </button>
+                          <span className="text-sm text-gray-600">
+                            {previewPage + 1} / {totalPreviewPages}
+                          </span>
+                          <button
+                            onClick={() => setPreviewPage(prev => Math.min(totalPreviewPages - 1, prev + 1))}
+                            disabled={previewPage === totalPreviewPages - 1}
+                            className="text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50"
+                          >
+                            Next →
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-center py-8">
+                      <FileSpreadsheet className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                      <p className="text-gray-500">No file selected</p>
+                      <p className="text-sm text-gray-400 mt-1">Upload a file to see preview</p>
+                    </div>
+                  )}
 
-                  <div className="text-xs text-gray-500 mt-2 space-y-1">
-                    <p className="flex items-center gap-1">
-                      <Info size={12} />
-                      Template includes all required columns
-                    </p>
-                    <p className="flex items-center gap-1">
-                      <Info size={12} />
-                      Maximum 100 questions per file
-                    </p>
-                    <p className="flex items-center gap-1">
-                      <Info size={12} />
-                      Green units are already uploaded
-                    </p>
+                  {/* Quick Actions */}
+                  <div className="mt-6 space-y-3">
+                    <button
+                      onClick={downloadTemplate}
+                      className="w-full flex items-center justify-center gap-2 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition font-medium"
+                    >
+                      <Download size={18} />
+                      Download Template
+                    </button>
+
+                    <div className="text-xs text-gray-500 mt-2 space-y-1">
+                      <p className="flex items-center gap-1">
+                        <Info size={12} />
+                        Template includes all required columns
+                      </p>
+                      <p className="flex items-center gap-1">
+                        <Info size={12} />
+                        Maximum 100 questions per file
+                      </p>
+                      <p className="flex items-center gap-1">
+                        <Info size={12} />
+                        Green units are already uploaded
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Staff Info Card */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 mt-6 p-6">
-              <div className="flex items-center space-x-4">
-                <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                  <User className="h-6 w-6 text-blue-600" />
+              {/* Staff Info Card */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center space-x-4">
+                  <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                    <User className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-900">{staffData.name}</h4>
+                    <p className="text-sm text-gray-500">{staffData.department}</p>
+                    <p className="text-xs text-gray-400 mt-1">{staffData.email}</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-medium text-gray-900">{staffData.name}</h4>
-                  <p className="text-sm text-gray-500">{staffData.department}</p>
-                  <p className="text-xs text-gray-400 mt-1">{staffData.email}</p>
-                </div>
-              </div>
 
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-blue-600">{stats.totalSubjects}</p>
-                    <p className="text-xs text-gray-500">Subjects</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-green-600">{stats.totalQuestions}</p>
-                    <p className="text-xs text-gray-500">Questions</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-purple-600">{stats.uploadedToday}</p>
-                    <p className="text-xs text-gray-500">Today</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-orange-600">{stats.totalUploads}</p>
-                    <p className="text-xs text-gray-500">Uploads</p>
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-blue-600">{stats.totalSubjects}</p>
+                      <p className="text-xs text-gray-500">Subjects</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-green-600">{stats.totalQuestions}</p>
+                      <p className="text-xs text-gray-500">Questions</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-purple-600">{stats.uploadedToday}</p>
+                      <p className="text-xs text-gray-500">Today</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-2xl font-bold text-orange-600">{stats.totalUploads}</p>
+                      <p className="text-xs text-gray-500">Uploads</p>
+                    </div>
                   </div>
                 </div>
               </div>
