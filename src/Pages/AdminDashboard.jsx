@@ -268,52 +268,7 @@ export default function AdminDashboard() {
     });
   };
 
-  const autoGeneratePaper = async (scheduledPaper) => {
-    try {
-      const requirements = {
-        oneMarkQuestions: scheduledPaper.oneMarkQuestions || 10,
-        threeMarkQuestions: scheduledPaper.threeMarkQuestions || 5,
-        fiveMarkQuestions: scheduledPaper.fiveMarkQuestions || 5
-      };
-
-      const questions = await loadQuestionsForAutoGeneration(scheduledPaper.subjectCode, requirements);
-
-      if (questions.length === 0) {
-        console.error(`No questions found for subject ${scheduledPaper.subjectCode}`);
-        return;
-      }
-
-      const questionsByMarks = {
-        oneMark: questions.filter(q => q.marks === 1),
-        threeMark: questions.filter(q => q.marks === 3),
-        fiveMark: questions.filter(q => q.marks === 5)
-      };
-
-      const totalMarks = questions.reduce((sum, q) => sum + (parseInt(q.marks) || 0), 0);
-
-      const paperRef = doc(db, "questionPapers", scheduledPaper.id);
-      await updateDoc(paperRef, {
-        status: "generated",
-        questions: questions,
-        totalMarks: totalMarks,
-        marksDistribution: {
-          oneMark: { count: questionsByMarks.oneMark.length, totalMarks: questionsByMarks.oneMark.reduce((sum, q) => sum + (q.marks || 0), 0) },
-          threeMark: { count: questionsByMarks.threeMark.length, totalMarks: questionsByMarks.threeMark.reduce((sum, q) => sum + (q.marks || 0), 0) },
-          fiveMark: { count: questionsByMarks.fiveMark.length, totalMarks: questionsByMarks.fiveMark.reduce((sum, q) => sum + (q.marks || 0), 0) }
-        },
-        generatedAt: serverTimestamp(),
-        visible: true
-      });
-
-      console.log(`Auto-generated paper: ${scheduledPaper.title}`);
-      toast.success(`Auto-generated paper: ${scheduledPaper.title}`);
-
-    } catch (error) {
-      console.error("Error auto-generating paper:", error);
-    }
-  };
-
-  const loadQuestionsForAutoGeneration = async (subjectCode, requirements) => {
+  const getQuestionPoolForAutoGeneration = async (subjectCode) => {
     try {
       const questions = {
         oneMark: [],
@@ -360,21 +315,86 @@ export default function AdminDashboard() {
           });
         }
       });
-
-      const selectedQuestions = [];
-      const shuffledOneMark = [...questions.oneMark].sort(() => Math.random() - 0.5);
-      selectedQuestions.push(...shuffledOneMark.slice(0, requirements.oneMarkQuestions || 0));
-
-      const shuffledThreeMark = [...questions.threeMark].sort(() => Math.random() - 0.5);
-      selectedQuestions.push(...shuffledThreeMark.slice(0, requirements.threeMarkQuestions || 0));
-
-      const shuffledFiveMark = [...questions.fiveMark].sort(() => Math.random() - 0.5);
-      selectedQuestions.push(...shuffledFiveMark.slice(0, requirements.fiveMarkQuestions || 0));
-
-      return selectedQuestions;
+      return questions;
     } catch (error) {
-      console.error("Error loading questions:", error);
-      return [];
+      console.error("Error loading question pool:", error);
+      return { oneMark: [], threeMark: [], fiveMark: [] };
+    }
+  };
+
+  const autoGeneratePaper = async (scheduledPaper) => {
+    try {
+      const requirements = {
+        oneMarkQuestions: scheduledPaper.oneMarkQuestions || 10,
+        threeMarkQuestions: scheduledPaper.threeMarkQuestions || 5,
+        fiveMarkQuestions: scheduledPaper.fiveMarkQuestions || 5
+      };
+
+      // 1. Fetch ALL available questions first
+      const questionPool = await getQuestionPoolForAutoGeneration(scheduledPaper.subjectCode);
+
+      if (questionPool.oneMark.length === 0 && questionPool.threeMark.length === 0 && questionPool.fiveMark.length === 0) {
+        console.error(`No questions found for subject ${scheduledPaper.subjectCode}`);
+        return;
+      }
+
+      // 2. Helper to generate a single paper update/creation
+      const createPaperData = (questions) => {
+        const questionsByMarks = {
+          oneMark: questions.filter(q => q.marks === 1),
+          threeMark: questions.filter(q => q.marks === 3),
+          fiveMark: questions.filter(q => q.marks === 5)
+        };
+        const totalMarks = questions.reduce((sum, q) => sum + (parseInt(q.marks) || 0), 0);
+
+        return {
+          status: "generated",
+          questions: questions,
+          totalMarks: totalMarks,
+          marksDistribution: {
+            oneMark: { count: questionsByMarks.oneMark.length, totalMarks: questionsByMarks.oneMark.reduce((sum, q) => sum + (q.marks || 0), 0) },
+            threeMark: { count: questionsByMarks.threeMark.length, totalMarks: questionsByMarks.threeMark.reduce((sum, q) => sum + (q.marks || 0), 0) },
+            fiveMark: { count: questionsByMarks.fiveMark.length, totalMarks: questionsByMarks.fiveMark.reduce((sum, q) => sum + (q.marks || 0), 0) }
+          },
+          generatedAt: serverTimestamp(),
+          visible: true
+        };
+      };
+
+      // 3. Generate Set A (Update the existing scheduled doc)
+      const questionsA = selectRandomQuestions(requirements, questionPool);
+      const dataA = createPaperData(questionsA);
+
+      const paperRefA = doc(db, "questionPapers", scheduledPaper.id);
+      // Update title to include Set A if not present
+      const titleA = scheduledPaper.title.includes("Set A") ? scheduledPaper.title : `${scheduledPaper.title} - Set A`;
+
+      await updateDoc(paperRefA, {
+        ...dataA,
+        title: titleA
+      });
+
+      // 4. Generate Set B (Create a NEW doc)
+      const questionsB = selectRandomQuestions(requirements, questionPool);
+      const dataB = createPaperData(questionsB);
+
+      const paperB = {
+        ...scheduledPaper,
+        ...dataB,
+        title: scheduledPaper.title.includes("Set A") ? scheduledPaper.title.replace("Set A", "Set B") : `${scheduledPaper.title} - Set B`,
+        status: "generated",
+        createdAt: serverTimestamp() // Set B is created now
+      };
+      // Remove id from spread if it exists, addDoc will generate new one
+      delete paperB.id;
+
+      await addDoc(collection(db, "questionPapers"), paperB);
+
+      console.log(`Auto-generated paper: ${scheduledPaper.title} (Set A & Set B)`);
+      toast.success(`Auto-generated paper: ${scheduledPaper.title} (Set A & Set B)`);
+
+    } catch (error) {
+      console.error("Error auto-generating paper:", error);
     }
   };
 
@@ -806,6 +826,30 @@ export default function AdminDashboard() {
     toast.success("Questions selected for paper!");
   };
 
+  const selectRandomQuestions = (requirements, sourceQuestions) => {
+    const selected = [];
+
+    // 1-mark
+    if (sourceQuestions.oneMark && sourceQuestions.oneMark.length >= requirements.oneMarkQuestions) {
+      const shuffled = [...sourceQuestions.oneMark].sort(() => Math.random() - 0.5);
+      selected.push(...shuffled.slice(0, requirements.oneMarkQuestions));
+    }
+
+    // 3-mark
+    if (sourceQuestions.threeMark && sourceQuestions.threeMark.length >= requirements.threeMarkQuestions) {
+      const shuffled = [...sourceQuestions.threeMark].sort(() => Math.random() - 0.5);
+      selected.push(...shuffled.slice(0, requirements.threeMarkQuestions));
+    }
+
+    // 5-mark
+    if (sourceQuestions.fiveMark && sourceQuestions.fiveMark.length >= requirements.fiveMarkQuestions) {
+      const shuffled = [...sourceQuestions.fiveMark].sort(() => Math.random() - 0.5);
+      selected.push(...shuffled.slice(0, requirements.fiveMarkQuestions));
+    }
+
+    return selected;
+  };
+
   const generatePaperImmediately = async () => {
     if (!paperForm.title || !paperForm.subjectCode || selectedQuestions.length === 0) {
       toast.error("Please fill all fields and select questions");
@@ -815,40 +859,51 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
 
-      // Calculate mark distribution
-      const oneMarkCount = selectedQuestions.filter(q => q.marks === 1).length;
-      const threeMarkCount = selectedQuestions.filter(q => q.marks === 3).length;
-      const fiveMarkCount = selectedQuestions.filter(q => q.marks === 5).length;
+      // Helper to create paper object
+      const createPaperObject = (titleSuffix, questions) => {
+        const oneMarkCount = questions.filter(q => q.marks === 1).length;
+        const threeMarkCount = questions.filter(q => q.marks === 3).length;
+        const fiveMarkCount = questions.filter(q => q.marks === 5).length;
 
-      const newPaper = {
-        title: paperForm.title,
-        subjectCode: paperForm.subjectCode,
-        subjectName: availableSubjects.find(s => s.code === paperForm.subjectCode)?.name || paperForm.subjectCode,
-        examDate: paperForm.examDate,
-        examTime: paperForm.examTime,
-        duration: paperForm.duration,
-        totalQuestions: selectedQuestions.length,
-        totalMarks: selectedQuestions.reduce((sum, q) => sum + (parseInt(q.marks) || 0), 0),
-        questions: selectedQuestions,
-        status: "generated",
-        isAutoGenerated: false,
-        visible: true,
-        createdBy: userData.uid || "admin",
-        createdAt: serverTimestamp(),
-        generatedAt: serverTimestamp(),
-        unitsCovered: Array.from(new Set(selectedQuestions.map(q => q.unit))).sort(),
-        marksDistribution: {
-          oneMark: { count: oneMarkCount, totalMarks: oneMarkCount * 1 },
-          threeMark: { count: threeMarkCount, totalMarks: threeMarkCount * 3 },
-          fiveMark: { count: fiveMarkCount, totalMarks: fiveMarkCount * 5 }
-        }
+        return {
+          title: `${paperForm.title} - ${titleSuffix}`,
+          subjectCode: paperForm.subjectCode,
+          subjectName: availableSubjects.find(s => s.code === paperForm.subjectCode)?.name || paperForm.subjectCode,
+          examDate: paperForm.examDate,
+          examTime: paperForm.examTime,
+          duration: paperForm.duration,
+          totalQuestions: questions.length,
+          totalMarks: questions.reduce((sum, q) => sum + (parseInt(q.marks) || 0), 0),
+          questions: questions,
+          status: "generated",
+          isAutoGenerated: false,
+          visible: true,
+          createdBy: userData.uid || "admin",
+          createdAt: serverTimestamp(),
+          generatedAt: serverTimestamp(),
+          unitsCovered: Array.from(new Set(questions.map(q => q.unit))).sort(),
+          marksDistribution: {
+            oneMark: { count: oneMarkCount, totalMarks: oneMarkCount * 1 },
+            threeMark: { count: threeMarkCount, totalMarks: threeMarkCount * 3 },
+            fiveMark: { count: fiveMarkCount, totalMarks: fiveMarkCount * 5 }
+          }
+        };
       };
 
-      const docRef = await addDoc(collection(db, "questionPapers"), newPaper);
+      // Set A (Using currently selected questions)
+      const paperA = createPaperObject("Set A", selectedQuestions);
 
-      toast.success("Question paper generated successfully!");
+      // Set B (Generate new random set)
+      const questionsB = selectRandomQuestions(paperForm, availableQuestions);
+      const paperB = createPaperObject("Set B", questionsB);
+
+      // Save both
+      await addDoc(collection(db, "questionPapers"), paperA);
+      const docRefB = await addDoc(collection(db, "questionPapers"), paperB);
+
+      toast.success("Question papers (Set A & Set B) generated successfully!");
       setActiveTab("papers");
-      setGeneratedPaper({ ...newPaper, id: docRef.id });
+      setGeneratedPaper({ ...paperB, id: docRefB.id }); // Show Set B or A, doesn't matter much
 
     } catch (error) {
       console.error("Error generating paper:", error);

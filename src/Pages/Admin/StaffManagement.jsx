@@ -22,7 +22,7 @@ export default function StaffManagement({
 }) {
     const [searchTerm, setSearchTerm] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 8;
+    const itemsPerPage = 5;
 
     // Filter Logic
     const filteredStaff = useMemo(() => {

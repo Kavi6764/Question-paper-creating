@@ -1,6 +1,5 @@
-
-import React from 'react';
-import { FileText, Calendar, Clock, Eye, Printer, EyeOff, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { FileText, Calendar, Clock, Eye, Printer, EyeOff, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../../fireBaseConfig';
@@ -15,17 +14,40 @@ export default function GeneratedPapers({
     generatedPaper,
     formatDateTime
 }) {
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
+
+    // Filter logic
+    const filteredPapers = questionPapers.filter(paper => paper.status === "generated");
+
+    // Pagination logic
+    const totalPages = Math.ceil(filteredPapers.length / itemsPerPage);
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentPapers = filteredPapers.slice(indexOfFirstItem, indexOfLastItem);
+
+    // Reset to page 1 if papers change significantly (optional, but good practice)
+    React.useEffect(() => {
+        if (currentPage > totalPages && totalPages > 0) {
+            setCurrentPage(1);
+        }
+    }, [filteredPapers.length]);
+
+
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Generated Question Papers</h2>
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Generated Question Papers</h2>
+                    <p className="text-sm text-gray-500 mt-1">{filteredPapers.length} papers generated</p>
+                </div>
                 <button onClick={() => setActiveTab("generate")} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
                     <FileText className="w-4 h-4" /> Generate New Paper
                 </button>
             </div>
 
             <div className="space-y-4">
-                {questionPapers.filter(paper => paper.status === "generated").map(paper => (
+                {currentPapers.map(paper => (
                     <div key={paper.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition">
                         <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -141,7 +163,7 @@ export default function GeneratedPapers({
                     </div>
                 ))}
 
-                {questionPapers.filter(paper => paper.status === "generated").length === 0 && (
+                {filteredPapers.length === 0 && (
                     <div className="text-center py-12 text-gray-500">
                         <FileText className="w-12 h-12 mx-auto text-gray-300 mb-3" />
                         <p className="text-lg font-medium">No generated papers yet</p>
@@ -152,6 +174,31 @@ export default function GeneratedPapers({
                     </div>
                 )}
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
+                    <p className="text-sm text-gray-500">
+                        Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredPapers.length)} of {filteredPapers.length} papers
+                    </p>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <ChevronRight className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* PAPER PREVIEW MODAL */}
             {showPreview && generatedPaper && (

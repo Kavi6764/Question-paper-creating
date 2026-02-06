@@ -1,5 +1,5 @@
-import React from 'react';
-import { Book, FolderPlus, Edit, Trash2, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { Book, FolderPlus, Edit, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function SubjectManagement({
     allSubjects,
@@ -15,10 +15,26 @@ export default function SubjectManagement({
     handleEditSubject,
     handleDeleteSubject
 }) {
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
+
+    // Filter Logic (Prepared for future use, currently passes all)
+    const filteredSubjects = allSubjects;
+
+    // Pagination Logic
+    const totalPages = Math.ceil(filteredSubjects.length / itemsPerPage);
+    const displayedSubjects = filteredSubjects.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Subject Management</h2>
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Subject Management</h2>
+                    <p className="text-sm text-gray-500 mt-1">{allSubjects.length} total subjects</p>
+                </div>
                 <button onClick={() => setShowAddSubject(true)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
                     <FolderPlus className="w-4 h-4" /> Add Subject
                 </button>
@@ -90,7 +106,7 @@ export default function SubjectManagement({
 
             {/* Subjects List */}
             <div className="space-y-4">
-                {allSubjects.map((subject) => (
+                {displayedSubjects.map((subject) => (
                     <div key={subject.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition">
                         <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -145,6 +161,31 @@ export default function SubjectManagement({
                     </div>
                 )}
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
+                    <p className="text-sm text-gray-500">
+                        Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, allSubjects.length)} of {allSubjects.length} subjects
+                    </p>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <ChevronRight className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

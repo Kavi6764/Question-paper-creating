@@ -1,21 +1,37 @@
-import React from 'react';
-import { Plus, CheckCircle, Clock } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, CheckCircle, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function ScheduledPapers({
     scheduledPapers,
     setActiveTab
 }) {
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
+
+    // Filter Logic
+    const filteredPapers = scheduledPapers;
+
+    // Pagination Logic
+    const totalPages = Math.ceil(filteredPapers.length / itemsPerPage);
+    const displayedPapers = filteredPapers.slice(
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
+
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Scheduled Paper Generation</h2>
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-900">Scheduled Paper Generation</h2>
+                    <p className="text-sm text-gray-500 mt-1">{scheduledPapers.length} scheduled papers</p>
+                </div>
                 <button onClick={() => setActiveTab("generate")} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
                     <Plus className="w-4 h-4" /> Schedule New Paper
                 </button>
             </div>
 
             <div className="space-y-4">
-                {scheduledPapers.map(paper => (
+                {displayedPapers.map(paper => (
                     <div key={paper.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition">
                         <div className="flex items-center justify-between">
                             <div className="flex-1">
@@ -61,6 +77,31 @@ export default function ScheduledPapers({
                     </div>
                 )}
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-100">
+                    <p className="text-sm text-gray-500">
+                        Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, scheduledPapers.length)} of {scheduledPapers.length} scheduled papers
+                    </p>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <ChevronRight className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
