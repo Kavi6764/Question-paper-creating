@@ -314,8 +314,15 @@ export default function StaffDashboard() {
         try {
             const data = await file.arrayBuffer();
             const workbook = XLSX.read(data);
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const rows = XLSX.utils.sheet_to_json(sheet);
+
+            let allRows = [];
+            workbook.SheetNames.forEach(sheetName => {
+                const sheet = workbook.Sheets[sheetName];
+                const sheetRows = XLSX.utils.sheet_to_json(sheet);
+                allRows = [...allRows, ...sheetRows];
+            });
+
+            const rows = allRows;
 
             const previewRows = rows.slice(0, 10).map((row, index) => ({
                 id: index + 1,
@@ -382,19 +389,24 @@ export default function StaffDashboard() {
 
             const data = await file.arrayBuffer();
             const workbook = XLSX.read(data);
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const rows = XLSX.utils.sheet_to_json(sheet);
-
             setUploadProgress(50);
 
+            // Read all sheets
+            let allRows = [];
+            workbook.SheetNames.forEach(sheetName => {
+                const sheet = workbook.Sheets[sheetName];
+                const sheetRows = XLSX.utils.sheet_to_json(sheet);
+                allRows = [...allRows, ...sheetRows];
+            });
+
             // Filter questions for selected unit only
-            const unitQuestions = rows
+            const unitQuestions = allRows
                 .filter((row) => Number(row.Unit) === Number(unit))
                 .map((row, index) => ({
-                    id: `${subjectCode}-U${unit}-Q${index + 1}-${Date.now()}`,
+                    id: `${subjectCode}-U${unit}-Q${index + 1}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
                     questionNo: row.QuestionNo || `Q${index + 1}`,
                     question: row.Question,
-                    marks: row.Marks,
+                    marks: Number(row.Marks),
                     difficulty: row.Difficulty || "Medium",
                     unit: Number(unit),
                     uploadedAt: Date.now(),
@@ -408,6 +420,15 @@ export default function StaffDashboard() {
             if (unitQuestions.length === 0) {
                 clearInterval(progressInterval);
                 toast.error(`No questions found for Unit ${unit} in the uploaded file`);
+                setUploadStatus("error");
+                return;
+            }
+
+            // Validate Marks
+            const invalidQuestions = unitQuestions.filter(q => ![2, 4, 6, 8].includes(q.marks));
+            if (invalidQuestions.length > 0) {
+                clearInterval(progressInterval);
+                toast.error(`Found ${invalidQuestions.length} questions with invalid marks. Allowed marks: 2, 4, 6, 8.`);
                 setUploadStatus("error");
                 return;
             }

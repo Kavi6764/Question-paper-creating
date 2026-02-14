@@ -93,20 +93,22 @@ export default function AdminDashboard() {
     examDate: "",
     examTime: "09:30",
     duration: 3,
-    oneMarkQuestions: 10,
-    threeMarkQuestions: 5,
-    fiveMarkQuestions: 5,
-    totalQuestions: 20,
-    totalMarks: 50,
+    twoMarkQuestions: 5,
+    fourMarkQuestions: 5,
+    sixMarkQuestions: 3,
+    eightMarkQuestions: 2,
+    totalQuestions: 15,
+    totalMarks: 64,
     generationTime: "",
     generationDate: ""
   });
 
   const [selectedQuestions, setSelectedQuestions] = useState([]);
   const [availableQuestions, setAvailableQuestions] = useState({
-    oneMark: [],
-    threeMark: [],
-    fiveMark: []
+    twoMark: [],
+    fourMark: [],
+    sixMark: [],
+    eightMark: []
   });
   const [generatedPaper, setGeneratedPaper] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -114,9 +116,10 @@ export default function AdminDashboard() {
 
   // Stats for available questions
   const [questionStats, setQuestionStats] = useState({
-    oneMark: { total: 0, available: 0 },
-    threeMark: { total: 0, available: 0 },
-    fiveMark: { total: 0, available: 0 }
+    twoMark: { total: 0, available: 0 },
+    fourMark: { total: 0, available: 0 },
+    sixMark: { total: 0, available: 0 },
+    eightMark: { total: 0, available: 0 }
   });
 
 
@@ -241,15 +244,15 @@ export default function AdminDashboard() {
 
   // Calculate total questions and marks
   useEffect(() => {
-    const totalQuestions = paperForm.oneMarkQuestions + paperForm.threeMarkQuestions + paperForm.fiveMarkQuestions;
-    const totalMarks = (paperForm.oneMarkQuestions * 1) + (paperForm.threeMarkQuestions * 3) + (paperForm.fiveMarkQuestions * 5);
+    const totalQuestions = paperForm.twoMarkQuestions + paperForm.fourMarkQuestions + paperForm.sixMarkQuestions + paperForm.eightMarkQuestions;
+    const totalMarks = (paperForm.twoMarkQuestions * 2) + (paperForm.fourMarkQuestions * 4) + (paperForm.sixMarkQuestions * 6) + (paperForm.eightMarkQuestions * 8);
 
     setPaperForm(prev => ({
       ...prev,
       totalQuestions,
       totalMarks
     }));
-  }, [paperForm.oneMarkQuestions, paperForm.threeMarkQuestions, paperForm.fiveMarkQuestions]);
+  }, [paperForm.twoMarkQuestions, paperForm.fourMarkQuestions, paperForm.sixMarkQuestions, paperForm.eightMarkQuestions]);
 
   // Check scheduled papers
   const checkScheduledPapers = (scheduledPapers) => {
@@ -271,9 +274,10 @@ export default function AdminDashboard() {
   const getQuestionPoolForAutoGeneration = async (subjectCode) => {
     try {
       const questions = {
-        oneMark: [],
-        threeMark: [],
-        fiveMark: []
+        twoMark: [],
+        fourMark: [],
+        sixMark: [],
+        eightMark: []
       };
 
       const subjectsQuery = query(
@@ -301,15 +305,11 @@ export default function AdminDashboard() {
                   dbId: doc.id
                 };
 
-                if (q.marks === 1) {
-                  questions.oneMark.push(question);
-                } else if (q.marks === 3) {
-                  questions.threeMark.push(question);
-                } else if (q.marks === 5) {
-                  questions.fiveMark.push(question);
-                } else {
-                  questions.oneMark.push({ ...question, marks: 1 });
-                }
+                const marks = parseInt(q.marks) || 0;
+                if (marks === 2) questions.twoMark.push(question);
+                else if (marks === 4) questions.fourMark.push(question);
+                else if (marks === 6) questions.sixMark.push(question);
+                else if (marks === 8) questions.eightMark.push(question);
               });
             }
           });
@@ -318,22 +318,23 @@ export default function AdminDashboard() {
       return questions;
     } catch (error) {
       console.error("Error loading question pool:", error);
-      return { oneMark: [], threeMark: [], fiveMark: [] };
+      return { twoMark: [], fourMark: [], sixMark: [], eightMark: [] };
     }
   };
 
   const autoGeneratePaper = async (scheduledPaper) => {
     try {
       const requirements = {
-        oneMarkQuestions: scheduledPaper.oneMarkQuestions || 10,
-        threeMarkQuestions: scheduledPaper.threeMarkQuestions || 5,
-        fiveMarkQuestions: scheduledPaper.fiveMarkQuestions || 5
+        twoMarkQuestions: scheduledPaper.twoMarkQuestions || 0,
+        fourMarkQuestions: scheduledPaper.fourMarkQuestions || 0,
+        sixMarkQuestions: scheduledPaper.sixMarkQuestions || 0,
+        eightMarkQuestions: scheduledPaper.eightMarkQuestions || 0
       };
 
       // 1. Fetch ALL available questions first
       const questionPool = await getQuestionPoolForAutoGeneration(scheduledPaper.subjectCode);
 
-      if (questionPool.oneMark.length === 0 && questionPool.threeMark.length === 0 && questionPool.fiveMark.length === 0) {
+      if (questionPool.twoMark.length === 0 && questionPool.fourMark.length === 0 && questionPool.sixMark.length === 0 && questionPool.eightMark.length === 0) {
         console.error(`No questions found for subject ${scheduledPaper.subjectCode}`);
         return;
       }
@@ -341,9 +342,10 @@ export default function AdminDashboard() {
       // 2. Helper to generate a single paper update/creation
       const createPaperData = (questions) => {
         const questionsByMarks = {
-          oneMark: questions.filter(q => q.marks === 1),
-          threeMark: questions.filter(q => q.marks === 3),
-          fiveMark: questions.filter(q => q.marks === 5)
+          twoMark: questions.filter(q => q.marks === 2),
+          fourMark: questions.filter(q => q.marks === 4),
+          sixMark: questions.filter(q => q.marks === 6),
+          eightMark: questions.filter(q => q.marks === 8)
         };
         const totalMarks = questions.reduce((sum, q) => sum + (parseInt(q.marks) || 0), 0);
 
@@ -352,9 +354,10 @@ export default function AdminDashboard() {
           questions: questions,
           totalMarks: totalMarks,
           marksDistribution: {
-            oneMark: { count: questionsByMarks.oneMark.length, totalMarks: questionsByMarks.oneMark.reduce((sum, q) => sum + (q.marks || 0), 0) },
-            threeMark: { count: questionsByMarks.threeMark.length, totalMarks: questionsByMarks.threeMark.reduce((sum, q) => sum + (q.marks || 0), 0) },
-            fiveMark: { count: questionsByMarks.fiveMark.length, totalMarks: questionsByMarks.fiveMark.reduce((sum, q) => sum + (q.marks || 0), 0) }
+            twoMark: { count: questionsByMarks.twoMark.length, totalMarks: questionsByMarks.twoMark.reduce((sum, q) => sum + (q.marks || 0), 0) },
+            fourMark: { count: questionsByMarks.fourMark.length, totalMarks: questionsByMarks.fourMark.reduce((sum, q) => sum + (q.marks || 0), 0) },
+            sixMark: { count: questionsByMarks.sixMark.length, totalMarks: questionsByMarks.sixMark.reduce((sum, q) => sum + (q.marks || 0), 0) },
+            eightMark: { count: questionsByMarks.eightMark.length, totalMarks: questionsByMarks.eightMark.reduce((sum, q) => sum + (q.marks || 0), 0) }
           },
           generatedAt: serverTimestamp(),
           visible: true
@@ -719,9 +722,10 @@ export default function AdminDashboard() {
   // PAPER GENERATION LOGIC
   const prepareQuestionStats = (questions) => {
     const stats = {
-      oneMark: { total: questions.oneMark.length, available: questions.oneMark.length },
-      threeMark: { total: questions.threeMark.length, available: questions.threeMark.length },
-      fiveMark: { total: questions.fiveMark.length, available: questions.fiveMark.length }
+      twoMark: { total: questions.twoMark.length, available: questions.twoMark.length },
+      fourMark: { total: questions.fourMark.length, available: questions.fourMark.length },
+      sixMark: { total: questions.sixMark.length, available: questions.sixMark.length },
+      eightMark: { total: questions.eightMark.length, available: questions.eightMark.length }
     };
     setQuestionStats(stats);
   };
@@ -730,9 +734,10 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
       const questions = {
-        oneMark: [],
-        threeMark: [],
-        fiveMark: []
+        twoMark: [],
+        fourMark: [],
+        sixMark: [],
+        eightMark: []
       };
 
       const subjectsQuery = query(
@@ -760,15 +765,11 @@ export default function AdminDashboard() {
                   dbId: doc.id
                 };
 
-                if (q.marks === 1) {
-                  questions.oneMark.push(question);
-                } else if (q.marks === 3) {
-                  questions.threeMark.push(question);
-                } else if (q.marks === 5) {
-                  questions.fiveMark.push(question);
-                } else {
-                  questions.oneMark.push({ ...question, marks: 1 });
-                }
+                const marks = parseInt(q.marks) || 0;
+                if (marks === 2) questions.twoMark.push(question);
+                else if (marks === 4) questions.fourMark.push(question);
+                else if (marks === 6) questions.sixMark.push(question);
+                else if (marks === 8) questions.eightMark.push(question);
               });
             }
           });
@@ -791,31 +792,40 @@ export default function AdminDashboard() {
     const selected = [];
     let hasError = false;
 
-    // 1-mark questions
-    if (availableQuestions.oneMark.length < paperForm.oneMarkQuestions) {
-      toast.error(`Not enough 1-mark questions! Need ${paperForm.oneMarkQuestions}, have ${availableQuestions.oneMark.length}`);
+    // 2-mark questions
+    if (availableQuestions.twoMark.length < paperForm.twoMarkQuestions) {
+      toast.error(`Not enough 2-mark questions! Need ${paperForm.twoMarkQuestions}, have ${availableQuestions.twoMark.length}`);
       hasError = true;
     } else {
-      const shuffled = [...availableQuestions.oneMark].sort(() => Math.random() - 0.5);
-      selected.push(...shuffled.slice(0, paperForm.oneMarkQuestions));
+      const shuffled = [...availableQuestions.twoMark].sort(() => Math.random() - 0.5);
+      selected.push(...shuffled.slice(0, paperForm.twoMarkQuestions));
     }
 
-    // 3-mark questions
-    if (availableQuestions.threeMark.length < paperForm.threeMarkQuestions) {
-      toast.error(`Not enough 3-mark questions! Need ${paperForm.threeMarkQuestions}, have ${availableQuestions.threeMark.length}`);
+    // 4-mark questions
+    if (availableQuestions.fourMark.length < paperForm.fourMarkQuestions) {
+      toast.error(`Not enough 4-mark questions! Need ${paperForm.fourMarkQuestions}, have ${availableQuestions.fourMark.length}`);
       hasError = true;
     } else {
-      const shuffled = [...availableQuestions.threeMark].sort(() => Math.random() - 0.5);
-      selected.push(...shuffled.slice(0, paperForm.threeMarkQuestions));
+      const shuffled = [...availableQuestions.fourMark].sort(() => Math.random() - 0.5);
+      selected.push(...shuffled.slice(0, paperForm.fourMarkQuestions));
     }
 
-    // 5-mark questions
-    if (availableQuestions.fiveMark.length < paperForm.fiveMarkQuestions) {
-      toast.error(`Not enough 5-mark questions! Need ${paperForm.fiveMarkQuestions}, have ${availableQuestions.fiveMark.length}`);
+    // 6-mark questions
+    if (availableQuestions.sixMark.length < paperForm.sixMarkQuestions) {
+      toast.error(`Not enough 6-mark questions! Need ${paperForm.sixMarkQuestions}, have ${availableQuestions.sixMark.length}`);
       hasError = true;
     } else {
-      const shuffled = [...availableQuestions.fiveMark].sort(() => Math.random() - 0.5);
-      selected.push(...shuffled.slice(0, paperForm.fiveMarkQuestions));
+      const shuffled = [...availableQuestions.sixMark].sort(() => Math.random() - 0.5);
+      selected.push(...shuffled.slice(0, paperForm.sixMarkQuestions));
+    }
+
+    // 8-mark questions
+    if (availableQuestions.eightMark.length < paperForm.eightMarkQuestions) {
+      toast.error(`Not enough 8-mark questions! Need ${paperForm.eightMarkQuestions}, have ${availableQuestions.eightMark.length}`);
+      hasError = true;
+    } else {
+      const shuffled = [...availableQuestions.eightMark].sort(() => Math.random() - 0.5);
+      selected.push(...shuffled.slice(0, paperForm.eightMarkQuestions));
     }
 
     if (hasError) {
@@ -829,22 +839,28 @@ export default function AdminDashboard() {
   const selectRandomQuestions = (requirements, sourceQuestions) => {
     const selected = [];
 
-    // 1-mark
-    if (sourceQuestions.oneMark && sourceQuestions.oneMark.length >= requirements.oneMarkQuestions) {
-      const shuffled = [...sourceQuestions.oneMark].sort(() => Math.random() - 0.5);
-      selected.push(...shuffled.slice(0, requirements.oneMarkQuestions));
+    // 2-mark
+    if (sourceQuestions.twoMark && sourceQuestions.twoMark.length >= requirements.twoMarkQuestions) {
+      const shuffled = [...sourceQuestions.twoMark].sort(() => Math.random() - 0.5);
+      selected.push(...shuffled.slice(0, requirements.twoMarkQuestions));
     }
 
-    // 3-mark
-    if (sourceQuestions.threeMark && sourceQuestions.threeMark.length >= requirements.threeMarkQuestions) {
-      const shuffled = [...sourceQuestions.threeMark].sort(() => Math.random() - 0.5);
-      selected.push(...shuffled.slice(0, requirements.threeMarkQuestions));
+    // 4-mark
+    if (sourceQuestions.fourMark && sourceQuestions.fourMark.length >= requirements.fourMarkQuestions) {
+      const shuffled = [...sourceQuestions.fourMark].sort(() => Math.random() - 0.5);
+      selected.push(...shuffled.slice(0, requirements.fourMarkQuestions));
     }
 
-    // 5-mark
-    if (sourceQuestions.fiveMark && sourceQuestions.fiveMark.length >= requirements.fiveMarkQuestions) {
-      const shuffled = [...sourceQuestions.fiveMark].sort(() => Math.random() - 0.5);
-      selected.push(...shuffled.slice(0, requirements.fiveMarkQuestions));
+    // 6-mark
+    if (sourceQuestions.sixMark && sourceQuestions.sixMark.length >= requirements.sixMarkQuestions) {
+      const shuffled = [...sourceQuestions.sixMark].sort(() => Math.random() - 0.5);
+      selected.push(...shuffled.slice(0, requirements.sixMarkQuestions));
+    }
+
+    // 8-mark
+    if (sourceQuestions.eightMark && sourceQuestions.eightMark.length >= requirements.eightMarkQuestions) {
+      const shuffled = [...sourceQuestions.eightMark].sort(() => Math.random() - 0.5);
+      selected.push(...shuffled.slice(0, requirements.eightMarkQuestions));
     }
 
     return selected;
@@ -861,9 +877,10 @@ export default function AdminDashboard() {
 
       // Helper to create paper object
       const createPaperObject = (titleSuffix, questions) => {
-        const oneMarkCount = questions.filter(q => q.marks === 1).length;
-        const threeMarkCount = questions.filter(q => q.marks === 3).length;
-        const fiveMarkCount = questions.filter(q => q.marks === 5).length;
+        const twoMarkCount = questions.filter(q => q.marks === 2).length;
+        const fourMarkCount = questions.filter(q => q.marks === 4).length;
+        const sixMarkCount = questions.filter(q => q.marks === 6).length;
+        const eightMarkCount = questions.filter(q => q.marks === 8).length;
 
         return {
           title: `${paperForm.title} - ${titleSuffix}`,
@@ -883,9 +900,10 @@ export default function AdminDashboard() {
           generatedAt: serverTimestamp(),
           unitsCovered: Array.from(new Set(questions.map(q => q.unit))).sort(),
           marksDistribution: {
-            oneMark: { count: oneMarkCount, totalMarks: oneMarkCount * 1 },
-            threeMark: { count: threeMarkCount, totalMarks: threeMarkCount * 3 },
-            fiveMark: { count: fiveMarkCount, totalMarks: fiveMarkCount * 5 }
+            twoMark: { count: twoMarkCount, totalMarks: twoMarkCount * 2 },
+            fourMark: { count: fourMarkCount, totalMarks: fourMarkCount * 4 },
+            sixMark: { count: sixMarkCount, totalMarks: sixMarkCount * 6 },
+            eightMark: { count: eightMarkCount, totalMarks: eightMarkCount * 8 }
           }
         };
       };
@@ -929,9 +947,10 @@ export default function AdminDashboard() {
         examDate: paperForm.examDate,
         examTime: paperForm.examTime,
         duration: paperForm.duration,
-        oneMarkQuestions: paperForm.oneMarkQuestions,
-        threeMarkQuestions: paperForm.threeMarkQuestions,
-        fiveMarkQuestions: paperForm.fiveMarkQuestions,
+        twoMarkQuestions: paperForm.twoMarkQuestions,
+        fourMarkQuestions: paperForm.fourMarkQuestions,
+        sixMarkQuestions: paperForm.sixMarkQuestions,
+        eightMarkQuestions: paperForm.eightMarkQuestions,
         totalQuestions: paperForm.totalQuestions,
         totalMarks: paperForm.totalMarks,
         generationDate: paperForm.generationDate,

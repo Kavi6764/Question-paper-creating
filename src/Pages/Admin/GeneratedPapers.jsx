@@ -85,9 +85,10 @@ export default function GeneratedPapers({
                                 </div>
                                 {paper.marksDistribution && (
                                     <div className="mt-2 text-xs text-gray-600">
-                                        <span className="mr-3">1-mark: {paper.marksDistribution.oneMark?.count || 0}</span>
-                                        <span className="mr-3">3-mark: {paper.marksDistribution.threeMark?.count || 0}</span>
-                                        <span>5-mark: {paper.marksDistribution.fiveMark?.count || 0}</span>
+                                        <span className="mr-3">2-mark: {paper.marksDistribution.twoMark?.count || 0}</span>
+                                        <span className="mr-3">4-mark: {paper.marksDistribution.fourMark?.count || 0}</span>
+                                        <span className="mr-3">6-mark: {paper.marksDistribution.sixMark?.count || 0}</span>
+                                        <span>8-mark: {paper.marksDistribution.eightMark?.count || 0}</span>
                                     </div>
                                 )}
                                 {paper.generatedAt && (
@@ -246,21 +247,26 @@ export default function GeneratedPapers({
                             {generatedPaper.marksDistribution && (
                                 <div className="mb-6 p-4 bg-blue-50 rounded-lg">
                                     <h3 className="font-semibold text-gray-900 mb-2">Mark Distribution</h3>
-                                    <div className="grid grid-cols-3 gap-4 text-center">
+                                    <div className="grid grid-cols-4 gap-4 text-center">
                                         <div>
-                                            <p className="text-sm text-gray-600">1-Mark Questions</p>
-                                            <p className="text-lg font-semibold text-gray-900">{generatedPaper.marksDistribution.oneMark?.count || 0}</p>
-                                            <p className="text-xs text-gray-500">{generatedPaper.marksDistribution.oneMark?.totalMarks || 0} marks</p>
+                                            <p className="text-sm text-gray-600">2-Mark Questions</p>
+                                            <p className="text-lg font-semibold text-gray-900">{generatedPaper.marksDistribution.twoMark?.count || 0}</p>
+                                            <p className="text-xs text-gray-500">{generatedPaper.marksDistribution.twoMark?.totalMarks || 0} marks</p>
                                         </div>
                                         <div>
-                                            <p className="text-sm text-gray-600">3-Mark Questions</p>
-                                            <p className="text-lg font-semibold text-gray-900">{generatedPaper.marksDistribution.threeMark?.count || 0}</p>
-                                            <p className="text-xs text-gray-500">{generatedPaper.marksDistribution.threeMark?.totalMarks || 0} marks</p>
+                                            <p className="text-sm text-gray-600">4-Mark Questions</p>
+                                            <p className="text-lg font-semibold text-gray-900">{generatedPaper.marksDistribution.fourMark?.count || 0}</p>
+                                            <p className="text-xs text-gray-500">{generatedPaper.marksDistribution.fourMark?.totalMarks || 0} marks</p>
                                         </div>
                                         <div>
-                                            <p className="text-sm text-gray-600">5-Mark Questions</p>
-                                            <p className="text-lg font-semibold text-gray-900">{generatedPaper.marksDistribution.fiveMark?.count || 0}</p>
-                                            <p className="text-xs text-gray-500">{generatedPaper.marksDistribution.fiveMark?.totalMarks || 0} marks</p>
+                                            <p className="text-sm text-gray-600">6-Mark Questions</p>
+                                            <p className="text-lg font-semibold text-gray-900">{generatedPaper.marksDistribution.sixMark?.count || 0}</p>
+                                            <p className="text-xs text-gray-500">{generatedPaper.marksDistribution.sixMark?.totalMarks || 0} marks</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm text-gray-600">8-Mark Questions</p>
+                                            <p className="text-lg font-semibold text-gray-900">{generatedPaper.marksDistribution.eightMark?.count || 0}</p>
+                                            <p className="text-xs text-gray-500">{generatedPaper.marksDistribution.eightMark?.totalMarks || 0} marks</p>
                                         </div>
                                     </div>
                                 </div>
@@ -288,9 +294,10 @@ export default function GeneratedPapers({
                                         <div className="flex justify-between items-start mb-3">
                                             <div className="flex items-center gap-3">
                                                 <span className="font-bold text-lg">Q{index + 1}.</span>
-                                                <span className={`text-sm px-3 py-1 rounded-full ${question.marks === 1 ? 'bg-blue-100 text-blue-800' :
-                                                    question.marks === 3 ? 'bg-green-100 text-green-800' :
-                                                        'bg-purple-100 text-purple-800'
+                                                <span className={`text-sm px-3 py-1 rounded-full ${question.marks === 2 ? 'bg-blue-100 text-blue-800' :
+                                                    question.marks === 4 ? 'bg-green-100 text-green-800' :
+                                                        question.marks === 6 ? 'bg-purple-100 text-purple-800' :
+                                                            'bg-orange-100 text-orange-800'
                                                     }`}>
                                                     {question.marks || 0} Mark{question.marks !== 1 ? 's' : ''}
                                                 </span>

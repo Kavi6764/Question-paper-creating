@@ -6,26 +6,41 @@ import * as XLSX from "xlsx";
 export default function FilePreview({ file, previewData, previewPage, setPreviewPage, totalPreviewPages, paginatedPreview }) {
 
     const downloadTemplate = () => {
-        const templateData = [
-            {
-                QuestionNo: "Q1",
-                Question: "What is React?",
-                Marks: 5,
-                Difficulty: "Medium",
-                Unit: 1
-            },
-            {
-                QuestionNo: "Q2",
-                Question: "Explain component lifecycle",
-                Marks: 10,
-                Difficulty: "Hard",
-                Unit: 1
-            }
+        // Sample data for each mark category
+        const twoMarkData = [
+            { QuestionNo: "Q1", Question: "Define React?", Marks: 2, Difficulty: "Easy", Unit: 1 },
+            { QuestionNo: "Q2", Question: "What is JSX?", Marks: 2, Difficulty: "Easy", Unit: 1 }
         ];
 
-        const ws = XLSX.utils.json_to_sheet(templateData);
+        const fourMarkData = [
+            { QuestionNo: "Q1", Question: "Explain component lifecycle", Marks: 4, Difficulty: "Medium", Unit: 1 },
+            { QuestionNo: "Q2", Question: "Explain Props vs State", Marks: 4, Difficulty: "Medium", Unit: 1 }
+        ];
+
+        const sixMarkData = [
+            { QuestionNo: "Q1", Question: "Explain Hooks in detail", Marks: 6, Difficulty: "Hard", Unit: 1 },
+            { QuestionNo: "Q2", Question: "Explain Context API", Marks: 6, Difficulty: "Hard", Unit: 1 }
+        ];
+
+        const eightMarkData = [
+            { QuestionNo: "Q1", Question: "Explain Redux Architecture", Marks: 8, Difficulty: "Hard", Unit: 1 },
+            { QuestionNo: "Q2", Question: "Explain SSR vs CSR", Marks: 8, Difficulty: "Hard", Unit: 1 }
+        ];
+
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Questions");
+
+        // Add sheets for each mark category
+        const ws2 = XLSX.utils.json_to_sheet(twoMarkData);
+        XLSX.utils.book_append_sheet(wb, ws2, "2 Marks");
+
+        const ws4 = XLSX.utils.json_to_sheet(fourMarkData);
+        XLSX.utils.book_append_sheet(wb, ws4, "4 Marks");
+
+        const ws6 = XLSX.utils.json_to_sheet(sixMarkData);
+        XLSX.utils.book_append_sheet(wb, ws6, "6 Marks");
+
+        const ws8 = XLSX.utils.json_to_sheet(eightMarkData);
+        XLSX.utils.book_append_sheet(wb, ws8, "8 Marks");
         XLSX.writeFile(wb, "question_template.xlsx");
         toast.success("Template downloaded!");
     };

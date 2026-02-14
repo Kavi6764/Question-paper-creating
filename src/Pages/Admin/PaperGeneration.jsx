@@ -37,11 +37,12 @@ export default function PaperGeneration({
                             if (e.target.value) {
                                 loadQuestionsForSubject(e.target.value);
                             } else {
-                                setAvailableQuestions({ oneMark: [], threeMark: [], fiveMark: [] });
+                                setAvailableQuestions({ twoMark: [], fourMark: [], sixMark: [], eightMark: [] });
                                 setQuestionStats({
-                                    oneMark: { total: 0, available: 0 },
-                                    threeMark: { total: 0, available: 0 },
-                                    fiveMark: { total: 0, available: 0 }
+                                    twoMark: { total: 0, available: 0 },
+                                    fourMark: { total: 0, available: 0 },
+                                    sixMark: { total: 0, available: 0 },
+                                    eightMark: { total: 0, available: 0 }
                                 });
                             }
                         }} className="w-full border border-gray-300 rounded-lg px-4 py-2">
@@ -76,68 +77,90 @@ export default function PaperGeneration({
                         <h3 className="font-semibold text-gray-900">Question Configuration by Marks</h3>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {/* 1-Mark Questions */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* 2-Mark Questions */}
                         <div className="bg-white p-4 rounded-lg border border-gray-200">
                             <div className="flex items-center justify-between mb-2">
-                                <label className="block text-sm font-medium text-gray-700">1-Mark Questions</label>
-                                <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-800">1 mark each</span>
+                                <label className="block text-sm font-medium text-gray-700">2-Mark Questions</label>
+                                <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-800">2 marks each</span>
                             </div>
                             <input
                                 type="number"
                                 min="0"
                                 max="50"
-                                value={paperForm.oneMarkQuestions}
-                                onChange={(e) => setPaperForm({ ...paperForm, oneMarkQuestions: parseInt(e.target.value) || 0 })}
+                                value={paperForm.twoMarkQuestions}
+                                onChange={(e) => setPaperForm({ ...paperForm, twoMarkQuestions: parseInt(e.target.value) || 0 })}
                                 className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-2"
                             />
                             <div className="text-xs text-gray-600">
-                                Available: {questionStats.oneMark.available}/{questionStats.oneMark.total}
-                                {questionStats.oneMark.available < paperForm.oneMarkQuestions && (
+                                Available: {questionStats.twoMark.available}/{questionStats.twoMark.total}
+                                {questionStats.twoMark.available < paperForm.twoMarkQuestions && (
                                     <span className="text-red-600 ml-2">Insufficient!</span>
                                 )}
                             </div>
                         </div>
 
-                        {/* 3-Mark Questions */}
+                        {/* 4-Mark Questions */}
                         <div className="bg-white p-4 rounded-lg border border-gray-200">
                             <div className="flex items-center justify-between mb-2">
-                                <label className="block text-sm font-medium text-gray-700">3-Mark Questions</label>
-                                <span className="text-xs px-2 py-1 rounded bg-green-100 text-green-800">3 marks each</span>
+                                <label className="block text-sm font-medium text-gray-700">4-Mark Questions</label>
+                                <span className="text-xs px-2 py-1 rounded bg-green-100 text-green-800">4 marks each</span>
                             </div>
                             <input
                                 type="number"
                                 min="0"
                                 max="50"
-                                value={paperForm.threeMarkQuestions}
-                                onChange={(e) => setPaperForm({ ...paperForm, threeMarkQuestions: parseInt(e.target.value) || 0 })}
+                                value={paperForm.fourMarkQuestions}
+                                onChange={(e) => setPaperForm({ ...paperForm, fourMarkQuestions: parseInt(e.target.value) || 0 })}
                                 className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-2"
                             />
                             <div className="text-xs text-gray-600">
-                                Available: {questionStats.threeMark.available}/{questionStats.threeMark.total}
-                                {questionStats.threeMark.available < paperForm.threeMarkQuestions && (
+                                Available: {questionStats.fourMark.available}/{questionStats.fourMark.total}
+                                {questionStats.fourMark.available < paperForm.fourMarkQuestions && (
                                     <span className="text-red-600 ml-2">Insufficient!</span>
                                 )}
                             </div>
                         </div>
 
-                        {/* 5-Mark Questions */}
+                        {/* 6-Mark Questions */}
                         <div className="bg-white p-4 rounded-lg border border-gray-200">
                             <div className="flex items-center justify-between mb-2">
-                                <label className="block text-sm font-medium text-gray-700">5-Mark Questions</label>
-                                <span className="text-xs px-2 py-1 rounded bg-purple-100 text-purple-800">5 marks each</span>
+                                <label className="block text-sm font-medium text-gray-700">6-Mark Questions</label>
+                                <span className="text-xs px-2 py-1 rounded bg-purple-100 text-purple-800">6 marks each</span>
                             </div>
                             <input
                                 type="number"
                                 min="0"
                                 max="50"
-                                value={paperForm.fiveMarkQuestions}
-                                onChange={(e) => setPaperForm({ ...paperForm, fiveMarkQuestions: parseInt(e.target.value) || 0 })}
+                                value={paperForm.sixMarkQuestions}
+                                onChange={(e) => setPaperForm({ ...paperForm, sixMarkQuestions: parseInt(e.target.value) || 0 })}
                                 className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-2"
                             />
                             <div className="text-xs text-gray-600">
-                                Available: {questionStats.fiveMark.available}/{questionStats.fiveMark.total}
-                                {questionStats.fiveMark.available < paperForm.fiveMarkQuestions && (
+                                Available: {questionStats.sixMark.available}/{questionStats.sixMark.total}
+                                {questionStats.sixMark.available < paperForm.sixMarkQuestions && (
+                                    <span className="text-red-600 ml-2">Insufficient!</span>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* 8-Mark Questions */}
+                        <div className="bg-white p-4 rounded-lg border border-gray-200">
+                            <div className="flex items-center justify-between mb-2">
+                                <label className="block text-sm font-medium text-gray-700">8-Mark Questions</label>
+                                <span className="text-xs px-2 py-1 rounded bg-orange-100 text-orange-800">8 marks each</span>
+                            </div>
+                            <input
+                                type="number"
+                                min="0"
+                                max="50"
+                                value={paperForm.eightMarkQuestions}
+                                onChange={(e) => setPaperForm({ ...paperForm, eightMarkQuestions: parseInt(e.target.value) || 0 })}
+                                className="w-full border border-gray-300 rounded-lg px-3 py-2 mb-2"
+                            />
+                            <div className="text-xs text-gray-600">
+                                Available: {questionStats.eightMark.available}/{questionStats.eightMark.total}
+                                {questionStats.eightMark.available < paperForm.eightMarkQuestions && (
                                     <span className="text-red-600 ml-2">Insufficient!</span>
                                 )}
                             </div>
@@ -157,7 +180,7 @@ export default function PaperGeneration({
                             </div>
                         </div>
                         <div className="mt-2 text-xs text-blue-700">
-                            Calculation: ({paperForm.oneMarkQuestions} × 1) + ({paperForm.threeMarkQuestions} × 3) + ({paperForm.fiveMarkQuestions} × 5) = {paperForm.totalMarks} marks
+                            Calculation: ({paperForm.twoMarkQuestions} × 2) + ({paperForm.fourMarkQuestions} × 4) + ({paperForm.sixMarkQuestions} × 6) + ({paperForm.eightMarkQuestions} × 8) = {paperForm.totalMarks} marks
                         </div>
                     </div>
 
@@ -179,10 +202,10 @@ export default function PaperGeneration({
                             <div>
                                 <h3 className="font-semibold text-gray-900">Selected Questions: {selectedQuestions.length}</h3>
                                 <p className="text-sm text-gray-600">
-                                    Total Marks: {selectedQuestions.reduce((sum, q) => sum + (parseInt(q.marks) || 0), 0)}
-                                    ({selectedQuestions.filter(q => q.marks === 1).length} × 1-mark,
-                                    {selectedQuestions.filter(q => q.marks === 3).length} × 3-mark,
-                                    {selectedQuestions.filter(q => q.marks === 5).length} × 5-mark)
+                                    ({selectedQuestions.filter(q => q.marks === 2).length} × 2-mark,
+                                    {selectedQuestions.filter(q => q.marks === 4).length} × 4-mark,
+                                    {selectedQuestions.filter(q => q.marks === 6).length} × 6-mark,
+                                    {selectedQuestions.filter(q => q.marks === 8).length} × 8-mark)
                                 </p>
                             </div>
                             <div className="flex items-center gap-2">
