@@ -1,11 +1,16 @@
 import React, { useState } from 'react';
-import { Plus, CheckCircle, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, CheckCircle, Clock, ChevronLeft, ChevronRight, Edit2 } from 'lucide-react';
+import EditPaperModal from '../../components/EditPaperModal';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../../../fireBaseConfig';
+import toast from 'react-hot-toast';
 
 export default function ScheduledPapers({
     scheduledPapers,
     setActiveTab
 }) {
     const [currentPage, setCurrentPage] = useState(1);
+    const [editingPaper, setEditingPaper] = useState(null);
     const itemsPerPage = 5;
 
     // Filter Logic
@@ -17,6 +22,22 @@ export default function ScheduledPapers({
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     );
+
+    const handleUpdatePaper = async (paperId, updatedData) => {
+        try {
+            const paperRef = doc(db, "questionPapers", paperId);
+            await updateDoc(paperRef, {
+                ...updatedData,
+                updatedAt: serverTimestamp()
+            });
+
+            toast.success("Paper updated successfully");
+            setEditingPaper(null);
+        } catch (error) {
+            console.error("Error updating paper:", error);
+            toast.error("Error updating paper details");
+        }
+    };
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -61,9 +82,18 @@ export default function ScheduledPapers({
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2 text-gray-500">
-                                <Clock className="w-5 h-5" />
-                                <span className="text-sm">Pending</span>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setEditingPaper(paper)}
+                                    className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                    title="Edit Paper Details"
+                                >
+                                    <Edit2 className="w-4 h-4" />
+                                </button>
+                                <div className="flex items-center gap-2 text-gray-500">
+                                    <Clock className="w-5 h-5" />
+                                    <span className="text-sm">Pending</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -101,6 +131,15 @@ export default function ScheduledPapers({
                         </button>
                     </div>
                 </div>
+            )}
+
+            {/* Edit Modal */}
+            {editingPaper && (
+                <EditPaperModal
+                    paper={editingPaper}
+                    onClose={() => setEditingPaper(null)}
+                    onSave={handleUpdatePaper}
+                />
             )}
         </div>
     );

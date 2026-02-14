@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
-import { FileText, Calendar, Clock, Eye, Printer, EyeOff, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, Calendar, Clock, Eye, Printer, EyeOff, X, ChevronLeft, ChevronRight, Edit2, RefreshCw, PenTool } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../fireBaseConfig';
+import EditPaperModal from '../../components/EditPaperModal';
+import ReplaceQuestionModal from '../../components/ReplaceQuestionModal';
+import EditQuestionModal from '../../components/EditQuestionModal';
 
 export default function GeneratedPapers({
     questionPapers,
@@ -15,6 +18,9 @@ export default function GeneratedPapers({
     formatDateTime
 }) {
     const [currentPage, setCurrentPage] = useState(1);
+    const [editingPaper, setEditingPaper] = useState(null);
+    const [replacingQuestion, setReplacingQuestion] = useState(null);
+    const [editingQuestion, setEditingQuestion] = useState(null);
     const itemsPerPage = 5;
 
     // Filter logic
@@ -33,6 +39,81 @@ export default function GeneratedPapers({
         }
     }, [filteredPapers.length]);
 
+    const handleUpdatePaper = async (paperId, updatedData) => {
+        try {
+            const paperRef = doc(db, "questionPapers", paperId);
+            await updateDoc(paperRef, {
+                ...updatedData,
+                updatedAt: serverTimestamp()
+            });
+
+            toast.success("Paper updated successfully");
+            setEditingPaper(null);
+        } catch (error) {
+            console.error("Error updating paper:", error);
+            toast.error("Error updating paper details");
+        }
+    };
+
+    const handleReplaceQuestion = async (newQuestion) => {
+        if (!generatedPaper || !replacingQuestion) return;
+
+        try {
+            const updatedQuestions = generatedPaper.questions.map(q =>
+                q.id === replacingQuestion.id ? { ...newQuestion } : q
+            );
+
+            // Update in Firestore
+            const paperRef = doc(db, "questionPapers", generatedPaper.id);
+            await updateDoc(paperRef, {
+                questions: updatedQuestions,
+                updatedAt: serverTimestamp()
+            });
+
+            // Update local state
+            setGeneratedPaper(prev => ({
+                ...prev,
+                questions: updatedQuestions
+            }));
+
+            toast.success("Question replaced successfully");
+            setReplacingQuestion(null);
+
+        } catch (error) {
+            console.error("Error replacing question:", error);
+            toast.error("Error replacing question");
+        }
+    };
+
+    const handleEditQuestion = async (updatedQ) => {
+        if (!generatedPaper || !editingQuestion) return;
+
+        try {
+            const updatedQuestions = generatedPaper.questions.map(q =>
+                q.id === editingQuestion.id ? updatedQ : q
+            );
+
+            // Update in Firestore
+            const paperRef = doc(db, "questionPapers", generatedPaper.id);
+            await updateDoc(paperRef, {
+                questions: updatedQuestions,
+                updatedAt: serverTimestamp()
+            });
+
+            // Update local state
+            setGeneratedPaper(prev => ({
+                ...prev,
+                questions: updatedQuestions
+            }));
+
+            toast.success("Question updated successfully");
+            setEditingQuestion(null);
+
+        } catch (error) {
+            console.error("Error updating question:", error);
+            toast.error("Error updating question");
+        }
+    };
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -98,6 +179,9 @@ export default function GeneratedPapers({
                                 )}
                             </div>
                             <div className="flex items-center gap-2">
+                                <button ref={null} onClick={() => setEditingPaper(paper)} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-gray-200" title="Edit Paper Details">
+                                    <Edit2 className="w-4 h-4" />
+                                </button>
                                 <button onClick={() => {
                                     setGeneratedPaper(paper);
                                     setShowPreview(true);
@@ -290,7 +374,26 @@ export default function GeneratedPapers({
                                 <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">QUESTIONS</h3>
 
                                 {generatedPaper.questions && generatedPaper.questions.map((question, index) => (
-                                    <div key={question.id || index} className="mb-6 p-4 border border-gray-200 rounded-lg">
+                                    <div key={question.id || index} className="mb-6 p-4 border border-gray-200 rounded-lg group relative">
+                                        <div className="absolute right-4 top-4 hidden group-hover:flex gap-2">
+                                            <button
+                                                onClick={() => setEditingQuestion(question)}
+                                                className="p-2 bg-white text-gray-600 border border-gray-200 rounded-lg shadow-sm hover:text-blue-600 hover:border-blue-200 transition-colors flex items-center gap-1 text-xs font-medium"
+                                                title="Edit question text"
+                                            >
+                                                <PenTool className="w-3 h-3" />
+                                                Edit
+                                            </button>
+                                            <button
+                                                onClick={() => setReplacingQuestion(question)}
+                                                className="p-2 bg-white text-gray-600 border border-gray-200 rounded-lg shadow-sm hover:text-blue-600 hover:border-blue-200 transition-colors flex items-center gap-1 text-xs font-medium"
+                                                title="Replace this question"
+                                            >
+                                                <RefreshCw className="w-3 h-3" />
+                                                Replace
+                                            </button>
+                                        </div>
+
                                         <div className="flex justify-between items-start mb-3">
                                             <div className="flex items-center gap-3">
                                                 <span className="font-bold text-lg">Q{index + 1}.</span>
@@ -353,6 +456,37 @@ export default function GeneratedPapers({
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Edit Modal */}
+            {editingPaper && (
+                <EditPaperModal
+                    paper={editingPaper}
+                    onClose={() => setEditingPaper(null)}
+                    onSave={handleUpdatePaper}
+                />
+            )}
+
+            {/* Replace Question Modal */}
+            {replacingQuestion && generatedPaper && (
+                <ReplaceQuestionModal
+                    subjectCode={generatedPaper.subjectCode}
+                    unit={replacingQuestion.unit}
+                    marks={replacingQuestion.marks}
+                    currentQuestionId={replacingQuestion.id}
+                    existingQuestionIds={generatedPaper.questions.map(q => q.id)}
+                    onReplace={handleReplaceQuestion}
+                    onClose={() => setReplacingQuestion(null)}
+                />
+            )}
+
+            {/* Edit Question Text Modal */}
+            {editingQuestion && (
+                <EditQuestionModal
+                    question={editingQuestion}
+                    onSave={handleEditQuestion}
+                    onClose={() => setEditingQuestion(null)}
+                />
             )}
         </div>
     );
