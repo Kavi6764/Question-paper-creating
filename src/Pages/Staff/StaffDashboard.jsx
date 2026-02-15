@@ -36,6 +36,7 @@ import UploadHistory from "./UploadHistory";
 import UploadForm from "./UploadForm";
 import GeneratedPapers from "./GeneratedPapers";
 import FilePreview from "./FilePreview";
+import PageContainer from "../../components/PageContainer";
 
 // Helper to get initials
 const getInitials = (name) => {
@@ -76,6 +77,31 @@ export default function StaffDashboard() {
 
     const itemsPerPage = 5;
     const fileInputRef = useRef(null);
+
+    // Helper to generate sample data
+    const generateSampleData = (marks, count) => {
+        return Array.from({ length: count }, (_, i) => ({
+            QuestionNo: `Q${i + 1}`,
+            Question: `Sample Question ${i + 1} for ${marks} Marks`,
+            Marks: marks,
+            Difficulty: i % 3 === 0 ? "Easy" : i % 3 === 1 ? "Medium" : "Hard",
+            Unit: 1
+        }));
+    };
+
+    const downloadTemplate = () => {
+        const itemTiers = [2, 4, 6, 8];
+        const wb = XLSX.utils.book_new();
+
+        itemTiers.forEach(marks => {
+            const data = generateSampleData(marks, 25);
+            const ws = XLSX.utils.json_to_sheet(data);
+            XLSX.utils.book_append_sheet(wb, ws, `${marks} Marks`);
+        });
+
+        XLSX.writeFile(wb, "question_bank_template.xlsx");
+        toast.success("Template downloaded successfully!");
+    };
 
     // Load staff data and setup real-time listeners
     useEffect(() => {
@@ -596,81 +622,58 @@ export default function StaffDashboard() {
         (previewPage + 1) * itemsPerPage
     );
 
+
     if (!staffData) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="text-center">
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center animate-pulse-subtle">
                     <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto" />
-                    <p className="mt-4 text-gray-600">Loading your portal...</p>
+                    <p className="mt-4 text-gray-600 font-medium">Loading your portal...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-transparent">
             {/* Top Navigation */}
-            <nav className="bg-white shadow-sm border-b border-gray-200">
+            <nav className="sticky top-0 z-50 bg-white/70 backdrop-blur-lg border-b border-white/20 shadow-sm transition-all duration-300">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between h-16">
                         <div className="flex items-center">
-                            <div className="shrink-0 flex items-center">
-                                <Shield className="h-8 w-8 text-blue-600" />
-                                <span className="ml-2 text-xl font-bold text-gray-900">Staff Portal</span>
+                            <div className="shrink-0 flex items-center animate-fade-in">
+                                <div className="bg-gradient-to-br from-blue-600 to-indigo-600 text-white p-2 rounded-lg shadow-lg shadow-blue-500/30 mr-3">
+                                    <Shield className="h-6 w-6" />
+                                </div>
+                                <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-700 to-indigo-700">
+                                    Staff Portal
+                                </span>
                             </div>
 
                             {/* Navigation Links */}
-                            <div className="hidden md:ml-8 md:flex md:space-x-8">
-                                <button
-                                    onClick={() => setActiveTab("dashboard")}
-                                    className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${activeTab === "dashboard"
-                                        ? "text-blue-600 border-b-2 border-blue-600"
-                                        : "text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                                        }`}
-                                >
-                                    <Home className="w-4 h-4 mr-2" />
-                                    Dashboard
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab("upload")}
-                                    className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${activeTab === "upload"
-                                        ? "text-blue-600 border-b-2 border-blue-600"
-                                        : "text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                                        }`}
-                                >
-                                    <Upload className="w-4 h-4 mr-2" />
-                                    Upload
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab("subjects")}
-                                    className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${activeTab === "subjects"
-                                        ? "text-blue-600 border-b-2 border-blue-600"
-                                        : "text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                                        }`}
-                                >
-                                    <BookOpen className="w-4 h-4 mr-2" />
-                                    My Subjects ({mySubjects.length})
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab("history")}
-                                    className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${activeTab === "history"
-                                        ? "text-blue-600 border-b-2 border-blue-600"
-                                        : "text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                                        }`}
-                                >
-                                    <Database className="w-4 h-4 mr-2" />
-                                    Upload History ({myUploads.length})
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab("papers")}
-                                    className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${activeTab === "papers"
-                                        ? "text-blue-600 border-b-2 border-blue-600"
-                                        : "text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                                        }`}
-                                >
-                                    <FileText className="w-4 h-4 mr-2" />
-                                    Question Papers
-                                </button>
+                            <div className="hidden md:ml-8 md:flex md:space-x-4">
+                                {[
+                                    { id: 'dashboard', icon: Home, label: 'Dashboard' },
+                                    { id: 'upload', icon: Upload, label: 'Upload' },
+                                    { id: 'subjects', icon: BookOpen, label: `My Subjects (${mySubjects.length})` },
+                                    { id: 'history', icon: Database, label: `History (${myUploads.length})` },
+                                    { id: 'papers', icon: FileText, label: 'Papers' }
+                                ].map((item) => {
+                                    const Icon = item.icon;
+                                    return (
+                                        <button
+                                            key={item.id}
+                                            onClick={() => setActiveTab(item.id)}
+                                            className={`relative inline-flex items-center px-4 py-2 rounded-xl text-sm font-medium transition-all duration-300 ${activeTab === item.id
+                                                ? "bg-blue-50 text-blue-700 shadow-sm ring-1 ring-blue-200/50"
+                                                : "text-gray-600 hover:bg-gray-50/80 hover:text-gray-900"
+                                                }`}
+                                        >
+                                            <Icon className={`w-4 h-4 mr-2 ${activeTab === item.id ? "text-blue-600" : "text-gray-400"}`} />
+                                            {item.label}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
 
@@ -680,35 +683,39 @@ export default function StaffDashboard() {
                             <div className="relative">
                                 <button
                                     onClick={() => setShowProfileMenu(!showProfileMenu)}
-                                    className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100"
+                                    className="flex items-center space-x-3 p-1.5 rounded-full hover:bg-white/50 transition-colors border border-transparent hover:border-gray-200"
                                 >
-                                    <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm">
+                                    <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-100 to-indigo-100 flex items-center justify-center text-blue-600 font-bold text-sm shadow-inner">
                                         {getInitials(staffData.name)}
                                     </div>
-                                    <div className="hidden md:block text-left">
-                                        <p className="text-sm font-medium text-gray-700">{staffData.name}</p>
-                                        <p className="text-xs text-gray-500">@{staffData.username || staffData.email?.split('@')[0]}</p>
+                                    <div className="hidden md:block text-left mr-2">
+                                        <p className="text-sm font-medium text-gray-700 leading-none">{staffData.name}</p>
+                                        <p className="text-[10px] text-gray-500 mt-0.5 font-medium">@{staffData.username || staffData.email?.split('@')[0]}</p>
                                     </div>
                                     <ChevronDown className="h-4 w-4 text-gray-400" />
                                 </button>
 
                                 {showProfileMenu && (
-                                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
-                                        <div className="px-4 py-2 border-b border-gray-100">
-                                            <p className="text-sm font-medium text-gray-900">{staffData.name}</p>
-                                            <p className="text-xs text-gray-500 truncate">{staffData.email}</p>
-                                            <p className="text-xs text-blue-600 mt-1">{staffData.department}</p>
-                                            <div className="flex items-center justify-between mt-2 text-xs">
-                                                <span className="text-gray-500">Uploads:</span>
-                                                <span className="font-medium">{stats.totalUploads}</span>
+                                    <div className="absolute right-0 mt-2 w-64 bg-white/90 backdrop-blur-xl rounded-2xl shadow-xl border border-white/20 py-2 z-50 animate-scale-in origin-top-right ring-1 ring-black/5">
+                                        <div className="px-4 py-3 border-b border-gray-100/50 bg-gray-50/50">
+                                            <p className="text-sm font-semibold text-gray-900">{staffData.name}</p>
+                                            <p className="text-xs text-gray-500 truncate mt-0.5">{staffData.email}</p>
+                                            <div className="mt-2 flex items-center gap-2">
+                                                <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold uppercase tracking-wide">
+                                                    {staffData.department}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center justify-between mt-3 text-xs bg-white p-2 rounded-lg border border-gray-100">
+                                                <span className="text-gray-500">Total Uploads</span>
+                                                <span className="font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded-md">{stats.totalUploads}</span>
                                             </div>
                                         </div>
                                         <button
                                             onClick={handleLogout}
-                                            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 flex items-center gap-2"
+                                            className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50/50 flex items-center gap-2 transition-colors mx-1 rounded-lg mb-1"
                                         >
                                             <LogOut className="h-4 w-4" />
-                                            Logout
+                                            Sign Out
                                         </button>
                                     </div>
                                 )}
@@ -718,94 +725,119 @@ export default function StaffDashboard() {
                 </div>
             </nav>
 
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <PageContainer className="py-8">
                 {/* Welcome Section */}
-                <div className="mb-8">
-                    <h1 className="text-2xl font-bold text-gray-900">
-                        Welcome back, {staffData.name}!
+                <div className="mb-8 animate-slide-up">
+                    <h1 className="text-3xl font-bold text-gray-900">
+                        Welcome back, <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">{staffData.name}</span>!
                     </h1>
-                    <p className="text-gray-600 mt-1">
-                        {staffData.department} Department • {stats.totalSubjects} Subjects • {stats.totalQuestions} Questions
+                    <p className="text-gray-600 mt-2 flex items-center gap-2">
+                        <span className="px-2 py-0.5 bg-white/60 rounded-md border border-gray-100 text-sm font-medium text-gray-700">
+                            {staffData.department} Department
+                        </span>
+                        <span className="text-gray-300">•</span>
+                        <span className="text-sm text-gray-600">{stats.totalSubjects} Subjects</span>
+                        <span className="text-gray-300">•</span>
+                        <span className="text-sm text-gray-600">{stats.totalQuestions} Questions</span>
                     </p>
                 </div>
 
-                <StatsCards stats={stats} />
+                <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
+                    <StatsCards stats={stats} />
+                </div>
 
                 {/* Main Content */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start mt-8">
                     {/* Left Column - Main Content */}
-                    <div className="lg:col-span-2">
+                    <div className="lg:col-span-2 space-y-6">
                         {activeTab === "dashboard" && (
-                            <UploadHistory
-                                uploads={myUploads}
-                                limit={5}
-                                hideControls={true}
-                                title="Recent Activity"
-                            />
+                            <div className="animate-fade-in">
+                                <UploadHistory
+                                    uploads={myUploads}
+                                    limit={5}
+                                    hideControls={true}
+                                    title="Recent Activity"
+                                />
+                            </div>
                         )}
 
                         {activeTab === "upload" && (
-                            <UploadForm
-                                subjectCode={subjectCode}
-                                setSubjectCode={setSubjectCode}
-                                subjectName={subjectName}
-                                setSubjectName={setSubjectName}
-                                unit={unit}
-                                setUnit={setUnit}
-                                file={file}
-                                setFile={setFile}
-                                mySubjects={mySubjects}
-                                uploadedUnits={uploadedUnits}
-                                handleSubmit={handleSubmit}
-                                loading={loading}
-                                uploadStatus={uploadStatus}
-                                uploadProgress={uploadProgress}
-                                handleFileSelect={handleFileSelect}
-                                clearFile={clearFile}
-                                isDragging={isDragging}
-                                handleDragOver={handleDragOver}
-                                handleDragLeave={handleDragLeave}
-                                handleDrop={handleDrop}
-                                previewData={previewData}
-                                fileInputRef={fileInputRef}
-                            />
+                            <div className="animate-fade-in">
+                                <UploadForm
+                                    subjectCode={subjectCode}
+                                    setSubjectCode={setSubjectCode}
+                                    subjectName={subjectName}
+                                    setSubjectName={setSubjectName}
+                                    unit={unit}
+                                    setUnit={setUnit}
+                                    file={file}
+                                    setFile={setFile}
+                                    mySubjects={mySubjects}
+                                    uploadedUnits={uploadedUnits}
+                                    handleSubmit={handleSubmit}
+                                    loading={loading}
+                                    uploadStatus={uploadStatus}
+                                    uploadProgress={uploadProgress}
+                                    handleFileSelect={handleFileSelect}
+                                    clearFile={clearFile}
+                                    isDragging={isDragging}
+                                    handleDragOver={handleDragOver}
+                                    handleDragLeave={handleDragLeave}
+                                    handleDrop={handleDrop}
+                                    previewData={previewData}
+                                    fileInputRef={fileInputRef}
+                                    downloadTemplate={downloadTemplate}
+                                />
+                            </div>
                         )}
 
                         {activeTab === "subjects" && (
-                            <SubjectList
-                                mySubjects={mySubjects}
-                                uploadedUnits={uploadedUnits}
-                                stats={stats}
-                                onUploadClick={(subject) => {
-                                    setSubjectCode(subject.subjectCode);
-                                    setSubjectName(subject.subjectName);
-                                    setActiveTab("upload");
-                                }}
-                            />
+                            <div className="animate-fade-in">
+                                <SubjectList
+                                    mySubjects={mySubjects}
+                                    uploadedUnits={uploadedUnits}
+                                    stats={stats}
+                                    onUploadClick={(subject) => {
+                                        setSubjectCode(subject.subjectCode);
+                                        setSubjectName(subject.subjectName);
+                                        setActiveTab("upload");
+                                    }}
+                                />
+                            </div>
                         )}
 
                         {activeTab === "history" && (
-                            <UploadHistory
-                                uploads={myUploads}
-                            />
+                            <div className="animate-fade-in">
+                                <UploadHistory
+                                    uploads={myUploads}
+                                />
+                            </div>
                         )}
 
                         {activeTab === "papers" && (
-                            <GeneratedPapers questionPapers={questionPapers} />
+                            <div className="animate-fade-in">
+                                <GeneratedPapers questionPapers={questionPapers} />
+                            </div>
                         )}
                     </div>
 
                     {/* Right Column - Preview Panel */}
-                    <FilePreview
-                        file={file}
-                        previewData={previewData}
-                        previewPage={previewPage}
-                        setPreviewPage={setPreviewPage}
-                        totalPreviewPages={totalPreviewPages}
-                        paginatedPreview={paginatedPreview}
-                    />
+                    <div className="lg:col-span-1 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+                        <FilePreview
+                            file={file}
+                            previewData={previewData}
+                            searchTerm={searchTerm}
+                            setSearchTerm={setSearchTerm}
+                            paginatedPreview={paginatedPreview}
+                            previewPage={previewPage}
+                            setPreviewPage={setPreviewPage}
+                            totalPreviewPages={totalPreviewPages}
+                            clearFile={clearFile}
+                            downloadTemplate={downloadTemplate}
+                        />
+                    </div>
                 </div>
-            </div>
+            </PageContainer>
         </div>
     );
 }

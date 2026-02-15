@@ -7,7 +7,9 @@ import {
   FileText,
   Timer,
   BookOpen,
-  Award
+  Award,
+  Users,
+  GraduationCap
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -35,6 +37,7 @@ import {
 } from "firebase/auth";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import PageContainer from "../components/PageContainer";
 
 // Import Sub-Components
 import StaffManagement from "./Admin/StaffManagement";
@@ -836,6 +839,11 @@ export default function AdminDashboard() {
     toast.success("Questions selected for paper!");
   };
 
+  const clearAllQuestions = () => {
+    setSelectedQuestions([]);
+    toast.success("All selected questions cleared");
+  };
+
   const selectRandomQuestions = (requirements, sourceQuestions) => {
     const selected = [];
 
@@ -866,7 +874,7 @@ export default function AdminDashboard() {
     return selected;
   };
 
-  const generatePaperImmediately = async () => {
+  const handleGeneratePaper = async () => {
     if (!paperForm.title || !paperForm.subjectCode || selectedQuestions.length === 0) {
       toast.error("Please fill all fields and select questions");
       return;
@@ -920,8 +928,39 @@ export default function AdminDashboard() {
       const docRefB = await addDoc(collection(db, "questionPapers"), paperB);
 
       toast.success("Question papers (Set A & Set B) generated successfully!");
+
+      // Reset form
+      setPaperForm({
+        title: "",
+        subjectCode: "",
+        examDate: "",
+        examTime: "09:30",
+        duration: 3,
+        twoMarkQuestions: 5,
+        fourMarkQuestions: 5,
+        sixMarkQuestions: 3,
+        eightMarkQuestions: 2,
+        totalQuestions: 15,
+        totalMarks: 64,
+        generationTime: "",
+        generationDate: ""
+      });
+      setSelectedQuestions([]);
+      setAvailableQuestions({
+        twoMark: [],
+        fourMark: [],
+        sixMark: [],
+        eightMark: []
+      });
+      setQuestionStats({
+        twoMark: { total: 0, available: 0 },
+        fourMark: { total: 0, available: 0 },
+        sixMark: { total: 0, available: 0 },
+        eightMark: { total: 0, available: 0 }
+      });
+
       setActiveTab("papers");
-      setGeneratedPaper({ ...paperB, id: docRefB.id }); // Show Set B or A, doesn't matter much
+      setGeneratedPaper({ ...paperB, id: docRefB.id });
 
     } catch (error) {
       console.error("Error generating paper:", error);
@@ -931,7 +970,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const schedulePaperGeneration = async () => {
+  const handleSchedulePaper = async () => {
     if (!paperForm.title || !paperForm.subjectCode || !paperForm.generationDate || !paperForm.generationTime) {
       toast.error("Please fill all fields including generation date and time");
       return;
@@ -1004,9 +1043,16 @@ export default function AdminDashboard() {
     let yPos = 80;
 
     paper.questions.forEach((q, i) => {
-      if (yPos > 270) {
+      // Calculate total height needed for this question block
+      const questionLines = doc.splitTextToSize(q.question || '', 150);
+      const textHeight = questionLines.length * 7;
+      const optionsHeight = (q.options?.length || 0) * 7;
+      const totalQuestionHeight = textHeight + optionsHeight + 15; // +15 for padding/spacing
+
+      // Check if the whole question block fits, otherwise add page
+      if (yPos + totalQuestionHeight > 280) {
         doc.addPage();
-        yPos = 20;
+        yPos = 20; // Reset to top margin
       }
 
       doc.setFontSize(11);
@@ -1014,28 +1060,28 @@ export default function AdminDashboard() {
       doc.text(`Q${i + 1}.`, 20, yPos);
 
       doc.setFont(undefined, 'normal');
-      const questionLines = doc.splitTextToSize(q.question, 150);
       doc.text(questionLines, 35, yPos);
 
-      const textHeight = questionLines.length * 7;
-
       doc.setFontSize(10);
-      doc.text(`[${q.marks} Marks]`, 170, yPos);
+      // Align marks to the right
+      doc.text(`[${q.marks}]`, 180, yPos, { align: 'right' });
 
       yPos += textHeight + 5;
 
       if (q.options && q.options.length > 0) {
+        doc.setFontSize(10);
         q.options.forEach((opt, optIdx) => {
+          // Double check if option fits (though usually handled by block check above, safe to keep as fallback)
           if (yPos > 280) {
             doc.addPage();
             yPos = 20;
           }
-          doc.text(`${String.fromCharCode(65 + optIdx)}. ${opt}`, 40, yPos);
+          doc.text(`${String.fromCharCode(65 + optIdx)}) ${opt}`, 40, yPos);
           yPos += 7;
         });
       }
 
-      yPos += 5;
+      yPos += 5; // Spacing between questions
     });
 
     doc.save(`${paper.title.replace(/\s+/g, '_')}.pdf`);
@@ -1073,143 +1119,223 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <Shield className="h-8 w-8 text-blue-600" />
-              <span className="ml-2 text-xl font-bold text-gray-900">Admin Dashboard</span>
-              <div className="hidden md:ml-8 md:flex md:space-x-8">
-                <button onClick={() => setActiveTab("staff")} className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${activeTab === "staff" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500 hover:text-gray-700"}`}>
-                  <User className="w-4 h-4 mr-2" /> Staff
-                </button>
-                <button onClick={() => setActiveTab("subjects")} className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${activeTab === "subjects" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500 hover:text-gray-700"}`}>
-                  <Book className="w-4 h-4 mr-2" /> Subjects
-                </button>
-                <button onClick={() => setActiveTab("generate")} className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${activeTab === "generate" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500 hover:text-gray-700"}`}>
-                  <FileText className="w-4 h-4 mr-2" /> Generate Paper
-                </button>
-                <button onClick={() => setActiveTab("scheduled")} className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${activeTab === "scheduled" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500 hover:text-gray-700"}`}>
-                  <Timer className="w-4 h-4 mr-2" /> Scheduled
-                </button>
-                <button onClick={() => setActiveTab("papers")} className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${activeTab === "papers" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500 hover:text-gray-700"}`}>
-                  <BookOpen className="w-4 h-4 mr-2" /> Papers
-                </button>
-                <button onClick={() => setActiveTab("hod-dean")} className={`inline-flex items-center px-1 pt-1 text-sm font-medium ${activeTab === "hod-dean" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500 hover:text-gray-700"}`}>
-                  <Award className="w-4 h-4 mr-2" /> HOD/Dean
-                </button>
+    <div className="min-h-screen bg-transparent">
+      {/* Sidebar */}
+      <aside className="fixed top-0 left-0 z-40 w-64 h-screen transition-transform -translate-x-full sm:translate-x-0 bg-white/50 backdrop-blur-xl border-r border-white/20">
+        <div className="h-full px-3 py-4 overflow-y-auto">
+          <div className="flex items-center pl-2.5 mb-8 mt-2 animate-fade-in">
+            <div className="bg-gradient-to-br from-blue-600 to-indigo-600 text-white p-2 rounded-xl shadow-lg shadow-blue-500/30">
+              <Shield className="w-6 h-6" />
+            </div>
+            <span className="self-center text-xl font-bold whitespace-nowrap ml-3 text-gray-800">
+              Admin Portal
+            </span>
+          </div>
+
+          <ul className="space-y-2 font-medium">
+            {[
+              { id: 'staff', icon: Users, label: 'Staff Management' },
+              { id: 'subjects', icon: Book, label: 'Subject Management' },
+              { id: 'schedule', icon: Timer, label: 'Schedule Papers' },
+              { id: 'generate', icon: FileText, label: 'Generate Papers' },
+              { id: 'papers', icon: BookOpen, label: 'Generated Papers' },
+              { id: 'assign', icon: GraduationCap, label: 'HOD/Dean Assign' }
+            ].map((item, index) => {
+              const Icon = item.icon;
+              return (
+                <li key={item.id} className="animate-slide-up" style={{ animationDelay: `${index * 0.05}s` }}>
+                  <button
+                    onClick={() => setActiveTab(item.id)}
+                    className={`relative flex items-center p-3 w-full rounded-xl transition-all duration-300 group overflow-hidden ${activeTab === item.id
+                      ? "bg-gradient-to-r from-blue-600/10 to-indigo-600/10 text-blue-700 shadow-sm ring-1 ring-blue-100"
+                      : "text-gray-600 hover:bg-gray-50/80 hover:text-gray-900"
+                      }`}
+                  >
+                    {activeTab === item.id && (
+                      <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-r-full" />
+                    )}
+                    <Icon className={`w-5 h-5 transition-colors relative z-10 ${activeTab === item.id ? "text-blue-600" : "text-gray-400 group-hover:text-gray-600"}`} />
+                    <span className="ml-3 relative z-10 font-medium">{item.label}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="absolute bottom-0 left-0 w-full p-4 border-t border-white/20 bg-white/30 backdrop-blur-md">
+            <div className="flex items-center gap-3 mb-3 px-2">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-100 to-indigo-100 flex items-center justify-center text-blue-600 font-bold text-sm shadow-sm border border-white/50">
+                {userData?.name?.substring(0, 2)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  {userData?.name}
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  {userData?.role}
+                </p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-3">
-                <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                  <User className="h-5 w-5 text-blue-600" />
-                </div>
-                <div className="hidden md:block text-left">
-                  <p className="text-sm font-medium text-gray-700">{userData.name}</p>
-                  <p className="text-xs text-gray-500">{userData.role.toUpperCase()}</p>
-                </div>
-              </div>
-              <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-gray-500">
-                <LogOut className="h-6 w-6" />
-              </button>
-            </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center w-full p-2 text-sm text-red-600 rounded-xl hover:bg-red-50/80 transition-all duration-200"
+            >
+              <LogOut className="flex-shrink-0 w-4 h-4" />
+              <span className="ml-3">Sign Out</span>
+            </button>
           </div>
         </div>
-      </nav>
+      </aside>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === "staff" && (
-          <StaffManagement
-            staffList={staffList}
-            availableSubjects={availableSubjects}
-            userData={userData}
-            showAddStaff={showAddStaff}
-            setShowAddStaff={setShowAddStaff}
-            newStaff={newStaff}
-            setNewStaff={setNewStaff}
-            editingStaffId={editingStaffId}
-            setEditingStaffId={setEditingStaffId}
-            loading={loading}
-            handleAddStaff={handleAddStaff}
-            handleUpdateStaff={handleUpdateStaff}
-            handleDeleteStaff={handleDeleteStaff}
-            handleToggleStaffStatus={handleToggleStaffStatus}
-            handleAssignSubject={handleAssignSubject}
-            handleRemoveSubject={handleRemoveSubject}
-            setActiveTab={setActiveTab}
-          />
-        )}
+      {/* Main Content */}
+      <div className="p-4 sm:ml-64">
+        <PageContainer className="p-4 mt-2">
+          {/* Header Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="glass-card rounded-2xl p-5 animate-scale-in" style={{ animationDelay: '0s' }}>
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Staff</p>
+                  <h3 className="text-2xl font-bold text-gray-900 mt-1">{staffList.length}</h3>
+                </div>
+                <div className="p-3 bg-blue-500/10 rounded-xl text-blue-600">
+                  <User className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
 
-        {activeTab === "subjects" && (
-          <SubjectManagement
-            allSubjects={allSubjects}
-            showAddSubject={showAddSubject}
-            setShowAddSubject={setShowAddSubject}
-            editingSubjectId={editingSubjectId}
-            setEditingSubjectId={setEditingSubjectId}
-            newSubject={newSubject}
-            setNewSubject={setNewSubject}
-            loading={loading}
-            handleAddSubject={handleAddSubject}
-            handleUpdateSubject={handleUpdateSubject}
-            handleEditSubject={handleEditSubject}
-            handleDeleteSubject={handleDeleteSubject}
-          />
-        )}
+            <div className="glass-card rounded-2xl p-5 animate-scale-in" style={{ animationDelay: '0.1s' }}>
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Subjects</p>
+                  <h3 className="text-2xl font-bold text-gray-900 mt-1">{allSubjects.length}</h3>
+                </div>
+                <div className="p-3 bg-indigo-500/10 rounded-xl text-indigo-600">
+                  <Book className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
 
-        {activeTab === "generate" && (
-          <PaperGeneration
-            paperForm={paperForm}
-            setPaperForm={setPaperForm}
-            selectedQuestions={selectedQuestions}
-            setSelectedQuestions={setSelectedQuestions}
-            availableQuestions={availableQuestions}
-            setAvailableQuestions={setAvailableQuestions}
-            questionStats={questionStats}
-            setQuestionStats={setQuestionStats}
-            availableSubjects={availableSubjects}
-            loadQuestionsForSubject={loadQuestionsForSubject}
-            generateRandomQuestions={generateRandomQuestions}
-            schedulePaperGeneration={schedulePaperGeneration}
-            generatePaperImmediately={generatePaperImmediately}
-            clearAllQuestions={() => setSelectedQuestions([])}
-            loading={loading}
-          />
-        )}
+            <div className="glass-card rounded-2xl p-5 animate-scale-in" style={{ animationDelay: '0.2s' }}>
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Scheduled Papers</p>
+                  <h3 className="text-2xl font-bold text-gray-900 mt-1">{scheduledPapers.length}</h3>
+                </div>
+                <div className="p-3 bg-amber-500/10 rounded-xl text-amber-600">
+                  <Timer className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
 
-        {activeTab === "scheduled" && (
-          <ScheduledPapers
-            scheduledPapers={scheduledPapers}
-            setActiveTab={setActiveTab}
-          />
-        )}
+            <div className="glass-card rounded-2xl p-5 animate-scale-in" style={{ animationDelay: '0.3s' }}>
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Generated Papers</p>
+                  <h3 className="text-2xl font-bold text-gray-900 mt-1">{questionPapers.length}</h3>
+                </div>
+                <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-600">
+                  <FileText className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
+          </div>
 
-        {activeTab === "papers" && (
-          <GeneratedPapers
-            questionPapers={questionPapers}
-            setActiveTab={setActiveTab}
-            setGeneratedPaper={setGeneratedPaper}
-            setShowPreview={setShowPreview}
-            previewPaper={previewPaper}
-            showPreview={showPreview}
-            generatedPaper={generatedPaper}
-            formatDateTime={formatDateTime}
-          />
-        )}
+          <div className="glass-panel rounded-2xl overflow-hidden min-h-[600px] animate-slide-up p-1">
+            {activeTab === "staff" && (
+              <StaffManagement
+                staffList={staffList}
+                availableSubjects={availableSubjects}
+                showAddStaff={showAddStaff}
+                setShowAddStaff={setShowAddStaff}
+                newStaff={newStaff}
+                setNewStaff={setNewStaff}
+                editingStaffId={editingStaffId}
+                setEditingStaffId={setEditingStaffId}
+                handleAddStaff={handleAddStaff}
+                handleUpdateStaff={handleUpdateStaff}
+                handleDeleteStaff={handleDeleteStaff}
+                handleAssignSubject={handleAssignSubject}
+                handleRemoveSubject={handleRemoveSubject}
+                handleToggleStaffStatus={handleToggleStaffStatus}
+                loading={loading}
+                userData={userData}
+              />
+            )}
 
-        {activeTab === "hod-dean" && (
-          <HodDeanAssignment
-            showAssignHodDean={showAssignHodDean}
-            setShowAssignHodDean={setShowAssignHodDean}
-            hodDeanAssignment={hodDeanAssignment}
-            setHodDeanAssignment={setHodDeanAssignment}
-            loading={loading}
-            handleAssignHodDean={handleAssignHodDean}
-            staffList={staffList}
-          />
-        )}
+            {activeTab === "subjects" && (
+              <SubjectManagement
+                allSubjects={allSubjects}
+                showAddSubject={showAddSubject}
+                setShowAddSubject={setShowAddSubject}
+                newSubject={newSubject}
+                setNewSubject={setNewSubject}
+                editingSubjectId={editingSubjectId}
+                setEditingSubjectId={setEditingSubjectId}
+                handleAddSubject={handleAddSubject}
+                handleUpdateSubject={handleUpdateSubject}
+                handleDeleteSubject={handleDeleteSubject}
+                handleEditSubject={handleEditSubject}
+                loading={loading}
+              />
+            )}
+
+            {activeTab === "schedule" && (
+              <ScheduledPapers
+                scheduledPapers={scheduledPapers}
+                setPaperForm={setPaperForm}
+                availableSubjects={availableSubjects}
+                setActiveTab={setActiveTab}
+              />
+            )}
+
+            {activeTab === "generate" && (
+              <PaperGeneration
+                paperForm={paperForm}
+                setPaperForm={setPaperForm}
+                availableSubjects={availableSubjects}
+                questionStats={questionStats}
+                setQuestionStats={setQuestionStats}
+                selectedQuestions={selectedQuestions}
+                setSelectedQuestions={setSelectedQuestions}
+                availableQuestions={availableQuestions}
+                setAvailableQuestions={setAvailableQuestions}
+                loadQuestionsForSubject={loadQuestionsForSubject}
+                generateRandomQuestions={generateRandomQuestions}
+                clearAllQuestions={clearAllQuestions}
+                loading={loading}
+                handleGeneratePaper={handleGeneratePaper}
+                handleSchedulePaper={handleSchedulePaper}
+              />
+            )}
+
+            {activeTab === "papers" && (
+              <GeneratedPapers
+                questionPapers={questionPapers}
+                loading={loading}
+                setActiveTab={setActiveTab}
+                setGeneratedPaper={setGeneratedPaper}
+                setShowPreview={setShowPreview}
+                previewPaper={previewPaper}
+                showPreview={showPreview}
+                generatedPaper={generatedPaper}
+                formatDateTime={formatDateTime}
+              />
+            )}
+
+            {activeTab === "assign" && (
+              <HodDeanAssignment
+                hodDeanAssignment={hodDeanAssignment}
+                setHodDeanAssignment={setHodDeanAssignment}
+                showAssignHodDean={showAssignHodDean}
+                setShowAssignHodDean={setShowAssignHodDean}
+                handleAssignHodDean={handleAssignHodDean}
+                loading={loading}
+                staffList={staffList}
+              />
+            )}
+          </div>
+        </PageContainer>
       </div>
     </div>
   );
