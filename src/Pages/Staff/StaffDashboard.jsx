@@ -36,6 +36,7 @@ import UploadHistory from "./UploadHistory";
 import UploadForm from "./UploadForm";
 import GeneratedPapers from "./GeneratedPapers";
 import FilePreview from "./FilePreview";
+import StaffSettings from "./StaffSettings";
 import PageContainer from "../../components/PageContainer";
 
 // Helper to get initials
@@ -711,6 +712,17 @@ export default function StaffDashboard() {
                                             </div>
                                         </div>
                                         <button
+                                            onClick={() => {
+                                                setActiveTab("settings");
+                                                setShowProfileMenu(false);
+                                            }}
+                                            className="w-full px-4 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-900 flex items-center gap-2.5 transition-all duration-300 mx-1 rounded-lg hover:bg-white hover:border-slate-200 border border-transparent hover:shadow-sm group"
+                                        >
+                                            <Shield className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors" />
+                                            <span>Settings</span>
+
+                                        </button>
+                                        <button
                                             onClick={handleLogout}
                                             className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50/50 flex items-center gap-2 transition-colors mx-1 rounded-lg mb-1"
                                         >
@@ -742,9 +754,11 @@ export default function StaffDashboard() {
                     </p>
                 </div>
 
-                <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
-                    <StatsCards stats={stats} />
-                </div>
+                {activeTab !== "settings" && (
+                    <div className="animate-slide-up" style={{ animationDelay: '0.1s' }}>
+                        <StatsCards stats={stats} />
+                    </div>
+                )}
 
                 {/* Main Content */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start mt-8">
@@ -758,6 +772,12 @@ export default function StaffDashboard() {
                                     hideControls={true}
                                     title="Recent Activity"
                                 />
+                            </div>
+                        )}
+
+                        {activeTab === "settings" && (
+                            <div className="animate-fade-in">
+                                <StaffSettings staffData={staffData} />
                             </div>
                         )}
 
