@@ -181,12 +181,13 @@ export default function AdminDashboard() {
           id: doc.id,
           ...doc.data()
         })).filter(user =>
-          user.role === "staff" ||
-          user.role === "hod" ||
-          user.role === "dean" ||
-          user.username === "hod" ||
-          user.username === "dean" ||
-          user.username === "admin"
+          (user.role === "staff" ||
+            user.role === "hod" ||
+            user.role === "dean" ||
+            user.username === "hod" ||
+            user.username === "dean" ||
+            user.username === "admin") &&
+          user.status !== "deleted"
         );
         setStaffList(staff);
       });
@@ -410,12 +411,48 @@ export default function AdminDashboard() {
 
     try {
       setLoading(true);
+
+      // 1. Check if email exists in Firestore (Active or Deleted)
       const emailQuery = query(collection(db, "users"), where("email", "==", newStaff.email));
       const emailSnap = await getDocs(emailQuery);
+
       if (!emailSnap.empty) {
-        toast.error("Email already registered");
-        setLoading(false);
-        return;
+        const existingUser = emailSnap.docs[0].data();
+        const existingUserId = emailSnap.docs[0].id;
+
+        if (existingUser.status === "deleted") {
+          // Offer to RESTORE
+          if (window.confirm(`This email belongs to a deleted staff member (${existingUser.fullName}). Do you want to restore them?`)) {
+            await updateDoc(doc(db, "users", existingUserId), {
+              status: "active",
+              fullName: newStaff.fullName,
+              username: newStaff.username, // Update username if changed
+              department: newStaff.department || existingUser.department,
+              assignedSubjects: newStaff.subjects || existingUser.assignedSubjects || [],
+              deletedAt: null,
+              updatedAt: serverTimestamp()
+            });
+
+            toast.success(`Staff member restored successfully!`);
+            setShowAddStaff(false);
+            setNewStaff({
+              email: "",
+              fullName: "",
+              username: "",
+              department: "",
+              subjects: []
+            });
+            setLoading(false);
+            return;
+          } else {
+            setLoading(false);
+            return; // User cancelled restore
+          }
+        } else {
+          toast.error("Email already registered and active.");
+          setLoading(false);
+          return;
+        }
       }
 
       const usernameQuery = query(collection(db, "users"), where("username", "==", newStaff.username));
@@ -457,7 +494,10 @@ export default function AdminDashboard() {
     } catch (error) {
       console.error("Error adding staff:", error);
       if (error.code === 'auth/email-already-in-use') {
-        toast.error("Email already registered");
+        toast.error(
+          "This email is associated with an existing account in Firebase Authentication but not in the database. Please contact the developer to remove the old login manually from the Firebase Console.",
+          { duration: 8000 }
+        );
       } else if (error.code === 'auth/invalid-email') {
         toast.error("Invalid email format");
       } else {
@@ -500,10 +540,14 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteStaff = async (staffId, email) => {
-    if (window.confirm(`Are you sure you want to delete staff with email ${email}?`)) {
+    if (window.confirm(`Are you sure you want to delete staff with email ${email}? They can be restored later.`)) {
       try {
-        await deleteDoc(doc(db, "users", staffId));
-        toast.success("Staff deleted successfully");
+        const staffRef = doc(db, "users", staffId);
+        await updateDoc(staffRef, {
+          status: "deleted",
+          deletedAt: serverTimestamp()
+        });
+        toast.success("Staff deleted successfully (Soft Delete)");
       } catch (error) {
         console.error("Error deleting staff:", error);
         toast.error("Error deleting staff");
