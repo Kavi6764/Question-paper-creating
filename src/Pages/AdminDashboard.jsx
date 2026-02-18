@@ -1086,7 +1086,38 @@ export default function AdminDashboard() {
 
     let yPos = 80;
 
-    paper.questions.forEach((q, i) => {
+    const sortedQuestions = [...paper.questions].sort((a, b) => a.marks - b.marks);
+    let currentMark = null;
+    let groupIndex = 0;
+
+    sortedQuestions.forEach((q, i) => {
+      // Check for new group
+      if (q.marks !== currentMark) {
+        currentMark = q.marks;
+        const groupLabel = String.fromCharCode(65 + groupIndex); // A, B, C...
+
+        // Calculate count and total for this group
+        const groupCount = sortedQuestions.filter(sq => sq.marks === q.marks).length;
+        const groupTotal = groupCount * q.marks;
+
+        // Add Group Header
+        yPos += 5;
+        if (yPos > 270) { doc.addPage(); yPos = 20; }
+
+        doc.setFontSize(12);
+        doc.setFont(undefined, 'bold');
+        doc.text(`Group-${groupLabel}`, 20, yPos);
+        doc.text(`[ ${q.marks} x ${groupCount} = ${groupTotal} ]`, 190, yPos, { align: 'right' });
+        yPos += 8;
+
+        doc.setFontSize(10);
+        doc.setFont(undefined, 'bold');
+        doc.text("Answer the Following Questions", 20, yPos);
+        yPos += 10;
+
+        groupIndex++;
+      }
+
       // Calculate total height needed for this question block
       const questionLines = doc.splitTextToSize(q.question || '', 150);
       const textHeight = questionLines.length * 7;
@@ -1107,8 +1138,8 @@ export default function AdminDashboard() {
       doc.text(questionLines, 35, yPos);
 
       doc.setFontSize(10);
-      // Align marks to the right
-      doc.text(`[${q.marks}]`, 180, yPos, { align: 'right' });
+      // Align marks to the right - REMOVED per user request
+      // doc.text(`[${q.marks}]`, 180, yPos, { align: 'right' });
 
       yPos += textHeight + 5;
 

@@ -335,7 +335,10 @@ export default function GeneratedPapers({
                                 // Check if we need to insert a section header
                                 if (q.marks !== currentSectionMarks) {
                                     currentSectionMarks = q.marks;
-                                    const headerText = `PART ${String.fromCharCode(65 + partIndex)} (${q.marks} MARKS)`;
+                                    const groupCount = sortedQuestions.filter(sq => sq.marks === q.marks).length;
+                                    const groupTotal = groupCount * q.marks;
+                                    const label = `Group-${String.fromCharCode(65 + partIndex)}`;
+                                    const calculation = `[ ${q.marks} x ${groupCount} = ${groupTotal} ]`;
                                     partIndex++;
 
                                     const headerHeightPx = 60;
@@ -349,7 +352,8 @@ export default function GeneratedPapers({
 
                                     currentPageQuestions.push({
                                         type: 'header',
-                                        text: headerText,
+                                        label: label,
+                                        calculation: calculation,
                                         id: `header-${partIndex}`
                                     });
                                     currentHeight += headerHeightPx;
@@ -433,9 +437,13 @@ export default function GeneratedPapers({
                                         {pageQuestions.map((item) => {
                                             if (item.type === 'header') {
                                                 return (
-                                                    <h3 key={item.id} className="text-center font-bold text-lg mb-6 uppercase border-t border-b border-gray-200 py-2 mt-4 print:mt-4">
-                                                        {item.text}
-                                                    </h3>
+                                                    <div key={item.id}>
+                                                        <h3 className="flex justify-between items-center font-bold text-lg mb-2 uppercase border-t border-b border-gray-200 py-2 mt-4 print:mt-4">
+                                                            <span>{item.label}</span>
+                                                            <span>{item.calculation}</span>
+                                                        </h3>
+                                                        <p className="font-bold text-sm mb-6 uppercase">Answer the Following Questions</p>
+                                                    </div>
                                                 );
                                             }
 
@@ -466,7 +474,7 @@ export default function GeneratedPapers({
                                                                 )}
                                                             </div>
                                                         </div>
-                                                        <div className="font-bold font-serif min-w-[40px] text-right text-gray-800">[{question.marks}]</div>
+                                                        {/* Marks display removed */}
                                                     </div>
                                                 </div>
                                             );
