@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Eye, EyeOff, User, Lock, LogIn, Search, ChevronDown } from "lucide-react";
+import { Eye, EyeOff, User, Lock, LogIn, Search, BookOpen } from "lucide-react";
 import { auth, db } from "../../fireBaseConfig";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
+import PageContainer from "../components/PageContainer";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -142,11 +143,6 @@ export default function Login() {
           throw new Error("Account is not active. Please contact administrator.");
         }
 
-        // Check if email is verified
-        // if (!userData.emailVerified) {
-        //   throw new Error("Please verify your email before logging in.");
-        // }
-
         return userData.email;
       } else {
         throw new Error("Username not found.");
@@ -165,7 +161,6 @@ export default function Login() {
 
     try {
       // 1. Find the email associated with the username
-      // This function also validates user status and email verification
       const userEmail = await findUserEmailByUsername(formValues.username);
 
       // 2. Sign in with email and password
@@ -272,145 +267,156 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-      <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-blue-100 flex items-center justify-center">
-            <LogIn className="w-8 h-8 text-blue-600" />
+    <div className="min-h-screen w-full flex items-center justify-center bg-blue-50 p-4 overflow-hidden relative animate-fade-in">
+      {/* Animated Background Blobs */}
+      <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-purple-400/30 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-float-slow pointer-events-none"></div>
+      <div className="absolute top-[20%] right-[-10%] w-72 h-72 bg-blue-400/30 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-float-delayed pointer-events-none"></div>
+      <div className="absolute bottom-[-10%] left-[20%] w-80 h-80 bg-indigo-400/30 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-float pointer-events-none"></div>
+
+      <div className="w-full max-w-md animate-scale-in relative z-10">
+        <div className="bg-white/70 backdrop-blur-2xl border border-white/60 shadow-[0_8px_32px_0_rgba(31,38,135,0.15)] rounded-3xl p-8 sm:p-12 transition-all duration-300 hover:shadow-[0_8px_32px_0_rgba(31,38,135,0.25)]">
+          <div className="text-center mb-8">
+            <div className="bg-blue-600/10 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse-subtle">
+              <BookOpen className="w-8 h-8 text-blue-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900">Welcome Back</h1>
+            <p className="text-gray-500 mt-2">Sign in to your account</p>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Welcome Back</h1>
-          <p className="text-gray-600 mt-1">Sign in to your staff account</p>
-        </div>
 
-        {/* Firebase Error Message */}
-        {firebaseError && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800">
-            {firebaseError}
-          </div>
-        )}
+          {/* Firebase Error Message */}
+          {firebaseError && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800 animate-fade-in">
+              {firebaseError}
+            </div>
+          )}
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {fields.map((field) => {
-            const Icon = field.icon;
-            const isPassword = field.type === "password";
-            const show = field.name === "password" && showPassword;
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {fields.map((field) => {
+              const Icon = field.icon;
+              const isPassword = field.type === "password";
+              const show = field.name === "password" && showPassword;
 
-            return (
-              <div key={field.name} className="relative">
-                <label className="block text-sm font-medium text-gray-900 mb-1.5">
-                  {field.label}
-                </label>
+              return (
+                <div key={field.name} className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700 ml-1">
+                    {field.label}
+                  </label>
 
-                <div className="relative">
-                  <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                  <input
-                    type={isPassword ? (show ? "text" : "password") : field.type}
-                    placeholder={field.placeholder}
-                    value={formValues[field.name]}
-                    onChange={(e) => handleChange(field.name, e.target.value)}
-                    onFocus={() => field.dropdown && handleUsernameFocus()}
-                    onBlur={() => field.dropdown && setTimeout(() => setShowDropdown(false), 150)}
-                    className={`w-full rounded-md border border-gray-300 bg-white pl-11 pr-11 py-2 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none ${errors[field.name] ? "border-red-500" : "border-gray-300"
-                      }`}
-                    disabled={isLoading}
-                  />
-
-                  {/* Password toggle */}
-                  {field.showToggle && (
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Icon className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                    </div>
+                    <input
+                      type={isPassword ? (show ? "text" : "password") : field.type}
+                      placeholder={field.placeholder}
+                      value={formValues[field.name]}
+                      onChange={(e) => handleChange(field.name, e.target.value)}
+                      onFocus={() => field.dropdown && handleUsernameFocus()}
+                      onBlur={() => field.dropdown && setTimeout(() => setShowDropdown(false), 150)}
+                      className={`block w-full pl-10 pr-10 py-2.5 bg-gray-50/50 border rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 ${errors[field.name] ? "border-red-500" : "border-gray-200"
+                        }`}
                       disabled={isLoading}
-                    >
-                      {show ? <EyeOff /> : <Eye />}
-                    </button>
-                  )}
+                    />
 
-                  {/* Username dropdown */}
-                  {field.dropdown && showDropdown && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-md z-50">
-                      <div className="p-2 border-b border-gray-200">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                          <input
-                            type="text"
-                            placeholder="Search users..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="w-full bg-gray-50 rounded-md pl-9 pr-3 py-2 text-sm border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
+                    {/* Password toggle */}
+                    {field.showToggle && (
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                        disabled={isLoading}
+                      >
+                        {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    )}
+
+                    {/* Username dropdown */}
+                    {field.dropdown && showDropdown && (
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-lg z-50 animate-fade-in overflow-hidden">
+                        <div className="p-2 border-b border-gray-100">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                              type="text"
+                              placeholder="Search users..."
+                              value={searchQuery}
+                              onChange={(e) => setSearchQuery(e.target.value)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-full bg-gray-50 rounded-lg pl-9 pr-3 py-2 text-sm border-none focus:ring-0"
+                            />
+                          </div>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto custom-scrollbar">
+                          {filteredUsers.length ? (
+                            filteredUsers.map((user) => (
+                              <button
+                                key={user.id}
+                                type="button"
+                                onClick={() => handleSelectUser(user.username, user.email)}
+                                className="w-full px-4 py-3 text-left hover:bg-blue-50 flex items-center gap-3 transition-colors"
+                              >
+                                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                                  <User className="w-4 h-4 text-blue-600" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium text-gray-900 truncate">
+                                    {user.name}
+                                  </p>
+                                  <p className="text-xs text-gray-500 truncate">@{user.username}</p>
+                                </div>
+                              </button>
+                            ))
+                          ) : (
+                            <div className="p-4 text-center text-sm text-gray-500">
+                              {isLoading ? "Loading users..." : "No users found"}
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <div className="max-h-48 overflow-y-auto">
-                        {filteredUsers.length ? (
-                          filteredUsers.map((user) => (
-                            <button
-                              key={user.id}
-                              type="button"
-                              onClick={() => handleSelectUser(user.username, user.email)}
-                              className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3"
-                            >
-                              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                                <User className="w-4 h-4 text-blue-600" />
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">
-                                  {user.name}
-                                </p>
-                                <p className="text-sm font-medium text-gray-900">@{user.username}</p>
-                              </div>
-                            </button>
-                          ))
-                        ) : (
-                          <div className="p-4 text-center text-sm text-gray-500">
-                            {isLoading ? "Loading users..." : "No users found"}
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                    )}
+                  </div>
+                  {errors[field.name] && (
+                    <p className="text-sm text-red-600 ml-1 animate-fade-in">{errors[field.name]}</p>
                   )}
                 </div>
-                {errors[field.name] && (
-                  <p className="text-sm text-red-600 mt-1">{errors[field.name]}</p>
-                )}
-              </div>
-            );
-          })}
+              );
+            })}
 
-          <div className="flex items-center justify-between">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" className="w-4 h-4 border-gray-300" disabled={isLoading} />
-              <span className="text-sm text-gray-600">Remember me</span>
-            </label>
-            <button type="button" className="text-sm text-blue-600 hover:underline disabled:text-gray-400" disabled={isLoading}>
-              Forgot password?
+            <div className="flex items-center justify-end">
+              <button
+                type="button"
+                className="text-sm text-blue-600 hover:text-blue-700 hover:underline disabled:text-gray-400 transition-colors"
+                disabled={isLoading}
+              >
+                Forgot password?
+              </button>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full flex justify-center items-center py-2.5 px-4 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 shadow-lg shadow-blue-500/30"
+            >
+              {isLoading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                  Signing In...
+                </>
+              ) : (
+                <>
+                  <LogIn className="w-5 h-5 mr-2" />
+                  Sign In
+                </>
+              )}
             </button>
-          </div>
+          </form>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md flex items-center justify-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Signing In...
-              </>
-            ) : (
-              <>
-                Sign In <LogIn className="w-4 h-4" />
-              </>
-            )}
-          </button>
-        </form>
-
-        <p className="text-center text-sm text-gray-600 mt-6">
-          Contact administrator for account access.
-        </p>
+          <p className="text-center text-xs text-gray-500 mt-8">
+            Contact administrator for account access
+          </p>
+        </div>
       </div>
+
     </div>
   );
 }

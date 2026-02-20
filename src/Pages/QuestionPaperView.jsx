@@ -61,12 +61,12 @@ export default function QuestionPaperView() {
 
       {/* Exam Paper Layout */}
       <div className="max-w-4xl mx-auto bg-white shadow-lg p-10 print:shadow-none print:max-w-none print:p-0">
-        
+
         {/* Header */}
         <div className="text-center border-b-2 border-gray-900 pb-6 mb-8">
           <h1 className="text-3xl font-bold uppercase tracking-wider mb-2">University / Institute Name</h1>
           <h2 className="text-xl font-semibold mb-4">{paper.title}</h2>
-          
+
           <div className="flex justify-between text-sm font-medium mt-4 px-4">
             <div className="text-left space-y-1">
               <p>Subject Code: {paper.subjectCode}</p>
@@ -100,7 +100,7 @@ export default function QuestionPaperView() {
               <div className="space-y-6">
                 {questionsByUnit[unit].map((q, idx) => (
                   <div key={idx} className="flex gap-4">
-                    <span className="font-medium min-w-[30px]">{q.questionNo || `Q${idx+1}`}.</span>
+                    <span className="font-medium min-w-[30px]">{q.questionNo || `Q${idx + 1}`}.</span>
                     <div className="flex-1">
                       <p className="text-justify">{q.question}</p>
                     </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Save, Check } from 'lucide-react';
 
 export default function EditQuestionModal({
@@ -29,8 +30,8 @@ export default function EditQuestionModal({
         onClose();
     };
 
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+    return createPortal(
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-[10000] p-4">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
                 <div className="flex items-center justify-between p-4 border-b border-gray-100">
                     <div>
@@ -101,6 +102,7 @@ export default function EditQuestionModal({
                     </button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
