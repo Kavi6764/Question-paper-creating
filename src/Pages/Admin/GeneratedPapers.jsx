@@ -16,7 +16,8 @@ export default function GeneratedPapers({
     previewPaper,
     showPreview,
     generatedPaper,
-    formatDateTime
+    formatDateTime,
+    collegeDetails
 }) {
     const [currentPage, setCurrentPage] = useState(1);
     const [editingPaper, setEditingPaper] = useState(null);
@@ -383,14 +384,31 @@ export default function GeneratedPapers({
                                     {pageIndex === 0 && (
                                         <>
                                             <div className="text-center mb-8 border-b-2 border-gray-900 pb-6">
-                                                <h1 className="text-2xl font-serif font-bold text-gray-900 uppercase tracking-wide mb-2">{generatedPaper.title}</h1>
+                                                {/* College Name & Address */}
+                                                <h1 className="text-2xl font-serif font-bold text-gray-900 uppercase tracking-wide mb-1">
+                                                    {collegeDetails?.collegeName || "EXAM MANAGEMENT SYSTEM"}
+                                                </h1>
+                                                {collegeDetails && (
+                                                    <p className="text-xs font-serif text-gray-600 mb-4">
+                                                        {[
+                                                            collegeDetails.city,
+                                                            collegeDetails.state ? `${collegeDetails.state}${collegeDetails.pincode ? ' - ' + collegeDetails.pincode : ''}` : ''
+                                                        ].filter(Boolean).join(', ')}
+                                                    </p>
+                                                )}
+
+                                                <h2 className="text-xl font-serif font-bold text-gray-900 uppercase tracking-wide mb-2 mt-4">{generatedPaper.title}</h2>
                                                 <div className="flex justify-between items-end border-b border-gray-300 pb-2 mb-2">
                                                     <p className="font-serif font-semibold text-lg">{generatedPaper.subjectCode} - {generatedPaper.subjectName}</p>
-                                                    <p className="font-serif">Max. Marks: {generatedPaper.totalMarks}</p>
                                                 </div>
                                                 <div className="flex justify-between font-serif text-sm">
-                                                    <p>Date: {generatedPaper.examDate || "__________"}</p>
-                                                    <p>Time: {generatedPaper.duration || 3} Hours</p>
+                                                    <div className="text-left">
+                                                        <span className="mr-6">Date: {generatedPaper.examDate || "__________"}</span>
+                                                        <span>Time: {generatedPaper.examTime || "__________"}</span>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <span>Duration: {generatedPaper.duration || 3} Hours &nbsp;&nbsp; Max. Marks: {generatedPaper.totalMarks}</span>
+                                                    </div>
                                                 </div>
                                             </div>
 

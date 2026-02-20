@@ -42,8 +42,14 @@ service cloud.firestore {
 
     // QUESTION PAPERS
     match /questionPapers/{paperId} {
-      allow read: if resource.data.visible == true || isAdmin();
+      allow read: if true;
       // Only Admins/HODs/Deans can create or update papers (including auto-generation updates)
+      allow write: if isAdmin();
+    }
+
+    // COLLEGE SETTINGS (ADDRESS)
+    match /Address/{docId} {
+      allow read: if true;
       allow write: if isAdmin();
     }
   }

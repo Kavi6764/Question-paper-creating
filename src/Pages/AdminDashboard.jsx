@@ -9,7 +9,8 @@ import {
   BookOpen,
   Award,
   Users,
-  GraduationCap
+  GraduationCap,
+  Building
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -46,6 +47,7 @@ import PaperGeneration from "./Admin/PaperGeneration";
 import ScheduledPapers from "./Admin/ScheduledPapers";
 import GeneratedPapers from "./Admin/GeneratedPapers";
 import HodDeanAssignment from "./Admin/HodDeanAssignment";
+import CollegeSettings from "./Admin/CollegeSettings";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -124,6 +126,8 @@ export default function AdminDashboard() {
     sixMark: { total: 0, available: 0 },
     eightMark: { total: 0, available: 0 }
   });
+
+  const [collegeDetails, setCollegeDetails] = useState(null);
 
 
   // Check authentication and role
@@ -1064,99 +1068,136 @@ export default function AdminDashboard() {
     // Use jsPDF for PDF generation/printing
     const doc = new jsPDF();
 
-    doc.setFontSize(20);
-    doc.text(paper.title, 105, 20, { align: 'center' });
 
-    doc.setFontSize(14);
-    doc.text(`${paper.subjectCode} - ${paper.subjectName}`, 105, 30, { align: 'center' });
 
+    // Header - College Name
+    doc.setFontSize(18);
+    doc.setFont(undefined, 'bold');
+    const collegeName = collegeDetails?.collegeName || "EXAM MANAGEMENT SYSTEM";
+    doc.text(collegeName.toUpperCase(), 105, 15, { align: 'center' });
+
+    // Header - Address (Optional)
+    // Header - Address (City, State, Pincode only)
+    let yPos = 22;
+    if (collegeDetails) {
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'normal');
+      const addressParts = [
+        collegeDetails.city,
+        collegeDetails.state ? `${collegeDetails.state}${collegeDetails.pincode ? ' - ' + collegeDetails.pincode : ''}` : ''
+      ].filter(Boolean).join(', ');
+
+      if (addressParts) {
+        doc.text(addressParts, 105, yPos, { align: 'center' });
+        yPos += 5;
+      }
+    }
+
+    doc.setFontSize(16);
+    doc.setFont(undefined, 'bold');
+    doc.text(paper.title, 105, yPos + 8, { align: 'center' });
+
+    doc.setFontSize(12);
+    doc.text(`${paper.subjectCode} - ${paper.subjectName}`, 105, yPos + 16, { align: 'center' });
+
+    const metaY = yPos + 26;
     doc.setFontSize(10);
-    doc.text(`Date: ${paper.examDate || 'N/A'}`, 20, 40);
-    doc.text(`Time: ${paper.examTime || 'N/A'}`, 80, 40);
-    doc.text(`Duration: ${paper.duration || 3} Hours`, 140, 40);
-    doc.text(`Marks: ${paper.totalMarks}`, 180, 40);
 
-    doc.line(20, 45, 190, 45);
+    // Left Side: Date & Time
+    doc.text(`Date: ${paper.examDate || '__________'}`, 20, metaY);
+    doc.text(`Time: ${paper.examTime || '__________'}`, 70, metaY);
+
+    // Right Side: Duration & Marks Combined
+    const durationText = `Duration: ${paper.duration || 3} Hours`;
+    const marksText = `Max. Marks: ${paper.totalMarks}`;
+    doc.text(`${durationText}   ${marksText}`, 190, metaY, { align: 'right' });
+
+    doc.line(20, metaY + 5, 190, metaY + 5);
 
     doc.setFontSize(11);
-    doc.text('Instructions:', 20, 55);
+    doc.text('Instructions:', 20, metaY + 12);
     doc.setFontSize(10);
-    doc.text('1. Answer all questions.', 20, 60);
-    doc.text('2. Each question carries marks as indicated.', 20, 65);
-
-    let yPos = 80;
+    doc.text('1. Answer all questions.', 20, metaY + 17);
+    doc.text('2. Each question carries marks as indicated.', 20, metaY + 22);
 
     const sortedQuestions = [...paper.questions].sort((a, b) => a.marks - b.marks);
     let currentMark = null;
     let groupIndex = 0;
+    let contentY = metaY + 32;
 
     sortedQuestions.forEach((q, i) => {
+      // Calculate dimensions first
+      const questionLines = doc.splitTextToSize(q.question || '', 150);
+      const textHeight = questionLines.length * 7;
+      const optionsHeight = (q.options?.length || 0) * 7;
+      const questionBlockHeight = textHeight + optionsHeight + 10; // +10 padding
+
+      let headerBlockHeight = 0;
+      let isNewGroup = false;
+
       // Check for new group
       if (q.marks !== currentMark) {
         currentMark = q.marks;
-        const groupLabel = String.fromCharCode(65 + groupIndex); // A, B, C...
+        isNewGroup = true;
+        headerBlockHeight = 25; // Header space
+      }
 
-        // Calculate count and total for this group
+      // Check if we need a page break
+      // If new group, check if header + question fits. If not, page break.
+      // If same group, just check question.
+      if (contentY + headerBlockHeight + questionBlockHeight > 280) {
+        doc.addPage();
+        contentY = 20;
+        // If we just started a new group but triggered a page break, 
+        // the header will be printed at the top of the new page.
+      }
+
+      // Print Group Header if needed
+      if (isNewGroup) {
+        const groupLabel = String.fromCharCode(65 + groupIndex); // A, B, C...
         const groupCount = sortedQuestions.filter(sq => sq.marks === q.marks).length;
         const groupTotal = groupCount * q.marks;
 
-        // Add Group Header
-        yPos += 5;
-        if (yPos > 270) { doc.addPage(); yPos = 20; }
-
         doc.setFontSize(12);
         doc.setFont(undefined, 'bold');
-        doc.text(`Group-${groupLabel}`, 20, yPos);
-        doc.text(`[ ${q.marks} x ${groupCount} = ${groupTotal} ]`, 190, yPos, { align: 'right' });
-        yPos += 8;
+        doc.text(`Group-${groupLabel}`, 20, contentY);
+        doc.text(`[ ${q.marks} x ${groupCount} = ${groupTotal} ]`, 190, contentY, { align: 'right' });
+        contentY += 8;
 
         doc.setFontSize(10);
-        doc.setFont(undefined, 'bold');
-        doc.text("Answer the Following Questions", 20, yPos);
-        yPos += 10;
+        doc.text("Answer the Following Questions", 20, contentY);
+        contentY += 12; // Spacing after header
 
         groupIndex++;
       }
 
-      // Calculate total height needed for this question block
-      const questionLines = doc.splitTextToSize(q.question || '', 150);
-      const textHeight = questionLines.length * 7;
-      const optionsHeight = (q.options?.length || 0) * 7;
-      const totalQuestionHeight = textHeight + optionsHeight + 15; // +15 for padding/spacing
-
-      // Check if the whole question block fits, otherwise add page
-      if (yPos + totalQuestionHeight > 280) {
-        doc.addPage();
-        yPos = 20; // Reset to top margin
-      }
-
+      // Print Question
       doc.setFontSize(11);
       doc.setFont(undefined, 'bold');
-      doc.text(`Q${i + 1}.`, 20, yPos);
+      doc.text(`Q${i + 1}.`, 20, contentY);
 
       doc.setFont(undefined, 'normal');
-      doc.text(questionLines, 35, yPos);
+      doc.text(questionLines, 35, contentY);
 
-      doc.setFontSize(10);
-      // Align marks to the right - REMOVED per user request
-      // doc.text(`[${q.marks}]`, 180, yPos, { align: 'right' });
+      // Marks removed from individual question as per request (now in header)
+      // doc.text(`[${q.marks}]`, 190, contentY, { align: 'right' }); 
 
-      yPos += textHeight + 5;
+      contentY += textHeight + 5;
 
       if (q.options && q.options.length > 0) {
         doc.setFontSize(10);
         q.options.forEach((opt, optIdx) => {
-          // Double check if option fits (though usually handled by block check above, safe to keep as fallback)
-          if (yPos > 280) {
+          // Double check if option fits (though usually covered by block check)
+          if (contentY > 280) {
             doc.addPage();
-            yPos = 20;
+            contentY = 20;
           }
-          doc.text(`${String.fromCharCode(65 + optIdx)}) ${opt}`, 40, yPos);
-          yPos += 7;
+          doc.text(`${String.fromCharCode(65 + optIdx)}) ${opt}`, 40, contentY);
+          contentY += 7;
         });
       }
 
-      yPos += 5; // Spacing between questions
+      contentY += 5; // Spacing between questions
     });
 
     doc.save(`${paper.title.replace(/\s+/g, '_')}.pdf`);
@@ -1214,7 +1255,8 @@ export default function AdminDashboard() {
               { id: 'schedule', icon: Timer, label: 'Schedule Papers' },
               { id: 'generate', icon: FileText, label: 'Generate Papers' },
               { id: 'papers', icon: BookOpen, label: 'Generated Papers' },
-              { id: 'assign', icon: GraduationCap, label: 'HOD/Dean Assign' }
+              { id: 'assign', icon: GraduationCap, label: 'HOD/Dean Assign' },
+              { id: 'settings', icon: Building, label: 'Settings' }
             ].map((item, index) => {
               const Icon = item.icon;
               return (
@@ -1395,7 +1437,12 @@ export default function AdminDashboard() {
                 showPreview={showPreview}
                 generatedPaper={generatedPaper}
                 formatDateTime={formatDateTime}
+                collegeDetails={collegeDetails}
               />
+            )}
+
+            {activeTab === "settings" && (
+              <CollegeSettings onUpdate={setCollegeDetails} />
             )}
 
             {activeTab === "assign" && (
