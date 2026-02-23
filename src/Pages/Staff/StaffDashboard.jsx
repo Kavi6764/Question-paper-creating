@@ -69,11 +69,18 @@ export default function StaffDashboard() {
         uploadedToday: 0,
         totalUploads: 0
     });
-    const [activeTab, setActiveTab] = useState("dashboard");
+    const [activeTab, setActiveTab] = useState(() => {
+        return localStorage.getItem("staffActiveTab") || "dashboard";
+    });
+
+    useEffect(() => {
+        localStorage.setItem("staffActiveTab", activeTab);
+    }, [activeTab]);
     const [previewPage, setPreviewPage] = useState(0);
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [uploadedUnits, setUploadedUnits] = useState({}); // Track uploaded units per subject
     const [questionPapers, setQuestionPapers] = useState([]); // Store visible question papers
+    const [loadingPapers, setLoadingPapers] = useState(true);
     const [searchTerm, setSearchTerm] = useState(""); // Only used for File Preview now
 
     const itemsPerPage = 5;
@@ -86,7 +93,8 @@ export default function StaffDashboard() {
             Question: `Sample Question ${i + 1} for ${marks} Marks`,
             Marks: marks,
             Difficulty: i % 3 === 0 ? "Easy" : i % 3 === 1 ? "Medium" : "Hard",
-            Unit: 1
+            Unit: 1,
+            ImageURL: "" // Optional image URL
         }));
     };
 
@@ -126,7 +134,8 @@ export default function StaffDashboard() {
                                 username: data.username || "",
                                 department: data.department || "Staff",
                                 assignedSubjects: data.assignedSubjects || [],
-                                status: data.status || "active"
+                                status: data.status || "active",
+                                role: data.role || "staff"
                             };
                             setStaffData(newStaffData);
 
@@ -279,30 +288,26 @@ export default function StaffDashboard() {
     useEffect(() => {
         if (!staffData) return;
 
-        const fetchPapers = async () => {
-            try {
-                const q = query(
-                    collection(db, "questionPapers"),
-                    where("visible", "==", true),
-                    orderBy("createdAt", "desc")
-                );
+        const q = query(
+            collection(db, "questionPapers"),
+            where("visible", "==", true)
+        );
 
-                const unsubscribe = onSnapshot(q, (snapshot) => {
-                    const papers = snapshot.docs.map(doc => ({
-                        id: doc.id,
-                        ...doc.data(),
-                        createdAt: doc.data().createdAt?.toDate() || new Date()
-                    }));
-                    setQuestionPapers(papers);
-                });
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const papers = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                createdAt: doc.data().createdAt?.toDate() || new Date()
+            })).sort((a, b) => b.createdAt - a.createdAt);
+            setQuestionPapers(papers);
+            setLoadingPapers(false);
+        }, (error) => {
+            console.error("Error fetching papers:", error);
+            toast.error("Error loading question papers");
+            setLoadingPapers(false);
+        });
 
-                return () => unsubscribe();
-            } catch (error) {
-                console.error("Error fetching papers:", error);
-            }
-        };
-
-        fetchPapers();
+        return () => unsubscribe();
     }, [staffData]);
 
     const handleLogout = async () => {
@@ -357,7 +362,8 @@ export default function StaffDashboard() {
                 question: row.Question || "",
                 marks: row.Marks || 0,
                 difficulty: row.Difficulty || "Medium",
-                unit: row.Unit || 1
+                unit: row.Unit || 1,
+                imageURL: row.ImageURL || row.imageURL || ""
             }));
 
             setPreviewData(previewRows);
@@ -436,6 +442,7 @@ export default function StaffDashboard() {
                     marks: Number(row.Marks),
                     difficulty: row.Difficulty || "Medium",
                     unit: Number(unit),
+                    imageURL: row.ImageURL || row.imageURL || "",
                     uploadedAt: Date.now(),
                     staffId: staffData.id,
                     staffName: staffData.name,
@@ -720,8 +727,20 @@ export default function StaffDashboard() {
                                         >
                                             <Shield className="h-4 w-4 text-slate-400 group-hover:text-slate-600 transition-colors" />
                                             <span>Settings</span>
-
                                         </button>
+
+                                        {(staffData?.role === "hod" || staffData?.role === "dean" || staffData?.role === "admin") && (
+                                            <button
+                                                onClick={() => {
+                                                    localStorage.setItem("username", staffData.username || staffData.role);
+                                                    navigate("/admin-dashboard");
+                                                }}
+                                                className="w-full px-4 py-2.5 text-sm font-bold text-blue-600 hover:text-blue-700 flex items-center gap-2.5 transition-all duration-300 mx-1 rounded-lg hover:bg-blue-50/50 group border border-transparent hover:border-blue-100"
+                                            >
+                                                <Shield className="h-4 w-4 text-blue-500 group-hover:text-blue-600" />
+                                                <span>Switch to Admin Portal</span>
+                                            </button>
+                                        )}
                                         <button
                                             onClick={handleLogout}
                                             className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50/50 flex items-center gap-2 transition-colors mx-1 rounded-lg mb-1"
@@ -836,7 +855,10 @@ export default function StaffDashboard() {
 
                         {activeTab === "papers" && (
                             <div className="animate-fade-in">
-                                <GeneratedPapers questionPapers={questionPapers} />
+                                <GeneratedPapers
+                                    questionPapers={questionPapers}
+                                    loading={loadingPapers}
+                                />
                             </div>
                         )}
                     </div>

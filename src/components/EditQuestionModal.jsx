@@ -61,6 +61,33 @@ export default function EditQuestionModal({
                         />
                     </div>
 
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Image URL (Optional)
+                        </label>
+                        <div className="space-y-3">
+                            <input
+                                type="text"
+                                value={editedQuestion.imageURL || ""}
+                                onChange={(e) => setEditedQuestion(prev => ({ ...prev, imageURL: e.target.value }))}
+                                className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all font-mono text-sm"
+                                placeholder="https://example.com/image.png"
+                            />
+                            {editedQuestion.imageURL && (
+                                <div className="p-2 border border-gray-100 rounded-lg bg-gray-50 flex items-center justify-center">
+                                    <img
+                                        src={editedQuestion.imageURL}
+                                        alt="Current diagram"
+                                        className="max-h-48 rounded shadow-sm border border-gray-200"
+                                        onError={(e) => {
+                                            e.target.style.display = 'none';
+                                        }}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     {options.length > 0 && (
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">

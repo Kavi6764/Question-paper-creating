@@ -79,6 +79,20 @@ export default function FilePreview({ file, previewData, previewPage, setPreview
                                                     {item.question}
                                                 </p>
 
+                                                {/* Question Image Preview */}
+                                                {item.imageURL && (
+                                                    <div className="pl-4 mt-2">
+                                                        <img
+                                                            src={item.imageURL}
+                                                            alt="Question diagram"
+                                                            className="max-h-32 rounded-lg border border-slate-200 object-contain shadow-sm"
+                                                            onError={(e) => {
+                                                                e.target.style.display = 'none';
+                                                            }}
+                                                        />
+                                                    </div>
+                                                )}
+
                                                 {/* Footer with Unit and Marks */}
                                                 <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                                                     <div className="flex items-center gap-1.5 text-xs text-slate-400">

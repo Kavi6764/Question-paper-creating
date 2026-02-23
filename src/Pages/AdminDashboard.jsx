@@ -738,33 +738,65 @@ export default function AdminDashboard() {
 
     try {
       setLoading(true);
+      const searchInput = hodDeanAssignment.username.trim();
+      const searchInputLower = searchInput.toLowerCase();
 
-      const q = query(collection(db, "users"), where("username", "==", hodDeanAssignment.username));
-      const querySnapshot = await getDocs(q);
+      // Attempt to find user by username or email
+      let userSnap;
 
-      if (querySnapshot.empty) {
-        toast.error("User not found!");
+      // 1. Try Username (exact)
+      const qUsername = query(collection(db, "users"), where("username", "==", searchInput));
+      const usernameSnap = await getDocs(qUsername);
+
+      if (!usernameSnap.empty) {
+        userSnap = usernameSnap.docs[0];
+      } else {
+        // 2. Try Username (lowercase - for common errors)
+        const qUsernameLower = query(collection(db, "users"), where("username", "==", searchInputLower));
+        const usernameLowerSnap = await getDocs(qUsernameLower);
+
+        if (!usernameLowerSnap.empty) {
+          userSnap = usernameLowerSnap.docs[0];
+        } else {
+          // 3. Try Email
+          const qEmail = query(collection(db, "users"), where("email", "==", searchInput));
+          const emailSnap = await getDocs(qEmail);
+
+          if (!emailSnap.empty) {
+            userSnap = emailSnap.docs[0];
+          } else {
+            // 4. Try Email (lowercase)
+            const qEmailLower = query(collection(db, "users"), where("email", "==", searchInputLower));
+            const emailLowerSnap = await getDocs(qEmailLower);
+            if (!emailLowerSnap.empty) {
+              userSnap = emailLowerSnap.docs[0];
+            }
+          }
+        }
+      }
+
+      if (!userSnap) {
+        toast.error(`User with identifier "${searchInput}" not found. Please check the spelling.`);
         setLoading(false);
         return;
       }
 
-      const userDoc = querySnapshot.docs[0];
-      const userData = userDoc.data();
+      const userData = userSnap.data();
+      const userRef = doc(db, "users", userSnap.id);
 
-      const userRef = doc(db, "users", userDoc.id);
       await updateDoc(userRef, {
         role: hodDeanAssignment.role,
         department: hodDeanAssignment.department,
         updatedAt: serverTimestamp()
       });
 
-      toast.success(`Assigned ${hodDeanAssignment.role.toUpperCase()} role to ${userData.fullName}`);
+      toast.success(`Assigned ${hodDeanAssignment.role.toUpperCase()} role to ${userData.fullName || userData.name || userData.username}`);
       setShowAssignHodDean(false);
       setHodDeanAssignment({ username: "", role: "hod", department: "" });
 
     } catch (error) {
       console.error("Error assigning role:", error);
-      toast.error("Error assigning role");
+      toast.error(`Error: ${error.message || "Failed to assign role"}`);
     } finally {
       setLoading(false);
     }
@@ -1062,21 +1094,40 @@ export default function AdminDashboard() {
     }
   };
 
-  const previewPaper = (paper) => {
+  const previewPaper = async (paper) => {
     if (!paper) return;
+
+    const loadImage = (url) => {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'Anonymous';
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          resolve({
+            data: canvas.toDataURL('image/jpeg'),
+            width: img.width,
+            height: img.height
+          });
+        };
+        img.onerror = () => resolve(null);
+        img.src = url;
+      });
+    };
 
     // Use jsPDF for PDF generation/printing
     const doc = new jsPDF();
 
-
-
+    // ... (header logic unchanged)
     // Header - College Name
     doc.setFontSize(18);
     doc.setFont(undefined, 'bold');
     const collegeName = collegeDetails?.collegeName || "EXAM MANAGEMENT SYSTEM";
     doc.text(collegeName.toUpperCase(), 105, 15, { align: 'center' });
 
-    // Header - Address (Optional)
     // Header - Address (City, State, Pincode only)
     let yPos = 22;
     if (collegeDetails) {
@@ -1119,18 +1170,35 @@ export default function AdminDashboard() {
     doc.setFontSize(10);
     doc.text('1. Answer all questions.', 20, metaY + 17);
     doc.text('2. Each question carries marks as indicated.', 20, metaY + 22);
+    doc.text('3. Draw neat diagrams wherever necessary.', 20, metaY + 27); // Added instruction for diagrams
 
     const sortedQuestions = [...paper.questions].sort((a, b) => a.marks - b.marks);
     let currentMark = null;
     let groupIndex = 0;
-    let contentY = metaY + 32;
+    let contentY = metaY + 36;
 
-    sortedQuestions.forEach((q, i) => {
+    for (let i = 0; i < sortedQuestions.length; i++) {
+      const q = sortedQuestions[i];
+
       // Calculate dimensions first
       const questionLines = doc.splitTextToSize(q.question || '', 150);
       const textHeight = questionLines.length * 7;
       const optionsHeight = (q.options?.length || 0) * 7;
-      const questionBlockHeight = textHeight + optionsHeight + 10; // +10 padding
+
+      let imageHeight = 0;
+      let imageData = null;
+      if (q.imageURL) {
+        imageData = await loadImage(q.imageURL);
+        if (imageData) {
+          // Scale image to max width of 100mm, maintain aspect ratio
+          const maxW = 100;
+          const ratio = imageData.height / imageData.width;
+          imageHeight = Math.min(60, maxW * ratio); // Max height 60mm
+          imageData.displayW = imageHeight / ratio;
+        }
+      }
+
+      const questionBlockHeight = textHeight + optionsHeight + (imageHeight ? imageHeight + 10 : 0) + 10;
 
       let headerBlockHeight = 0;
       let isNewGroup = false;
@@ -1143,13 +1211,9 @@ export default function AdminDashboard() {
       }
 
       // Check if we need a page break
-      // If new group, check if header + question fits. If not, page break.
-      // If same group, just check question.
       if (contentY + headerBlockHeight + questionBlockHeight > 280) {
         doc.addPage();
         contentY = 20;
-        // If we just started a new group but triggered a page break, 
-        // the header will be printed at the top of the new page.
       }
 
       // Print Group Header if needed
@@ -1166,7 +1230,7 @@ export default function AdminDashboard() {
 
         doc.setFontSize(10);
         doc.text("Answer the Following Questions", 20, contentY);
-        contentY += 12; // Spacing after header
+        contentY += 12;
 
         groupIndex++;
       }
@@ -1179,16 +1243,13 @@ export default function AdminDashboard() {
       doc.setFont(undefined, 'normal');
       doc.text(questionLines, 35, contentY);
 
-      // Marks removed from individual question as per request (now in header)
-      // doc.text(`[${q.marks}]`, 190, contentY, { align: 'right' }); 
-
       contentY += textHeight + 5;
 
+      // Print Options
       if (q.options && q.options.length > 0) {
         doc.setFontSize(10);
         q.options.forEach((opt, optIdx) => {
-          // Double check if option fits (though usually covered by block check)
-          if (contentY > 280) {
+          if (contentY > 285) {
             doc.addPage();
             contentY = 20;
           }
@@ -1197,8 +1258,18 @@ export default function AdminDashboard() {
         });
       }
 
+      // Print Image
+      if (imageData) {
+        if (contentY + imageHeight > 285) {
+          doc.addPage();
+          contentY = 20;
+        }
+        doc.addImage(imageData.data, 'JPEG', 40, contentY, imageData.displayW, imageHeight);
+        contentY += imageHeight + 8;
+      }
+
       contentY += 5; // Spacing between questions
-    });
+    }
 
     doc.save(`${paper.title.replace(/\s+/g, '_')}.pdf`);
   };
@@ -1256,13 +1327,20 @@ export default function AdminDashboard() {
               { id: 'generate', icon: FileText, label: 'Generate Papers' },
               { id: 'papers', icon: BookOpen, label: 'Generated Papers' },
               { id: 'assign', icon: GraduationCap, label: 'HOD/Dean Assign' },
-              { id: 'settings', icon: Building, label: 'Settings' }
+              { id: 'settings', icon: Building, label: 'Settings' },
+              ...(userData?.role === 'hod' || userData?.role === 'dean' ? [{ id: 'staff-view', icon: User, label: 'Switch to Staff Portal' }] : [])
             ].map((item, index) => {
               const Icon = item.icon;
               return (
                 <li key={item.id} className="animate-slide-up" style={{ animationDelay: `${index * 0.05}s` }}>
                   <button
-                    onClick={() => setActiveTab(item.id)}
+                    onClick={() => {
+                      if (item.id === 'staff-view') {
+                        navigate("/staff-portal");
+                      } else {
+                        setActiveTab(item.id);
+                      }
+                    }}
                     className={`relative flex items-center p-3 w-full rounded-xl transition-all duration-300 group overflow-hidden ${activeTab === item.id
                       ? "bg-gradient-to-r from-blue-600/10 to-indigo-600/10 text-blue-700 shadow-sm ring-1 ring-blue-100"
                       : "text-gray-600 hover:bg-gray-50/80 hover:text-gray-900"
