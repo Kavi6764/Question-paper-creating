@@ -490,9 +490,23 @@ export default function GeneratedPapers({
                                                                         ))}
                                                                     </div>
                                                                 )}
+                                                                {question.imageURL && (
+                                                                    <div className="mt-3 relative group/img">
+                                                                        <img
+                                                                            src={question.imageURL}
+                                                                            alt="Question diagram"
+                                                                            className="max-h-64 rounded-lg border border-gray-200 shadow-sm object-contain"
+                                                                            onError={(e) => {
+                                                                                e.target.style.display = 'none';
+                                                                            }}
+                                                                        />
+                                                                        <div className="absolute top-2 left-2 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded opacity-0 group-hover/img:opacity-100 transition-opacity">
+                                                                            Diagram
+                                                                        </div>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
-                                                        {/* Marks display removed */}
                                                     </div>
                                                 </div>
                                             );
@@ -516,7 +530,8 @@ export default function GeneratedPapers({
                     </div>
                 </div>,
                 document.body
-            )}
+            )
+            }
 
             {/* Edit Modal */}
             {

@@ -1,7 +1,25 @@
-import React from 'react';
-import { Eye, FileText, Shield, Calendar, BookOpen, Award, Clock, Info } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Eye, FileText, Shield, Calendar, BookOpen, Award, Clock, Info, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 
-export default function GeneratedPapers({ questionPapers }) {
+export default function GeneratedPapers({ questionPapers, loading }) {
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
+
+    // Filter logic (ensure it's an array)
+    const filteredPapers = questionPapers || [];
+
+    // Pagination logic
+    const totalPages = Math.ceil(filteredPapers.length / itemsPerPage);
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentPapers = filteredPapers.slice(indexOfFirstItem, indexOfLastItem);
+
+    // Reset to page 1 if papers change
+    useEffect(() => {
+        if (currentPage > totalPages && totalPages > 0) {
+            setCurrentPage(1);
+        }
+    }, [filteredPapers.length, totalPages]);
 
     const getStatusBadge = (paper) => {
         if (!paper.generatedAt) {
@@ -56,9 +74,14 @@ export default function GeneratedPapers({ questionPapers }) {
 
             {/* Papers List */}
             <div className="p-8">
-                {questionPapers.length > 0 ? (
+                {loading ? (
+                    <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+                        <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
+                        <p className="text-slate-500 font-medium">Loading question papers...</p>
+                    </div>
+                ) : questionPapers.length > 0 ? (
                     <div className="space-y-4">
-                        {questionPapers.map((paper) => {
+                        {currentPapers.map((paper) => {
                             const status = getStatusBadge(paper);
                             const StatusIcon = status.icon;
 
@@ -69,8 +92,8 @@ export default function GeneratedPapers({ questionPapers }) {
                                 >
                                     {/* Status color strip */}
                                     <div className={`absolute left-0 top-0 bottom-0 w-1 ${status.label === 'Published'
-                                            ? 'bg-gradient-to-b from-emerald-500 to-emerald-400'
-                                            : 'bg-gradient-to-b from-amber-500 to-amber-400'
+                                        ? 'bg-gradient-to-b from-emerald-500 to-emerald-400'
+                                        : 'bg-gradient-to-b from-amber-500 to-amber-400'
                                         }`}></div>
 
                                     <div className="p-6 pl-8">
@@ -181,9 +204,34 @@ export default function GeneratedPapers({ questionPapers }) {
                             </div>
                         </div>
 
+                        {/* Pagination Controls */}
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50 rounded-xl mt-4">
+                                <p className="text-sm text-slate-500">
+                                    Page <span className="font-medium text-slate-900">{currentPage}</span> of <span className="font-medium text-slate-900">{totalPages}</span>
+                                </p>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                        disabled={currentPage === 1}
+                                        className="p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:border-blue-200"
+                                    >
+                                        <ChevronLeft className="w-4 h-4 text-slate-600" />
+                                    </button>
+                                    <button
+                                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                        disabled={currentPage === totalPages}
+                                        className="p-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:border-blue-200"
+                                    >
+                                        <ChevronRight className="w-4 h-4 text-slate-600" />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Summary */}
-                        <div className="flex items-center justify-between text-sm text-slate-500 pt-2">
-                            <span>Showing {questionPapers.length} question papers</span>
+                        <div className="flex items-center justify-between text-sm text-slate-500 pt-4 px-2">
+                            <span>Showing {currentPapers.length} of {filteredPapers.length} question papers</span>
                             <span>Last updated: {new Date().toLocaleDateString()}</span>
                         </div>
                     </div>

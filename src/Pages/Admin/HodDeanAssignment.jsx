@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Award, X, AlertCircle, Shield, User } from 'lucide-react';
+import { Award, X, AlertCircle, Shield, User, Search, ChevronDown, Check } from 'lucide-react';
 
 export default function HodDeanAssignment({
     showAssignHodDean,
@@ -11,6 +11,10 @@ export default function HodDeanAssignment({
     handleAssignHodDean,
     staffList
 }) {
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+    const dropdownRef = useRef(null);
+
     // Helper for gradient avatars
     const getRandomGradient = (name) => {
         const gradients = [
@@ -21,6 +25,31 @@ export default function HodDeanAssignment({
         ];
         const index = name.length % gradients.length;
         return gradients[index];
+    };
+
+    // Filter staff who are NOT already Admins (HOD/Dean) and match search
+    const selectableStaff = staffList.filter(staff => {
+        const isNotAdmin = staff.role === "staff" || (!staff.role && staff.username !== "admin");
+        const matchesSearch = (staff.fullName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (staff.username || "").toLowerCase().includes(searchTerm.toLowerCase());
+        return isNotAdmin && matchesSearch;
+    });
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleSelectStaff = (staff) => {
+        setHodDeanAssignment({ ...hodDeanAssignment, username: staff.username });
+        setSearchTerm(staff.fullName || staff.username);
+        setIsDropdownOpen(false);
     };
 
     const RoleTable = ({ title, role, color, icon: Icon }) => {
@@ -69,7 +98,7 @@ export default function HodDeanAssignment({
                                             <p className="text-sm text-gray-500">{staff.email}</p>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border uppercase tracking-wide bg-${color}-50 text-${color}-700 border-${color}-100`}>
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border uppercase tracking-wide bg-${role === 'hod' ? 'purple' : 'pink'}-50 text-${role === 'hod' ? 'purple' : 'pink'}-700 border-${role === 'hod' ? 'purple' : 'pink'}-100`}>
                                                 {role}
                                             </span>
                                         </td>
@@ -121,23 +150,85 @@ export default function HodDeanAssignment({
                     <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl border border-gray-100 transform transition-all scale-100 animate-scale-in">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-xl font-bold text-gray-900">Assign Administrative Role</h3>
-                            <button onClick={() => { setShowAssignHodDean(false); setHodDeanAssignment({ username: "", role: "hod", department: "" }); }} className="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors">
+                            <button onClick={() => { setShowAssignHodDean(false); setHodDeanAssignment({ username: "", role: "hod", department: "" }); setSearchTerm(""); }} className="p-2 hover:bg-gray-100 rounded-full text-gray-500 transition-colors">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
 
                         <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1.5">Username <span className="text-red-500">*</span></label>
-                                <input
-                                    type="text"
-                                    value={hodDeanAssignment.username}
-                                    onChange={(e) => setHodDeanAssignment({ ...hodDeanAssignment, username: e.target.value })}
-                                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all"
-                                    placeholder="Enter system username"
-                                />
-                                <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-1">
-                                    <AlertCircle className="w-3 h-3" /> User must already exist in the system
+                            <div className="relative" ref={dropdownRef}>
+                                <label className="block text-sm font-medium text-gray-700 mb-1.5 flex items-center justify-between">
+                                    <span>Select Staff Member <span className="text-red-500">*</span></span>
+                                    {hodDeanAssignment.username && (
+                                        <span className="text-[10px] text-purple-600 font-bold bg-purple-50 px-1.5 py-0.5 rounded">
+                                            UID: {hodDeanAssignment.username}
+                                        </span>
+                                    )}
+                                </label>
+
+                                <div
+                                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                                    className={`w-full border border-gray-200 rounded-xl px-4 py-2.5 flex items-center justify-between cursor-pointer transition-all hover:bg-gray-50 ${isDropdownOpen ? 'ring-2 ring-purple-500/20 border-purple-500 bg-white' : 'bg-white'}`}
+                                >
+                                    <div className="flex items-center gap-2 overflow-hidden">
+                                        <User className="w-4 h-4 text-gray-400 shrink-0" />
+                                        <span className={`truncate ${searchTerm ? 'text-gray-900' : 'text-gray-400'}`}>
+                                            {searchTerm || "Search and select a staff member..."}
+                                        </span>
+                                    </div>
+                                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                                </div>
+
+                                {isDropdownOpen && (
+                                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl border border-gray-100 shadow-xl z-50 overflow-hidden animate-slide-up">
+                                        <div className="p-2 border-b border-gray-50">
+                                            <div className="relative">
+                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                                <input
+                                                    type="text"
+                                                    autoFocus
+                                                    value={searchTerm}
+                                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                                    className="w-full pl-9 pr-4 py-2 text-sm border-0 focus:ring-0 outline-none"
+                                                    placeholder="Search by name or username..."
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="max-h-60 overflow-y-auto">
+                                            {selectableStaff.length > 0 ? (
+                                                selectableStaff.map((staff) => (
+                                                    <div
+                                                        key={staff.id}
+                                                        onClick={() => handleSelectStaff(staff)}
+                                                        className="px-4 py-3 hover:bg-purple-50 cursor-pointer flex items-center justify-between group transition-colors"
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${getRandomGradient(staff.fullName || staff.username || "")} flex items-center justify-center text-white font-bold text-xs`}>
+                                                                {(staff.fullName || staff.username || "?").charAt(0).toUpperCase()}
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-sm font-semibold text-gray-900 group-hover:text-purple-700">{staff.fullName || staff.username}</p>
+                                                                <p className="text-[10px] text-gray-500 italic">@{staff.username}</p>
+                                                            </div>
+                                                        </div>
+                                                        {hodDeanAssignment.username === staff.username && (
+                                                            <Check className="w-4 h-4 text-purple-600" />
+                                                        )}
+                                                    </div>
+                                                ))
+                                            ) : (
+                                                <div className="px-4 py-8 text-center">
+                                                    <p className="text-sm text-gray-500">No staff found</p>
+                                                    <p className="text-[10px] text-gray-400 mt-1">Try a different search term</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <p className="text-[10px] text-gray-500 mt-1.5 flex items-center gap-1 px-1">
+                                    <AlertCircle className="w-3 h-3" /> Select a regular staff member to promote
                                 </p>
                             </div>
 
@@ -172,7 +263,7 @@ export default function HodDeanAssignment({
                             </div>
 
                             <div className="flex gap-3 pt-2">
-                                <button onClick={() => { setShowAssignHodDean(false); setHodDeanAssignment({ username: "", role: "hod", department: "" }); }} className="px-5 py-2.5 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 font-medium transition-colors">Cancel</button>
+                                <button onClick={() => { setShowAssignHodDean(false); setHodDeanAssignment({ username: "", role: "hod", department: "" }); setSearchTerm(""); }} className="px-5 py-2.5 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 font-medium transition-colors">Cancel</button>
                                 <button
                                     onClick={handleAssignHodDean}
                                     disabled={loading}
