@@ -38,6 +38,7 @@ import GeneratedPapers from "./GeneratedPapers";
 import FilePreview from "./FilePreview";
 import StaffSettings from "./StaffSettings";
 import PageContainer from "../../components/PageContainer";
+import ConfirmationModal from "../../components/ConfirmationModal";
 
 // Helper to get initials
 const getInitials = (name) => {
@@ -57,6 +58,7 @@ export default function StaffDashboard() {
     const [unit, setUnit] = useState("");
     const [file, setFile] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [showSwitchModal, setShowSwitchModal] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const [uploadStatus, setUploadStatus] = useState(null);
@@ -731,10 +733,7 @@ export default function StaffDashboard() {
 
                                         {(staffData?.role === "hod" || staffData?.role === "dean" || staffData?.role === "admin") && (
                                             <button
-                                                onClick={() => {
-                                                    localStorage.setItem("username", staffData.username || staffData.role);
-                                                    navigate("/admin-dashboard");
-                                                }}
+                                                onClick={() => setShowSwitchModal(true)}
                                                 className="w-full px-4 py-2.5 text-sm font-bold text-blue-600 hover:text-blue-700 flex items-center gap-2.5 transition-all duration-300 mx-1 rounded-lg hover:bg-blue-50/50 group border border-transparent hover:border-blue-100"
                                             >
                                                 <Shield className="h-4 w-4 text-blue-500 group-hover:text-blue-600" />
@@ -880,6 +879,19 @@ export default function StaffDashboard() {
                     </div>
                 </div>
             </PageContainer>
+
+            <ConfirmationModal
+                isOpen={showSwitchModal}
+                onClose={() => setShowSwitchModal(false)}
+                onConfirm={() => {
+                    localStorage.setItem("username", staffData.username || staffData.role);
+                    navigate("/admin-dashboard");
+                }}
+                title="Switch to Admin Portal"
+                message="You are about to switch to the Admin Dashboard. Do you want to continue?"
+                confirmText="Switch Portal"
+                type="info"
+            />
         </div>
     );
 }
