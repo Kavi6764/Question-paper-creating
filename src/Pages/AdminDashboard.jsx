@@ -48,12 +48,26 @@ import ScheduledPapers from "./Admin/ScheduledPapers";
 import GeneratedPapers from "./Admin/GeneratedPapers";
 import HodDeanAssignment from "./Admin/HodDeanAssignment";
 import CollegeSettings from "./Admin/CollegeSettings";
+import ConfirmationModal from "../components/ConfirmationModal";
+import BackupRestore from "./Admin/BackupRestore";
+import { Database as DatabaseIcon } from "lucide-react";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [userData, setUserData] = useState(null);
   const [activeTab, setActiveTab] = useState("staff");
   const [loading, setLoading] = useState(false);
+
+  // Dashboard Stats State
+  const [stats, setStats] = useState({
+    totalStaff: 0,
+    totalSubjects: 0,
+    scheduledPapers: 0,
+    generatedPapers: 0
+  });
+
+  // Portal Switch State
+  const [showSwitchModal, setShowSwitchModal] = useState(false);
 
   // Staff Management State
   const [staffList, setStaffList] = useState([]);
@@ -197,6 +211,7 @@ export default function AdminDashboard() {
           user.status !== "deleted"
         );
         setStaffList(staff);
+        setStats(prev => ({ ...prev, totalStaff: staff.length }));
       });
 
       // Load all subjects
@@ -207,6 +222,7 @@ export default function AdminDashboard() {
           ...doc.data()
         }));
         setAllSubjects(subjects);
+        setStats(prev => ({ ...prev, totalSubjects: subjects.length }));
 
         const uniqueSubjectsMap = new Map();
         subjects.forEach(s => {
@@ -232,9 +248,11 @@ export default function AdminDashboard() {
           ...doc.data()
         }));
         setQuestionPapers(papers);
+        setStats(prev => ({ ...prev, generatedPapers: papers.length }));
 
         const scheduled = papers.filter(paper => paper.status === "scheduled");
         setScheduledPapers(scheduled);
+        setStats(prev => ({ ...prev, scheduledPapers: scheduled.length }));
 
         checkScheduledPapers(scheduled);
       });
@@ -1328,6 +1346,7 @@ export default function AdminDashboard() {
               { id: 'papers', icon: BookOpen, label: 'Generated Papers' },
               { id: 'assign', icon: GraduationCap, label: 'HOD/Dean Assign' },
               { id: 'settings', icon: Building, label: 'Settings' },
+              // { id: 'backup', icon: DatabaseIcon, label: 'Backup & Restore' },
               ...(userData?.role === 'hod' || userData?.role === 'dean' ? [{ id: 'staff-view', icon: User, label: 'Switch to Staff Portal' }] : [])
             ].map((item, index) => {
               const Icon = item.icon;
@@ -1336,7 +1355,7 @@ export default function AdminDashboard() {
                   <button
                     onClick={() => {
                       if (item.id === 'staff-view') {
-                        navigate("/staff-portal");
+                        setShowSwitchModal(true);
                       } else {
                         setActiveTab(item.id);
                       }
@@ -1534,9 +1553,23 @@ export default function AdminDashboard() {
                 staffList={staffList}
               />
             )}
+
+            {activeTab === "backup" && (
+              <BackupRestore />
+            )}
           </div>
         </PageContainer>
       </div>
+
+      <ConfirmationModal
+        isOpen={showSwitchModal}
+        onClose={() => setShowSwitchModal(false)}
+        onConfirm={() => navigate("/staff-portal")}
+        title="Switch to Staff Portal"
+        message="You are about to switch to the Staff Portal. All unsaved changes in the Admin Dashboard might be lost. Do you want to continue?"
+        confirmText="Switch Portal"
+        type="info"
+      />
     </div>
   );
 }
