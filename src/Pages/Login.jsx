@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Eye, EyeOff, User, Lock, LogIn, Search, BookOpen } from "lucide-react";
 import { auth, db } from "../../fireBaseConfig";
-import { signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from "firebase/auth";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import PageContainer from "../components/PageContainer";
 
@@ -266,6 +266,26 @@ export default function Login() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!formValues.username.trim()) {
+      toast.error("Please enter your username first");
+      setErrors(prev => ({ ...prev, username: "Required for password reset" }));
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const email = await findUserEmailByUsername(formValues.username);
+      await sendPasswordResetEmail(auth, email);
+      toast.success("Password reset link sent to your email!");
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      toast.error(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-blue-50 p-4 overflow-hidden relative animate-fade-in">
       {/* Animated Background Blobs */}
@@ -385,6 +405,7 @@ export default function Login() {
             <div className="flex items-center justify-end">
               <button
                 type="button"
+                onClick={handleForgotPassword}
                 className="text-sm text-blue-600 hover:text-blue-700 hover:underline disabled:text-gray-400 transition-colors"
                 disabled={isLoading}
               >

@@ -1,10 +1,11 @@
 import React, { lazy, Suspense } from "react";
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, Navigate } from "react-router-dom";
 import DesktopOnly from "./Pages/DesktopOnly";
 import { Toaster } from "react-hot-toast";
 import UploadQuestions from "./Pages/UploadQuestions";
 
 const Login = lazy(() => import("./Pages/Login"));
+const AdminRegister = lazy(() => import("./Pages/Admin/AdminRegister"));
 const AdminDashboard = lazy(() => import("./Pages/AdminDashboard"));
 const QuestionPaperView = lazy(() => import("./Pages/QuestionPaperView"));
 const SeedAdmin = lazy(() => import("./Pages/SeedAdmin"));
@@ -27,10 +28,12 @@ const App = () => {
         >
           <Routes>
             <Route path="/" element={<Login />} />
+            <Route path="/admin-register" element={<AdminRegister />} />
             <Route path="/staff-portal" element={<UploadQuestions />} />
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
             <Route path="/view-paper/:id" element={<QuestionPaperView />} />
             <Route path="/seed" element={<SeedAdmin />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
       </DesktopOnly>
