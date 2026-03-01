@@ -185,10 +185,16 @@ export default function UploadForm({
                                             </span>
                                         )}
                                     </label>
-                                    <div className="grid grid-cols-5 gap-2">
+                                    <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
                                         {[1, 2, 3, 4, 5].map((u) => {
                                             const uploaded = isUnitUploaded(u);
                                             const selected = unit === u.toString();
+
+                                            // Get question count from mySubjects
+                                            const currentSubject = mySubjects.find(s => s.subjectCode === subjectCode);
+                                            const unitData = currentSubject?.units?.[`unit${u}`];
+                                            const qCount = unitData?.questionCount || 0;
+                                            const isFull = qCount >= 100;
 
                                             return (
                                                 <button
@@ -196,17 +202,29 @@ export default function UploadForm({
                                                     type="button"
                                                     onClick={() => setUnit(u.toString())}
                                                     className={`
-                                                        relative py-4 rounded-xl font-medium transition-all
+                                                        relative py-4 rounded-xl font-medium transition-all flex flex-col items-center justify-center
                                                         ${selected
                                                             ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-105'
-                                                            : uploaded
-                                                                ? 'bg-emerald-50 text-emerald-700 border-2 border-emerald-200 hover:bg-emerald-100'
-                                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                                            : isFull
+                                                                ? 'bg-amber-50 text-amber-700 border-2 border-amber-200 opacity-80'
+                                                                : uploaded
+                                                                    ? 'bg-emerald-50 text-emerald-700 border-2 border-emerald-200 hover:bg-emerald-100'
+                                                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                                         }
                                                     `}
                                                 >
-                                                    <span className="text-lg">{u}</span>
-                                                    {uploaded && (
+                                                    <span className="text-lg font-bold">{u}</span>
+                                                    <span className={`text-[10px] mt-1 ${selected ? 'text-blue-100' : 'text-slate-500'}`}>
+                                                        {qCount}/100
+                                                    </span>
+                                                    {isFull && (
+                                                        <div className="absolute -top-1 -right-1">
+                                                            <span className="flex h-4 w-4">
+                                                                <span className="relative inline-flex rounded-full h-4 w-4 bg-amber-500 border-2 border-white"></span>
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    {uploaded && !isFull && (
                                                         <div className="absolute -top-1 -right-1">
                                                             <span className="flex h-4 w-4">
                                                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -218,10 +236,18 @@ export default function UploadForm({
                                             );
                                         })}
                                     </div>
-                                    <p className="text-xs text-slate-400 flex items-center gap-1">
-                                        <AlertCircle className="w-3 h-3" />
-                                        Green units already have questions. You can still add more to any unit.
-                                    </p>
+                                    <div className="flex flex-col gap-1">
+                                        <p className="text-xs text-slate-400 flex items-center gap-1">
+                                            <AlertCircle className="w-3 h-3" />
+                                            Green units have questions. Amber units have reached the 100-question limit.
+                                        </p>
+                                        {unit && (mySubjects.find(s => s.subjectCode === subjectCode)?.units?.[`unit${unit}`]?.questionCount >= 100) && (
+                                            <p className="text-xs text-amber-600 font-medium flex items-center gap-1">
+                                                <AlertCircle className="w-3 h-3" />
+                                                Unit {unit} is full. You cannot add more questions to this unit.
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                             )}
 
