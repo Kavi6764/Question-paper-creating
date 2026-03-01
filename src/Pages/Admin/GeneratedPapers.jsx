@@ -480,7 +480,12 @@ export default function GeneratedPapers({
                                                         <div className="flex gap-3 flex-1">
                                                             <span className="font-bold font-serif text-gray-900 min-w-[20px]">{question.globalIndex + 1}.</span>
                                                             <div className="flex-1">
-                                                                <p className="font-serif text-gray-900 text-[15px] leading-relaxed text-justify relative z-0 whitespace-pre-line">{question.question}</p>
+                                                                <div className="flex justify-between items-start gap-4 mb-1">
+                                                                    <p className="font-serif text-gray-900 text-[15px] leading-relaxed text-justify relative z-0 whitespace-pre-line flex-1">{question.question}</p>
+                                                                    <span className="shrink-0 px-2 py-0.5 rounded text-[9px] font-bold bg-gray-100 text-gray-600 border border-gray-200 uppercase tracking-tighter">
+                                                                        {question.bloomLevel || 'RE'}
+                                                                    </span>
+                                                                </div>
                                                                 {question.options && question.options.length > 0 && (
                                                                     <div className="grid grid-cols-2 gap-x-8 gap-y-2 mt-2 ml-2">
                                                                         {question.options.map((opt, i) => (

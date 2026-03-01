@@ -6,6 +6,18 @@ export default function FilePreview({ file, previewData, previewPage, setPreview
 
     // Template download handled by parent component
 
+    const getBloomColor = (level) => {
+        switch (level?.toUpperCase()) {
+            case 'RE': return 'bg-blue-50 text-blue-700 border-blue-200';
+            case 'UN': return 'bg-indigo-50 text-indigo-700 border-indigo-200';
+            case 'AP': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+            case 'AN': return 'bg-amber-50 text-amber-700 border-amber-200';
+            case 'CR': return 'bg-purple-50 text-purple-700 border-purple-200';
+            case 'EV': return 'bg-rose-50 text-rose-700 border-rose-200';
+            default: return 'bg-slate-50 text-slate-700 border-slate-200';
+        }
+    };
+
     const getDifficultyColor = (difficulty) => {
         switch (difficulty.toLowerCase()) {
             case 'easy':
@@ -66,12 +78,20 @@ export default function FilePreview({ file, previewData, previewPage, setPreview
                                                     <span className="text-sm font-mono font-medium text-slate-400">
                                                         {item.questionNo}
                                                     </span>
-                                                    <span className={`
-                                                        px-2.5 py-1 text-xs font-medium rounded-full border
-                                                        ${getDifficultyColor(item.difficulty)}
-                                                    `}>
-                                                        {item.difficulty}
-                                                    </span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`
+                                                            px-2.5 py-1 text-[10px] font-bold rounded-full border uppercase tracking-wider
+                                                            ${getBloomColor(item.bloomLevel)}
+                                                        `}>
+                                                            {item.bloomLevel || 'RE'}
+                                                        </span>
+                                                        <span className={`
+                                                            px-2.5 py-1 text-xs font-medium rounded-full border
+                                                            ${getDifficultyColor(item.difficulty)}
+                                                        `}>
+                                                            {item.difficulty}
+                                                        </span>
+                                                    </div>
                                                 </div>
 
                                                 {/* Question Text */}
@@ -230,7 +250,7 @@ export default function FilePreview({ file, previewData, previewPage, setPreview
                                     <div className="space-y-1">
                                         <p className="text-xs font-medium text-emerald-700">Requirements</p>
                                         <p className="text-xs text-emerald-600/70">
-                                            Required columns: QuestionNo, Question, Marks, Difficulty, Unit
+                                            Required columns: QuestionNo, Question, Marks, Difficulty, BloomLevel, Unit
                                         </p>
                                     </div>
                                 </div>
