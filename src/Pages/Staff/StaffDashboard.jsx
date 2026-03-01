@@ -95,6 +95,7 @@ export default function StaffDashboard() {
             Question: `Sample Question ${i + 1} for ${marks} Marks`,
             Marks: marks,
             Difficulty: i % 3 === 0 ? "Easy" : i % 3 === 1 ? "Medium" : "Hard",
+            BloomLevel: i % 6 === 0 ? "RE" : i % 6 === 1 ? "UN" : i % 6 === 2 ? "AP" : i % 6 === 3 ? "AN" : i % 6 === 4 ? "CR" : "EV",
             Unit: 1,
             ImageURL: "" // Optional image URL
         }));
@@ -364,6 +365,7 @@ export default function StaffDashboard() {
                 question: row.Question || "",
                 marks: row.Marks || 0,
                 difficulty: row.Difficulty || "Medium",
+                bloomLevel: row.BloomLevel || row.bloomLevel || "RE",
                 unit: row.Unit || 1,
                 imageURL: row.ImageURL || row.imageURL || ""
             }));
@@ -443,6 +445,7 @@ export default function StaffDashboard() {
                     question: row.Question,
                     marks: Number(row.Marks),
                     difficulty: row.Difficulty || "Medium",
+                    bloomLevel: row.BloomLevel || row.bloomLevel || "RE",
                     unit: Number(unit),
                     imageURL: row.ImageURL || row.imageURL || "",
                     uploadedAt: Date.now(),
@@ -623,7 +626,8 @@ export default function StaffDashboard() {
 
     const filteredPreview = previewData.filter(item =>
         item.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.difficulty.toLowerCase().includes(searchTerm.toLowerCase())
+        item.difficulty.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.bloomLevel?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     const totalPreviewPages = Math.ceil(filteredPreview.length / itemsPerPage);

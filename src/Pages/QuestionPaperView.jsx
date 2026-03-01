@@ -99,14 +99,19 @@ export default function QuestionPaperView() {
               </h3>
               <div className="space-y-6">
                 {questionsByUnit[unit].map((q, idx) => (
-                  <div key={idx} className="flex gap-4">
+                  <div key={idx} className="flex gap-4 items-start">
                     <span className="font-medium min-w-[30px]">{q.questionNo || `Q${idx + 1}`}.</span>
                     <div className="flex-1">
                       <p className="text-justify">{q.question}</p>
                     </div>
-                    <span className="font-semibold text-right min-w-[40px]">
-                      [{q.marks}]
-                    </span>
+                    <div className="flex flex-col items-end gap-1 min-w-[60px]">
+                      <span className="shrink-0 px-1.5 py-0.5 rounded text-[8px] font-bold bg-gray-50 text-gray-500 border border-gray-200 uppercase tracking-tighter">
+                        {q.bloomLevel || 'RE'}
+                      </span>
+                      <span className="font-semibold text-right">
+                        [{q.marks}]
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>

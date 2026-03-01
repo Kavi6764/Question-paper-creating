@@ -328,6 +328,7 @@ export default function AdminDashboard() {
                   subjectCode: subjectCode,
                   subjectName: subjectData.subjectName,
                   unitName: unit.unitName || `Unit ${unitNumber}`,
+                  bloomLevel: q.bloomLevel || "RE",
                   dbId: doc.id
                 };
 
@@ -1199,7 +1200,9 @@ export default function AdminDashboard() {
       const q = sortedQuestions[i];
 
       // Calculate dimensions first
-      const questionLines = doc.splitTextToSize(q.question || '', 150);
+      const bloomTag = q.bloomLevel ? `[${q.bloomLevel}]` : "";
+      const questionText = (q.question || '');
+      const questionLines = doc.splitTextToSize(questionText, 150);
       const textHeight = questionLines.length * 7;
       const optionsHeight = (q.options?.length || 0) * 7;
 
@@ -1260,6 +1263,12 @@ export default function AdminDashboard() {
 
       doc.setFont(undefined, 'normal');
       doc.text(questionLines, 35, contentY);
+
+      if (bloomTag) {
+        doc.setFontSize(9);
+        doc.setFont(undefined, 'bold');
+        doc.text(bloomTag, 190, contentY, { align: 'right' });
+      }
 
       contentY += textHeight + 5;
 
