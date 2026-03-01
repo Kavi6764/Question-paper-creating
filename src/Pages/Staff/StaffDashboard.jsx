@@ -399,11 +399,22 @@ export default function StaffDashboard() {
             return;
         }
 
+        // Check for 100-question limit
+        const currentSubject = mySubjects.find(s => s.subjectCode === subjectCode);
+        const currentUnitKey = `unit${unit}`;
+        const currentUnitQuestions = currentSubject?.units?.[currentUnitKey]?.questions || [];
+        const currentCount = currentUnitQuestions.length;
+
+        if (currentCount >= 100) {
+            toast.error(`Unit ${unit} has already reached the maximum limit of 100 questions. Please continue with Unit ${Number(unit) < 5 ? Number(unit) + 1 : "another subject"}.`);
+            return;
+        }
+
         // Check if this unit is already uploaded for this subject
         if (uploadedUnits[subjectCode]?.includes(unit)) {
             const confirm = window.confirm(
-                `Unit ${unit} for ${subjectCode} already has uploaded questions.\n` +
-                `Uploading again will add new questions without removing existing ones.\n\n` +
+                `Unit ${unit} for ${subjectCode} already has ${currentCount} questions.\n` +
+                `Uploading more will add to this count (Max: 100).\n\n` +
                 `Do you want to continue?`
             );
             if (!confirm) return;
@@ -437,7 +448,7 @@ export default function StaffDashboard() {
             });
 
             // Filter questions for selected unit only
-            const unitQuestions = allRows
+            let unitQuestions = allRows
                 .filter((row) => Number(row.Unit) === Number(unit))
                 .map((row, index) => ({
                     id: `${subjectCode}-U${unit}-Q${index + 1}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
@@ -461,6 +472,23 @@ export default function StaffDashboard() {
                 toast.error(`No questions found for Unit ${unit} in the uploaded file`);
                 setUploadStatus("error");
                 return;
+            }
+
+            // Enforce 100-question limit for the batch
+            if (currentCount + unitQuestions.length > 100) {
+                const allowedCount = 100 - currentCount;
+                const confirmBatch = window.confirm(
+                    `This upload contains ${unitQuestions.length} questions, which will exceed the 100-question limit for Unit ${unit} (Current: ${currentCount}).\n\n` +
+                    `Do you want to upload only the first ${allowedCount} questions to reach the limit?`
+                );
+
+                if (!confirmBatch) {
+                    clearInterval(progressInterval);
+                    setLoading(false);
+                    setUploadStatus(null);
+                    return;
+                }
+                unitQuestions = unitQuestions.slice(0, allowedCount);
             }
 
             // Validate Marks
