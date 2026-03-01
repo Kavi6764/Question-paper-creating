@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   User,
   Shield,
@@ -29,12 +29,16 @@ import {
   arrayRemove,
   addDoc
 } from "firebase/firestore";
-import { db, auth } from "../../fireBaseConfig";
+import { db, auth, firebaseConfig } from "../../fireBaseConfig";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import {
   onAuthStateChanged,
   signOut,
+  getAuth,
   createUserWithEmailAndPassword,
-  sendEmailVerification
+  sendEmailVerification,
+  setPersistence,
+  inMemoryPersistence
 } from "firebase/auth";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -268,6 +272,16 @@ export default function AdminDashboard() {
     }
   };
 
+  // Filtered staff list based on user role
+  const filteredStaffForRole = useMemo(() => {
+    if (!staffList || !userData) return [];
+    if (userData.role === 'hod') {
+      // HODs cannot see Dean details
+      return staffList.filter(s => s.role !== 'dean' && s.username !== 'dean');
+    }
+    return staffList;
+  }, [staffList, userData]);
+
   // Calculate total questions and marks
   useEffect(() => {
     const totalQuestions = paperForm.twoMarkQuestions + paperForm.fourMarkQuestions + paperForm.sixMarkQuestions + paperForm.eightMarkQuestions;
@@ -438,6 +452,16 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
 
+      // Create or get secondary app safely
+      const secondaryAppName = "SecondaryAuthApp";
+      const secondaryApp = getApps().find(app => app.name === secondaryAppName)
+        || initializeApp(firebaseConfig, secondaryAppName);
+
+      const secondaryAuth = getAuth(secondaryApp);
+
+      // CRITICAL: Set persistence to in-memory to prevent clobbering the main admin session
+      await setPersistence(secondaryAuth, inMemoryPersistence);
+
       // 1. Check if email exists in Firestore (Active or Deleted)
       const emailQuery = query(collection(db, "users"), where("email", "==", newStaff.email));
       const emailSnap = await getDocs(emailQuery);
@@ -490,8 +514,13 @@ export default function AdminDashboard() {
       }
 
       const tempPassword = "Password@123";
-      const userCredential = await createUserWithEmailAndPassword(auth, newStaff.email, tempPassword);
+
+      // Use secondaryAuth to prevent logging out the current admin
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, newStaff.email, tempPassword);
       await sendEmailVerification(userCredential.user);
+
+      // Note: We don't delete the app here to reuse it for the next staff creation.
+      // The inMemoryPersistence ensures it doesn't affect the main login.
 
       await setDoc(doc(db, "users", userCredential.user.uid), {
         uid: userCredential.user.uid,
@@ -500,7 +529,7 @@ export default function AdminDashboard() {
         username: newStaff.username,
         department: newStaff.department || "General",
         role: "staff",
-        status: "active",
+        status: "pending", // Set to pending until email is verified or admin activates
         emailVerified: false,
         assignedSubjects: newStaff.subjects || [],
         createdAt: serverTimestamp(),
@@ -1419,7 +1448,7 @@ export default function AdminDashboard() {
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Staff</p>
-                  <h3 className="text-2xl font-bold text-gray-900 mt-1">{staffList.length}</h3>
+                  <h3 className="text-2xl font-bold text-gray-900 mt-1">{filteredStaffForRole.length}</h3>
                 </div>
                 <div className="p-3 bg-blue-500/10 rounded-xl text-blue-600">
                   <User className="w-5 h-5" />
@@ -1467,7 +1496,7 @@ export default function AdminDashboard() {
           <div className="glass-panel rounded-2xl overflow-hidden min-h-[600px] animate-slide-up p-1">
             {activeTab === "staff" && (
               <StaffManagement
-                staffList={staffList}
+                staffList={filteredStaffForRole}
                 availableSubjects={availableSubjects}
                 showAddStaff={showAddStaff}
                 setShowAddStaff={setShowAddStaff}
@@ -1548,7 +1577,10 @@ export default function AdminDashboard() {
             )}
 
             {activeTab === "settings" && (
-              <CollegeSettings onUpdate={setCollegeDetails} />
+              <CollegeSettings
+                onUpdate={setCollegeDetails}
+                userData={userData}
+              />
             )}
 
             {activeTab === "assign" && (
