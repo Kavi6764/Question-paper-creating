@@ -1495,7 +1495,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div className="glass-panel rounded-2xl overflow-hidden min-h-[600px] animate-slide-up p-1">
+          <div className="min-h-[600px] animate-slide-up">
             {activeTab === "staff" && (
               <StaffManagement
                 staffList={filteredStaffForRole}
