@@ -27,14 +27,24 @@ export default function StaffManagement({
 
     // Filter Logic
     const filteredStaff = useMemo(() => {
-        if (!searchTerm) return staffList;
-        const lowerTerm = searchTerm.toLowerCase();
-        return staffList.filter(staff =>
-            (staff.fullName || "").toLowerCase().includes(lowerTerm) ||
-            (staff.email || "").toLowerCase().includes(lowerTerm) ||
-            (staff.username || "").toLowerCase().includes(lowerTerm) ||
-            (staff.department || "").toLowerCase().includes(lowerTerm)
-        );
+        let list = [...(staffList || [])];
+
+        if (searchTerm) {
+            const lowerTerm = searchTerm.toLowerCase();
+            list = list.filter(staff =>
+                (staff.fullName || "").toLowerCase().includes(lowerTerm) ||
+                (staff.email || "").toLowerCase().includes(lowerTerm) ||
+                (staff.username || "").toLowerCase().includes(lowerTerm) ||
+                (staff.department || "").toLowerCase().includes(lowerTerm)
+            );
+        }
+
+        // Sort by createdAt (newest first)
+        return list.sort((a, b) => {
+            const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : a.createdAt || 0);
+            const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : b.createdAt || 0);
+            return timeB - timeA;
+        });
     }, [staffList, searchTerm]);
 
     // Pagination Logic

@@ -116,7 +116,7 @@ export default function AdminDashboard() {
     examDate: "",
     examTime: "09:30",
     duration: 3,
-    twoMarkQuestions: 5,
+    oneMarkQuestions: 5,
     fourMarkQuestions: 5,
     sixMarkQuestions: 3,
     eightMarkQuestions: 2,
@@ -128,7 +128,7 @@ export default function AdminDashboard() {
 
   const [selectedQuestions, setSelectedQuestions] = useState([]);
   const [availableQuestions, setAvailableQuestions] = useState({
-    twoMark: [],
+    oneMark: [],
     fourMark: [],
     sixMark: [],
     eightMark: []
@@ -139,7 +139,7 @@ export default function AdminDashboard() {
 
   // Stats for available questions
   const [questionStats, setQuestionStats] = useState({
-    twoMark: { total: 0, available: 0 },
+    oneMark: { total: 0, available: 0 },
     fourMark: { total: 0, available: 0 },
     sixMark: { total: 0, available: 0 },
     eightMark: { total: 0, available: 0 }
@@ -160,6 +160,7 @@ export default function AdminDashboard() {
               id: user.uid,
               email: user.email,
               name: username.toUpperCase(),
+              username: username,
               role: username
             });
             loadData();
@@ -180,6 +181,7 @@ export default function AdminDashboard() {
               id: user.uid,
               email: user.email,
               name: userData.fullName || userData.name,
+              username: userData.username,
               role: userData.role
             });
             loadData();
@@ -284,15 +286,15 @@ export default function AdminDashboard() {
 
   // Calculate total questions and marks
   useEffect(() => {
-    const totalQuestions = paperForm.twoMarkQuestions + paperForm.fourMarkQuestions + paperForm.sixMarkQuestions + paperForm.eightMarkQuestions;
-    const totalMarks = (paperForm.twoMarkQuestions * 2) + (paperForm.fourMarkQuestions * 4) + (paperForm.sixMarkQuestions * 6) + (paperForm.eightMarkQuestions * 8);
+    const totalQuestions = paperForm.oneMarkQuestions + paperForm.fourMarkQuestions + paperForm.sixMarkQuestions + paperForm.eightMarkQuestions;
+    const totalMarks = (paperForm.oneMarkQuestions * 1) + (paperForm.fourMarkQuestions * 4) + (paperForm.sixMarkQuestions * 6) + (paperForm.eightMarkQuestions * 8);
 
     setPaperForm(prev => ({
       ...prev,
       totalQuestions,
       totalMarks
     }));
-  }, [paperForm.twoMarkQuestions, paperForm.fourMarkQuestions, paperForm.sixMarkQuestions, paperForm.eightMarkQuestions]);
+  }, [paperForm.oneMarkQuestions, paperForm.fourMarkQuestions, paperForm.sixMarkQuestions, paperForm.eightMarkQuestions]);
 
   // Check scheduled papers
   const checkScheduledPapers = (scheduledPapers) => {
@@ -314,7 +316,7 @@ export default function AdminDashboard() {
   const getQuestionPoolForAutoGeneration = async (subjectCode) => {
     try {
       const questions = {
-        twoMark: [],
+        oneMark: [],
         fourMark: [],
         sixMark: [],
         eightMark: []
@@ -347,7 +349,7 @@ export default function AdminDashboard() {
                 };
 
                 const marks = parseInt(q.marks) || 0;
-                if (marks === 2) questions.twoMark.push(question);
+                if (marks === 1 || marks === 2) questions.oneMark.push({ ...question, marks: 1 });
                 else if (marks === 4) questions.fourMark.push(question);
                 else if (marks === 6) questions.sixMark.push(question);
                 else if (marks === 8) questions.eightMark.push(question);
@@ -359,14 +361,14 @@ export default function AdminDashboard() {
       return questions;
     } catch (error) {
       console.error("Error loading question pool:", error);
-      return { twoMark: [], fourMark: [], sixMark: [], eightMark: [] };
+      return { oneMark: [], fourMark: [], sixMark: [], eightMark: [] };
     }
   };
 
   const autoGeneratePaper = async (scheduledPaper) => {
     try {
       const requirements = {
-        twoMarkQuestions: scheduledPaper.twoMarkQuestions || 0,
+        oneMarkQuestions: scheduledPaper.oneMarkQuestions || scheduledPaper.twoMarkQuestions || 0,
         fourMarkQuestions: scheduledPaper.fourMarkQuestions || 0,
         sixMarkQuestions: scheduledPaper.sixMarkQuestions || 0,
         eightMarkQuestions: scheduledPaper.eightMarkQuestions || 0
@@ -375,7 +377,7 @@ export default function AdminDashboard() {
       // 1. Fetch ALL available questions first
       const questionPool = await getQuestionPoolForAutoGeneration(scheduledPaper.subjectCode);
 
-      if (questionPool.twoMark.length === 0 && questionPool.fourMark.length === 0 && questionPool.sixMark.length === 0 && questionPool.eightMark.length === 0) {
+      if (questionPool.oneMark.length === 0 && questionPool.fourMark.length === 0 && questionPool.sixMark.length === 0 && questionPool.eightMark.length === 0) {
         console.error(`No questions found for subject ${scheduledPaper.subjectCode}`);
         return;
       }
@@ -383,19 +385,19 @@ export default function AdminDashboard() {
       // 2. Helper to generate a single paper update/creation
       const createPaperData = (questions) => {
         const questionsByMarks = {
-          twoMark: questions.filter(q => q.marks === 2),
+          oneMark: questions.filter(q => q.marks === 1 || q.marks === 2),
           fourMark: questions.filter(q => q.marks === 4),
           sixMark: questions.filter(q => q.marks === 6),
           eightMark: questions.filter(q => q.marks === 8)
         };
-        const totalMarks = questions.reduce((sum, q) => sum + (parseInt(q.marks) || 0), 0);
+        const totalMarks = questions.reduce((sum, q) => sum + (parseInt(q.marks === 2 ? 1 : q.marks) || 0), 0);
 
         return {
           status: "generated",
-          questions: questions,
+          questions: questions.map(q => q.marks === 2 ? { ...q, marks: 1 } : q),
           totalMarks: totalMarks,
           marksDistribution: {
-            twoMark: { count: questionsByMarks.twoMark.length, totalMarks: questionsByMarks.twoMark.reduce((sum, q) => sum + (q.marks || 0), 0) },
+            oneMark: { count: questionsByMarks.oneMark.length, totalMarks: questionsByMarks.oneMark.length * 1 },
             fourMark: { count: questionsByMarks.fourMark.length, totalMarks: questionsByMarks.fourMark.reduce((sum, q) => sum + (q.marks || 0), 0) },
             sixMark: { count: questionsByMarks.sixMark.length, totalMarks: questionsByMarks.sixMark.reduce((sum, q) => sum + (q.marks || 0), 0) },
             eightMark: { count: questionsByMarks.eightMark.length, totalMarks: questionsByMarks.eightMark.reduce((sum, q) => sum + (q.marks || 0), 0) }
@@ -529,7 +531,7 @@ export default function AdminDashboard() {
         username: newStaff.username,
         department: newStaff.department || "General",
         role: "staff",
-        status: "pending", // Set to pending until email is verified or admin activates
+        status: "active", // Set to active by default as requested
         emailVerified: false,
         assignedSubjects: newStaff.subjects || [],
         createdAt: serverTimestamp(),
@@ -853,7 +855,7 @@ export default function AdminDashboard() {
   // PAPER GENERATION LOGIC
   const prepareQuestionStats = (questions) => {
     const stats = {
-      twoMark: { total: questions.twoMark.length, available: questions.twoMark.length },
+      oneMark: { total: questions.oneMark.length, available: questions.oneMark.length },
       fourMark: { total: questions.fourMark.length, available: questions.fourMark.length },
       sixMark: { total: questions.sixMark.length, available: questions.sixMark.length },
       eightMark: { total: questions.eightMark.length, available: questions.eightMark.length }
@@ -865,7 +867,7 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
       const questions = {
-        twoMark: [],
+        oneMark: [],
         fourMark: [],
         sixMark: [],
         eightMark: []
@@ -897,7 +899,7 @@ export default function AdminDashboard() {
                 };
 
                 const marks = parseInt(q.marks) || 0;
-                if (marks === 2) questions.twoMark.push(question);
+                if (marks === 1 || marks === 2) questions.oneMark.push({ ...question, marks: 1 });
                 else if (marks === 4) questions.fourMark.push(question);
                 else if (marks === 6) questions.sixMark.push(question);
                 else if (marks === 8) questions.eightMark.push(question);
@@ -923,13 +925,13 @@ export default function AdminDashboard() {
     const selected = [];
     let hasError = false;
 
-    // 2-mark questions
-    if (availableQuestions.twoMark.length < paperForm.twoMarkQuestions) {
-      toast.error(`Not enough 2-mark questions! Need ${paperForm.twoMarkQuestions}, have ${availableQuestions.twoMark.length}`);
+    // 1-mark questions
+    if (availableQuestions.oneMark.length < paperForm.oneMarkQuestions) {
+      toast.error(`Not enough 1-mark questions! Need ${paperForm.oneMarkQuestions}, have ${availableQuestions.oneMark.length}`);
       hasError = true;
     } else {
-      const shuffled = [...availableQuestions.twoMark].sort(() => Math.random() - 0.5);
-      selected.push(...shuffled.slice(0, paperForm.twoMarkQuestions));
+      const shuffled = [...availableQuestions.oneMark].sort(() => Math.random() - 0.5);
+      selected.push(...shuffled.slice(0, paperForm.oneMarkQuestions));
     }
 
     // 4-mark questions
@@ -975,10 +977,10 @@ export default function AdminDashboard() {
   const selectRandomQuestions = (requirements, sourceQuestions) => {
     const selected = [];
 
-    // 2-mark
-    if (sourceQuestions.twoMark && sourceQuestions.twoMark.length >= requirements.twoMarkQuestions) {
-      const shuffled = [...sourceQuestions.twoMark].sort(() => Math.random() - 0.5);
-      selected.push(...shuffled.slice(0, requirements.twoMarkQuestions));
+    // 1-mark
+    if (sourceQuestions.oneMark && sourceQuestions.oneMark.length >= requirements.oneMarkQuestions) {
+      const shuffled = [...sourceQuestions.oneMark].sort(() => Math.random() - 0.5);
+      selected.push(...shuffled.slice(0, requirements.oneMarkQuestions));
     }
 
     // 4-mark
@@ -1013,7 +1015,7 @@ export default function AdminDashboard() {
 
       // Helper to create paper object
       const createPaperObject = (titleSuffix, questions) => {
-        const twoMarkCount = questions.filter(q => q.marks === 2).length;
+        const oneMarkCount = questions.filter(q => q.marks === 1 || q.marks === 2).length;
         const fourMarkCount = questions.filter(q => q.marks === 4).length;
         const sixMarkCount = questions.filter(q => q.marks === 6).length;
         const eightMarkCount = questions.filter(q => q.marks === 8).length;
@@ -1026,8 +1028,8 @@ export default function AdminDashboard() {
           examTime: paperForm.examTime,
           duration: paperForm.duration,
           totalQuestions: questions.length,
-          totalMarks: questions.reduce((sum, q) => sum + (parseInt(q.marks) || 0), 0),
-          questions: questions,
+          totalMarks: questions.reduce((sum, q) => sum + (parseInt(q.marks === 2 ? 1 : q.marks) || 0), 0),
+          questions: questions.map(q => q.marks === 2 ? { ...q, marks: 1 } : q),
           status: "generated",
           isAutoGenerated: false,
           visible: true,
@@ -1036,7 +1038,7 @@ export default function AdminDashboard() {
           generatedAt: serverTimestamp(),
           unitsCovered: Array.from(new Set(questions.map(q => q.unit))).sort(),
           marksDistribution: {
-            twoMark: { count: twoMarkCount, totalMarks: twoMarkCount * 2 },
+            oneMark: { count: oneMarkCount, totalMarks: oneMarkCount * 1 },
             fourMark: { count: fourMarkCount, totalMarks: fourMarkCount * 4 },
             sixMark: { count: sixMarkCount, totalMarks: sixMarkCount * 6 },
             eightMark: { count: eightMarkCount, totalMarks: eightMarkCount * 8 }
@@ -1064,24 +1066,24 @@ export default function AdminDashboard() {
         examDate: "",
         examTime: "09:30",
         duration: 3,
-        twoMarkQuestions: 5,
+        oneMarkQuestions: 5,
         fourMarkQuestions: 5,
         sixMarkQuestions: 3,
         eightMarkQuestions: 2,
         totalQuestions: 15,
-        totalMarks: 64,
+        totalMarks: 59, // 5*1 + 5*4 + 3*6 + 2*8 = 5+20+18+16 = 59
         generationTime: "",
         generationDate: ""
       });
       setSelectedQuestions([]);
       setAvailableQuestions({
-        twoMark: [],
+        oneMark: [],
         fourMark: [],
         sixMark: [],
         eightMark: []
       });
       setQuestionStats({
-        twoMark: { total: 0, available: 0 },
+        oneMark: { total: 0, available: 0 },
         fourMark: { total: 0, available: 0 },
         sixMark: { total: 0, available: 0 },
         eightMark: { total: 0, available: 0 }
@@ -1114,7 +1116,7 @@ export default function AdminDashboard() {
         examDate: paperForm.examDate,
         examTime: paperForm.examTime,
         duration: paperForm.duration,
-        twoMarkQuestions: paperForm.twoMarkQuestions,
+        oneMarkQuestions: paperForm.oneMarkQuestions,
         fourMarkQuestions: paperForm.fourMarkQuestions,
         sixMarkQuestions: paperForm.sixMarkQuestions,
         eightMarkQuestions: paperForm.eightMarkQuestions,
@@ -1231,7 +1233,7 @@ export default function AdminDashboard() {
       // Calculate dimensions first
       const bloomTag = q.bloomLevel ? `[${q.bloomLevel}]` : "";
       const questionText = (q.question || '');
-      const questionLines = doc.splitTextToSize(questionText, 150);
+      const questionLines = doc.splitTextToSize(questionText, 140);
       const textHeight = questionLines.length * 7;
       const optionsHeight = (q.options?.length || 0) * 7;
 

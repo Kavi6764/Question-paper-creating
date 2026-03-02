@@ -39,6 +39,9 @@ export default function PaperGeneration({
                 </div>
             </div>
 
+            {/* Color Mapping to ensure Tailwind classes are generated */}
+            <div className="hidden bg-blue-500 bg-green-500 bg-purple-500 bg-orange-500 bg-blue-50 bg-green-50 bg-purple-50 bg-orange-50 text-blue-700 text-green-700 text-purple-700 text-orange-700 border-blue-100 border-green-100 border-purple-100 border-orange-100 hover:border-blue-200 hover:border-green-200 hover:border-purple-200 hover:border-orange-200"></div>
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Left Column: Configuration */}
                 <div className="lg:col-span-2 space-y-8">
@@ -72,9 +75,9 @@ export default function PaperGeneration({
                                                 if (e.target.value) {
                                                     loadQuestionsForSubject(e.target.value);
                                                 } else {
-                                                    setAvailableQuestions({ twoMark: [], fourMark: [], sixMark: [], eightMark: [] });
+                                                    setAvailableQuestions({ oneMark: [], fourMark: [], sixMark: [], eightMark: [] });
                                                     setQuestionStats({
-                                                        twoMark: { total: 0, available: 0 },
+                                                        oneMark: { total: 0, available: 0 },
                                                         fourMark: { total: 0, available: 0 },
                                                         sixMark: { total: 0, available: 0 },
                                                         eightMark: { total: 0, available: 0 }
@@ -121,7 +124,7 @@ export default function PaperGeneration({
                             {paperForm.subjectCode && (
                                 <span className="text-xs bg-purple-50 text-purple-700 px-3 py-1 rounded-full border border-purple-100 font-medium">
                                     Total Available: {
-                                        questionStats.twoMark.available +
+                                        questionStats.oneMark.available +
                                         questionStats.fourMark.available +
                                         questionStats.sixMark.available +
                                         questionStats.eightMark.available
@@ -132,7 +135,7 @@ export default function PaperGeneration({
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             {[
-                                { label: "2-Mark", key: "twoMarkQuestions", statsKey: "twoMark", color: "blue", multiplier: 2 },
+                                { label: "1-Mark", key: "oneMarkQuestions", statsKey: "oneMark", color: "blue", multiplier: 1 },
                                 { label: "4-Mark", key: "fourMarkQuestions", statsKey: "fourMark", color: "green", multiplier: 4 },
                                 { label: "6-Mark", key: "sixMarkQuestions", statsKey: "sixMark", color: "purple", multiplier: 6 },
                                 { label: "8-Mark", key: "eightMarkQuestions", statsKey: "eightMark", color: "orange", multiplier: 8 }
@@ -141,7 +144,7 @@ export default function PaperGeneration({
                                     <div className="flex items-center justify-between mb-3">
                                         <label className="block text-sm font-bold text-gray-700">{item.label}</label>
                                         <span className={`text-[10px] px-2 py-0.5 rounded-full bg-${item.color}-50 text-${item.color}-700 font-medium border border-${item.color}-100`}>
-                                            {item.multiplier} marks
+                                            {item.multiplier} mark{item.multiplier > 1 ? 's' : ''}
                                         </span>
                                     </div>
 
@@ -257,7 +260,7 @@ export default function PaperGeneration({
                                 <span className="bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded-full font-medium">{selectedQuestions.length}</span>
                             </div>
                             <div className="space-y-2 text-xs text-gray-600 mb-4">
-                                <div className="flex justify-between"><span>2-Mark:</span> <span className="font-medium text-gray-900">{selectedQuestions.filter(q => q.marks === 2).length}</span></div>
+                                <div className="flex justify-between"><span>1-Mark:</span> <span className="font-medium text-gray-900">{selectedQuestions.filter(q => q.marks === 1 || q.marks === 2).length}</span></div>
                                 <div className="flex justify-between"><span>4-Mark:</span> <span className="font-medium text-gray-900">{selectedQuestions.filter(q => q.marks === 4).length}</span></div>
                                 <div className="flex justify-between"><span>6-Mark:</span> <span className="font-medium text-gray-900">{selectedQuestions.filter(q => q.marks === 6).length}</span></div>
                                 <div className="flex justify-between"><span>8-Mark:</span> <span className="font-medium text-gray-900">{selectedQuestions.filter(q => q.marks === 8).length}</span></div>
