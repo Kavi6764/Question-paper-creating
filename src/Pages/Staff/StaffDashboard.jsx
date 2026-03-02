@@ -102,7 +102,7 @@ export default function StaffDashboard() {
     };
 
     const downloadTemplate = () => {
-        const itemTiers = [2, 4, 6, 8];
+        const itemTiers = [1, 4, 6, 8];
         const wb = XLSX.utils.book_new();
 
         itemTiers.forEach(marks => {
@@ -454,7 +454,7 @@ export default function StaffDashboard() {
                     id: `${subjectCode}-U${unit}-Q${index + 1}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
                     questionNo: row.QuestionNo || `Q${index + 1}`,
                     question: row.Question,
-                    marks: Number(row.Marks),
+                    marks: Number(row.Marks) === 2 ? 1 : Number(row.Marks),
                     difficulty: row.Difficulty || "Medium",
                     bloomLevel: row.BloomLevel || row.bloomLevel || "RE",
                     unit: Number(unit),
@@ -492,10 +492,10 @@ export default function StaffDashboard() {
             }
 
             // Validate Marks
-            const invalidQuestions = unitQuestions.filter(q => ![2, 4, 6, 8].includes(q.marks));
+            const invalidQuestions = unitQuestions.filter(q => ![1, 2, 4, 6, 8].includes(q.marks));
             if (invalidQuestions.length > 0) {
                 clearInterval(progressInterval);
-                toast.error(`Found ${invalidQuestions.length} questions with invalid marks. Allowed marks: 2, 4, 6, 8.`);
+                toast.error(`Found ${invalidQuestions.length} questions with invalid marks. Allowed marks: 1, 4, 6, 8.`);
                 setUploadStatus("error");
                 return;
             }

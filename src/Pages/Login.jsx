@@ -4,7 +4,7 @@ import toast from "react-hot-toast";
 import { Eye, EyeOff, User, Lock, LogIn, Search, BookOpen } from "lucide-react";
 import { auth, db } from "../../fireBaseConfig";
 import { signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from "firebase/auth";
-import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import PageContainer from "../components/PageContainer";
 
 export default function Login() {
@@ -138,8 +138,8 @@ export default function Login() {
         const userDoc = querySnapshot.docs[0];
         const userData = userDoc.data();
 
-        // Check if user is active
-        if (userData.status !== "active") {
+        // Check if user is active or pending
+        if (userData.status !== "active" && userData.status !== "pending") {
           throw new Error("Account is not active. Please contact administrator.");
         }
 
@@ -192,8 +192,22 @@ export default function Login() {
         const userData = userSnap.data();
         role = userData?.role || "staff";
 
-        // Also check if status is active (duplicate check but safe)
-        if (userData?.status !== "active") {
+        // Update status to active if it was pending and email is verified
+        if (userData?.status === "pending" && userCredential.user.emailVerified) {
+          try {
+            await updateDoc(userRef, {
+              status: "active",
+              emailVerified: true,
+              updatedAt: serverTimestamp()
+            });
+            console.log("User status automatically updated to active after verification");
+          } catch (updateError) {
+            console.error("Error auto-updating status:", updateError);
+          }
+        }
+
+        // Also check if status is active/pending (duplicate check but safe)
+        if (userData?.status !== "active" && userData?.status !== "pending") {
           throw new Error("Account is not active. Please contact administrator.");
         }
       }

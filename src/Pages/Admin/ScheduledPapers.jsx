@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, CheckCircle, Clock, ChevronLeft, ChevronRight, Edit2, Calendar, Timer, FileText } from 'lucide-react';
+import { Plus, CheckCircle, Clock, ChevronLeft, ChevronRight, Edit2, Calendar, Timer, FileText, Search } from 'lucide-react';
 import EditPaperModal from '../../components/EditPaperModal';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../fireBaseConfig';
@@ -10,11 +10,28 @@ export default function ScheduledPapers({
     setActiveTab
 }) {
     const [currentPage, setCurrentPage] = useState(1);
+    const [searchTerm, setSearchTerm] = useState("");
     const [editingPaper, setEditingPaper] = useState(null);
     const itemsPerPage = 8;
 
     // Filter Logic
-    const filteredPapers = scheduledPapers;
+    const filteredPapers = React.useMemo(() => {
+        return (scheduledPapers || [])
+            .filter(paper => {
+                if (!searchTerm) return true;
+                const search = searchTerm.toLowerCase();
+                return (
+                    paper.subjectCode?.toLowerCase().includes(search) ||
+                    paper.subjectName?.toLowerCase().includes(search) ||
+                    paper.title?.toLowerCase().includes(search)
+                );
+            })
+            .sort((a, b) => {
+                const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : a.createdAt || 0);
+                const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : b.createdAt || 0);
+                return timeB - timeA;
+            });
+    }, [scheduledPapers, searchTerm]);
 
     // Pagination Logic
     const totalPages = Math.ceil(filteredPapers.length / itemsPerPage);
@@ -22,6 +39,11 @@ export default function ScheduledPapers({
         (currentPage - 1) * itemsPerPage,
         currentPage * itemsPerPage
     );
+
+    // Reset to page 1 on search
+    React.useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, filteredPapers.length]);
 
     const handleUpdatePaper = async (paperId, updatedData) => {
         try {
@@ -48,12 +70,24 @@ export default function ScheduledPapers({
                     </h2>
                     <p className="text-sm text-gray-500 mt-1">Manage automated question paper generation schedules</p>
                 </div>
-                <button
-                    onClick={() => setActiveTab("generate")}
-                    className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl hover:shadow-lg hover:shadow-amber-500/30 transition-all flex items-center gap-2 font-medium"
-                >
-                    <Plus className="w-4 h-4" /> Schedule New
-                </button>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="Search schedules/subjects..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all outline-none w-full sm:w-64"
+                        />
+                    </div>
+                    <button
+                        onClick={() => setActiveTab("generate")}
+                        className="px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white rounded-xl hover:shadow-lg hover:shadow-amber-500/30 transition-all flex items-center justify-center gap-2 font-medium"
+                    >
+                        <Plus className="w-4 h-4" /> Schedule New
+                    </button>
+                </div>
             </div>
 
             <div className="overflow-x-auto">

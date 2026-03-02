@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { FileText, Calendar, Clock, Eye, Printer, EyeOff, X, ChevronLeft, ChevronRight, Edit2, RefreshCw, PenTool, CheckCircle, AlertCircle } from 'lucide-react';
+import { FileText, Calendar, Clock, Eye, Printer, EyeOff, X, ChevronLeft, ChevronRight, Edit2, RefreshCw, PenTool, CheckCircle, AlertCircle, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../fireBaseConfig';
@@ -20,13 +20,31 @@ export default function GeneratedPapers({
     collegeDetails
 }) {
     const [currentPage, setCurrentPage] = useState(1);
+    const [searchTerm, setSearchTerm] = useState("");
     const [editingPaper, setEditingPaper] = useState(null);
     const [replacingQuestion, setReplacingQuestion] = useState(null);
     const [editingQuestion, setEditingQuestion] = useState(null);
     const itemsPerPage = 8;
 
     // Filter logic
-    const filteredPapers = questionPapers.filter(paper => paper.status === "generated");
+    const filteredPapers = useMemo(() => {
+        return questionPapers
+            .filter(paper => paper.status === "generated")
+            .filter(paper => {
+                if (!searchTerm) return true;
+                const search = searchTerm.toLowerCase();
+                return (
+                    paper.subjectCode?.toLowerCase().includes(search) ||
+                    paper.subjectName?.toLowerCase().includes(search) ||
+                    paper.title?.toLowerCase().includes(search)
+                );
+            })
+            .sort((a, b) => {
+                const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : a.createdAt || 0);
+                const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : b.createdAt || 0);
+                return timeB - timeA;
+            });
+    }, [questionPapers, searchTerm]);
 
     // Pagination logic
     const totalPages = Math.ceil(filteredPapers.length / itemsPerPage);
@@ -34,12 +52,10 @@ export default function GeneratedPapers({
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentPapers = filteredPapers.slice(indexOfFirstItem, indexOfLastItem);
 
-    // Reset to page 1 if papers change significantly
+    // Reset to page 1 if papers change significantly or search is updated
     React.useEffect(() => {
-        if (currentPage > totalPages && totalPages > 0) {
-            setCurrentPage(1);
-        }
-    }, [filteredPapers.length]);
+        setCurrentPage(1);
+    }, [filteredPapers.length, searchTerm]);
 
     const handleUpdatePaper = async (paperId, updatedData) => {
         try {
@@ -122,12 +138,24 @@ export default function GeneratedPapers({
                     </h2>
                     <p className="text-sm text-gray-500 mt-1">Manage and preview generated question papers</p>
                 </div>
-                <button
-                    onClick={() => setActiveTab("generate")}
-                    className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl hover:shadow-lg hover:shadow-emerald-500/30 transition-all flex items-center gap-2 font-medium"
-                >
-                    <FileText className="w-4 h-4" /> Generate New
-                </button>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="Search papers/subjects..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none w-full sm:w-64"
+                        />
+                    </div>
+                    <button
+                        onClick={() => setActiveTab("generate")}
+                        className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl hover:shadow-lg hover:shadow-emerald-500/30 transition-all flex items-center justify-center gap-2 font-medium"
+                    >
+                        <FileText className="w-4 h-4" /> Generate New
+                    </button>
+                </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -416,6 +444,7 @@ export default function GeneratedPapers({
                                             <div className="mb-6 p-3 bg-blue-50/50 border border-blue-100 rounded text-xs text-gray-600 print:hidden opacity-75 hover:opacity-100 transition-opacity">
                                                 <div className="flex flex-wrap gap-x-4 gap-y-2 justify-center text-center">
                                                     {[
+                                                        { key: 'oneMark', label: '1-Mark' },
                                                         { key: 'twoMark', label: '2-Mark' },
                                                         { key: 'threeMark', label: '3-Mark' },
                                                         { key: 'fourMark', label: '4-Mark' },
@@ -483,7 +512,7 @@ export default function GeneratedPapers({
                                                                 <div className="flex justify-between items-start gap-4 mb-1">
                                                                     <p className="font-serif text-gray-900 text-[15px] leading-relaxed text-justify relative z-0 whitespace-pre-line flex-1">{question.question}</p>
                                                                     <span className="shrink-0 px-2 py-0.5 rounded text-[9px] font-bold bg-gray-100 text-gray-600 border border-gray-200 uppercase tracking-tighter">
-                                                                        {question.bloomLevel || 'RE'}
+                                                                        [{question.bloomLevel || 'RE'}]
                                                                     </span>
                                                                 </div>
                                                                 {question.options && question.options.length > 0 && (
