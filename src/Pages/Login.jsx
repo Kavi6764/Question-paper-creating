@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Eye, EyeOff, User, Lock, LogIn, Search, BookOpen } from "lucide-react";
+import { Eye, EyeOff, User, Lock, LogIn, Search, BookOpen, AlertCircle } from "lucide-react";
 import { auth, db } from "../../fireBaseConfig";
-import { signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from "firebase/auth";
+import { signInWithEmailAndPassword, signOut, sendPasswordResetEmail, sendEmailVerification } from "firebase/auth";
 import { collection, query, where, getDocs, doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import PageContainer from "../components/PageContainer";
 
@@ -12,11 +12,13 @@ export default function Login() {
   const [formValues, setFormValues] = useState({ username: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [showDropdown, setShowDropdown] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [userList, setUserList] = useState([]);
   const [firebaseError, setFirebaseError] = useState("");
+  const [showResend, setShowResend] = useState(false);
 
   // Fetch users from Firestore for dropdown
   const fetchUsers = async () => {
@@ -122,6 +124,32 @@ export default function Login() {
   };
 
   // Find user's email by username
+  const handleResendVerification = async () => {
+    if (!formValues.username || !formValues.password) {
+      toast.error("Please enter your username and password first");
+      return;
+    }
+
+    setResendLoading(true);
+    try {
+      const userEmail = await findUserEmailByUsername(formValues.username);
+      const userCredential = await signInWithEmailAndPassword(auth, userEmail, formValues.password);
+
+      if (!userCredential.user.emailVerified) {
+        await sendEmailVerification(userCredential.user);
+        toast.success("Verification email sent! Please check your inbox.");
+        setShowResend(false);
+      } else {
+        toast.success("Email is already verified. You can login now.");
+      }
+    } catch (error) {
+      console.error("Resend error:", error);
+      toast.error(error.message || "Failed to resend verification email");
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   const findUserEmailByUsername = async (username) => {
     const lowercaseUsername = username.toLowerCase();
 
@@ -158,6 +186,7 @@ export default function Login() {
 
     setIsLoading(true);
     setFirebaseError("");
+    setShowResend(false);
 
     try {
       // 1. Find the email associated with the username
@@ -176,6 +205,7 @@ export default function Login() {
 
       if (!isAdminAccount && !userCredential.user.emailVerified) {
         await signOut(auth);
+        setShowResend(true);
         throw new Error("Please verify your email before logging in.");
       }
 
@@ -193,14 +223,16 @@ export default function Login() {
         role = userData?.role || "staff";
 
         // Update status to active if it was pending and email is verified
-        if (userData?.status === "pending" && userCredential.user.emailVerified) {
+        // Also ensure emailVerified is set to true in Firestore
+        if ((userData?.status === "pending" || userData?.status === "active") && userCredential.user.emailVerified) {
           try {
-            await updateDoc(userRef, {
-              status: "active",
-              emailVerified: true,
-              updatedAt: serverTimestamp()
-            });
-            console.log("User status automatically updated to active after verification");
+            const updates = { emailVerified: true };
+            if (userData.status === "pending") {
+              updates.status = "active";
+              updates.updatedAt = serverTimestamp();
+            }
+            await updateDoc(userRef, updates);
+            console.log("User verification status synced in Firestore");
           } catch (updateError) {
             console.error("Error auto-updating status:", updateError);
           }
@@ -245,6 +277,7 @@ export default function Login() {
           break;
 
         case 'auth/wrong-password':
+        case 'auth/invalid-credential':
           errorMessage = "Incorrect password. Please try again.";
           setErrors(prev => ({ ...prev, password: "Incorrect password" }));
           break;
@@ -319,8 +352,25 @@ export default function Login() {
 
           {/* Firebase Error Message */}
           {firebaseError && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-800 animate-fade-in">
-              {firebaseError}
+            <div className={`mb-4 p-4 rounded-xl border animate-fade-in ${showResend ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200'}`}>
+              <div className="flex items-start gap-3">
+                <AlertCircle className={`w-5 h-5 shrink-0 mt-0.5 ${showResend ? 'text-amber-500' : 'text-red-500'}`} />
+                <div className="flex flex-col gap-1">
+                  <p className={`text-sm font-medium ${showResend ? 'text-amber-800' : 'text-red-800'}`}>
+                    {firebaseError}
+                  </p>
+                  {showResend && (
+                    <button
+                      type="button"
+                      onClick={handleResendVerification}
+                      disabled={resendLoading}
+                      className="text-xs text-blue-600 hover:text-blue-700 font-bold w-fit transition-colors underline underline-offset-4 disabled:opacity-50 mt-1"
+                    >
+                      {resendLoading ? "Sending link..." : "Resend verification email?"}
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 

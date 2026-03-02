@@ -180,21 +180,53 @@ export default function UploadForm({
                                         <Layers className="w-4 h-4 text-blue-600" />
                                         Choose Unit
                                         {uploadedUnits[subjectCode] && (
-                                            <span className="text-xs font-normal text-slate-400 ml-auto">
-                                                {uploadedUnits[subjectCode].length}/5 completed
-                                            </span>
+                                            <div className="ml-auto flex items-center gap-3">
+                                                <span className="text-xs font-normal text-slate-400">
+                                                    {uploadedUnits[subjectCode].length}/5 units
+                                                </span>
+                                                <div className="h-4 w-px bg-slate-200"></div>
+                                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${(() => {
+                                                    const currentSub = mySubjects.find(s => s.subjectCode === subjectCode);
+                                                    const total = Object.values(currentSub?.units || {}).reduce((acc, u) => acc + (u.questionCount || 0), 0);
+                                                    return total >= 100 ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700';
+                                                })()
+                                                    }`}>
+                                                    Total: {(() => {
+                                                        const currentSub = mySubjects.find(s => s.subjectCode === subjectCode);
+                                                        return Object.values(currentSub?.units || {}).reduce((acc, u) => acc + (u.questionCount || 0), 0);
+                                                    })()}/100
+                                                </span>
+                                            </div>
                                         )}
                                     </label>
-                                    <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                                    <div className="grid grid-cols-1 sm:grid-cols-6 gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setUnit("multi")}
+                                            className={`
+                                                relative py-4 rounded-xl font-medium transition-all flex flex-col items-center justify-center
+                                                ${unit === "multi"
+                                                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 scale-105'
+                                                    : 'bg-indigo-50 text-indigo-700 border-2 border-indigo-200 hover:bg-indigo-100'
+                                                }
+                                            `}
+                                        >
+                                            <span className="text-sm font-bold">Bulk</span>
+                                            <span className="text-[10px] mt-1 opacity-80">All Units</span>
+                                        </button>
                                         {[1, 2, 3, 4, 5].map((u) => {
                                             const uploaded = isUnitUploaded(u);
                                             const selected = unit === u.toString();
 
-                                            // Get question count from mySubjects
+                                            // Get question counts from mySubjects
                                             const currentSubject = mySubjects.find(s => s.subjectCode === subjectCode);
                                             const unitData = currentSubject?.units?.[`unit${u}`];
                                             const qCount = unitData?.questionCount || 0;
-                                            const isFull = qCount >= 100;
+
+                                            // Subject-wide limit logic
+                                            const totalQuestions = Object.values(currentSubject?.units || {}).reduce((acc, unit) => acc + (unit.questionCount || 0), 0);
+                                            const isSubjectFull = totalQuestions >= 100;
+                                            const isThisUnitFull = qCount >= 100; // Legacy individual check, but subject limit takes precedence
 
                                             return (
                                                 <button
@@ -205,7 +237,7 @@ export default function UploadForm({
                                                         relative py-4 rounded-xl font-medium transition-all flex flex-col items-center justify-center
                                                         ${selected
                                                             ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-105'
-                                                            : isFull
+                                                            : isSubjectFull
                                                                 ? 'bg-amber-50 text-amber-700 border-2 border-amber-200 opacity-80'
                                                                 : uploaded
                                                                     ? 'bg-emerald-50 text-emerald-700 border-2 border-emerald-200 hover:bg-emerald-100'
@@ -215,16 +247,16 @@ export default function UploadForm({
                                                 >
                                                     <span className="text-lg font-bold">{u}</span>
                                                     <span className={`text-[10px] mt-1 ${selected ? 'text-blue-100' : 'text-slate-500'}`}>
-                                                        {qCount}/100
+                                                        {qCount} Questions
                                                     </span>
-                                                    {isFull && (
+                                                    {isSubjectFull && (
                                                         <div className="absolute -top-1 -right-1">
                                                             <span className="flex h-4 w-4">
                                                                 <span className="relative inline-flex rounded-full h-4 w-4 bg-amber-500 border-2 border-white"></span>
                                                             </span>
                                                         </div>
                                                     )}
-                                                    {uploaded && !isFull && (
+                                                    {uploaded && !isSubjectFull && (
                                                         <div className="absolute -top-1 -right-1">
                                                             <span className="flex h-4 w-4">
                                                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -239,14 +271,18 @@ export default function UploadForm({
                                     <div className="flex flex-col gap-1">
                                         <p className="text-xs text-slate-400 flex items-center gap-1">
                                             <AlertCircle className="w-3 h-3" />
-                                            Green units have questions. Amber units have reached the 100-question limit.
+                                            Green units have questions. Amber units indicate the subject has reached its 100-question total limit.
                                         </p>
-                                        {unit && (mySubjects.find(s => s.subjectCode === subjectCode)?.units?.[`unit${unit}`]?.questionCount >= 100) && (
-                                            <p className="text-xs text-amber-600 font-medium flex items-center gap-1">
-                                                <AlertCircle className="w-3 h-3" />
-                                                Unit {unit} is full. You cannot add more questions to this unit.
-                                            </p>
-                                        )}
+                                        {(() => {
+                                            const currentSub = mySubjects.find(s => s.subjectCode === subjectCode);
+                                            const total = Object.values(currentSub?.units || {}).reduce((acc, u) => acc + (u.questionCount || 0), 0);
+                                            return total >= 100;
+                                        })() && (
+                                                <p className="text-xs text-amber-600 font-medium flex items-center gap-1">
+                                                    <AlertCircle className="w-3 h-3" />
+                                                    Subject total limit reached (100/100). You cannot add more questions to any unit.
+                                                </p>
+                                            )}
                                     </div>
                                 </div>
                             )}

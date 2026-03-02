@@ -399,22 +399,26 @@ export default function StaffDashboard() {
             return;
         }
 
-        // Check for 100-question limit
+        // Check for 100-question limit across all units
         const currentSubject = mySubjects.find(s => s.subjectCode === subjectCode);
-        const currentUnitKey = `unit${unit}`;
-        const currentUnitQuestions = currentSubject?.units?.[currentUnitKey]?.questions || [];
-        const currentCount = currentUnitQuestions.length;
+        const allUnits = currentSubject?.units || {};
+        const currentTotalCount = Object.values(allUnits).reduce((total, unitData) => {
+            return total + (unitData.questions?.length || 0);
+        }, 0);
 
-        if (currentCount >= 100) {
-            toast.error(`Unit ${unit} has already reached the maximum limit of 100 questions. Please continue with Unit ${Number(unit) < 5 ? Number(unit) + 1 : "another subject"}.`);
+        if (currentTotalCount >= 100) {
+            toast.error(`${subjectCode} already has the maximum limit of 100 questions across all units.`);
             return;
         }
 
-        // Check if this unit is already uploaded for this subject
+        // Check if this unit is already uploaded
+        const currentUnitKey = `unit${unit}`;
+        const currentUnitCount = allUnits[currentUnitKey]?.questions?.length || 0;
+
         if (uploadedUnits[subjectCode]?.includes(unit)) {
             const confirm = window.confirm(
-                `Unit ${unit} for ${subjectCode} already has ${currentCount} questions.\n` +
-                `Uploading more will add to this count (Max: 100).\n\n` +
+                `Unit ${unit} for ${subjectCode} already has ${currentUnitCount} questions.\n` +
+                `The total questions for this subject is ${currentTotalCount}/100.\n\n` +
                 `Do you want to continue?`
             );
             if (!confirm) return;
@@ -447,6 +451,135 @@ export default function StaffDashboard() {
                 allRows = [...allRows, ...sheetRows];
             });
 
+            if (allRows.length === 0) {
+                clearInterval(progressInterval);
+                toast.error("No questions found in the uploaded file");
+                setUploadStatus("error");
+                return;
+            }
+
+            // --- Multi-Unit (Bulk) Upload Logic ---
+            if (unit === "multi") {
+                const unitsToProcess = [1, 2, 3, 4, 5];
+                const questionsByUnit = {};
+                let totalNewQuestionsCount = 0;
+
+                unitsToProcess.forEach(u => {
+                    const unitRows = allRows.filter(row => Number(row.Unit) === u);
+                    if (unitRows.length > 0) {
+                        questionsByUnit[u] = unitRows.map((row, index) => ({
+                            id: `${subjectCode}-U${u}-Q${index + 1}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                            questionNo: row.QuestionNo || `Q${index + 1}`,
+                            question: row.Question,
+                            marks: Number(row.Marks) === 2 ? 1 : Number(row.Marks),
+                            difficulty: row.Difficulty || "Medium",
+                            bloomLevel: row.BloomLevel || row.bloomLevel || "RE",
+                            unit: u,
+                            imageURL: row.ImageURL || row.imageURL || "",
+                            uploadedAt: Date.now(),
+                            staffId: staffData.id,
+                            staffName: staffData.name,
+                            staffEmail: staffData.email,
+                        }));
+                        totalNewQuestionsCount += questionsByUnit[u].length;
+                    }
+                });
+
+                if (totalNewQuestionsCount === 0) {
+                    clearInterval(progressInterval);
+                    toast.error("No valid Unit information found in the Excel sheet. Please ensure there is a 'Unit' column with values 1-5.");
+                    setUploadStatus("error");
+                    return;
+                }
+
+                // Enforce subject-wide limit
+                if (currentTotalCount + totalNewQuestionsCount > 100) {
+                    const allowed = 100 - currentTotalCount;
+                    toast.error(`Subject total will exceed 100 questions. You can only add ${allowed} more questions.`);
+                    clearInterval(progressInterval);
+                    setLoading(false);
+                    setUploadStatus(null);
+                    return;
+                }
+
+                setUploadProgress(70);
+
+                // Find subject doc
+                let subjectRef;
+                const q = query(collection(db, "subjects"), where("subjectCode", "==", subjectCode));
+                const querySnapshot = await getDocs(q);
+                if (!querySnapshot.empty) {
+                    subjectRef = querySnapshot.docs[0].ref;
+                } else {
+                    subjectRef = doc(db, "subjects", `${staffData.id}_${subjectCode}`);
+                }
+
+                const subjectSnap = await getDoc(subjectRef);
+                const existingData = subjectSnap.exists() ? subjectSnap.data() : { units: {}, totalQuestions: 0 };
+                const updates = {
+                    lastUpdated: serverTimestamp(),
+                    subjectCode,
+                    subjectName,
+                    staffId: staffData.id,
+                    staffName: staffData.name,
+                    staffEmail: staffData.email,
+                };
+
+                let actualAddedCount = 0;
+
+                Object.keys(questionsByUnit).forEach(u => {
+                    const unitKey = `unit${u}`;
+                    const existingUnitQuestions = existingData.units?.[unitKey]?.questions || [];
+                    const existingQuestionNos = new Set(existingUnitQuestions.map(q => q.questionNo));
+                    const newUniqueQuestions = questionsByUnit[u].filter(q => !existingQuestionNos.has(q.questionNo));
+
+                    const merged = [...existingUnitQuestions, ...newUniqueQuestions];
+                    updates[`units.${unitKey}`] = {
+                        unitNumber: Number(u),
+                        unitName: `Unit ${u}`,
+                        questions: merged,
+                        questionCount: merged.length,
+                        createdAt: existingData.units?.[unitKey]?.createdAt || serverTimestamp(),
+                        lastUpdated: serverTimestamp(),
+                    };
+                    actualAddedCount += newUniqueQuestions.length;
+                });
+
+                updates.totalQuestions = (existingData.totalQuestions || 0) + actualAddedCount;
+
+                if (!subjectSnap.exists()) {
+                    updates.createdAt = serverTimestamp();
+                    await setDoc(subjectRef, updates);
+                } else {
+                    await updateDoc(subjectRef, updates);
+                }
+
+                // Log Activity once
+                const activityRef = doc(collection(db, "activities"));
+                await setDoc(activityRef, {
+                    activityId: activityRef.id,
+                    staffId: staffData.id,
+                    staffName: staffData.name,
+                    username: staffData.username,
+                    subjectCode,
+                    subjectName,
+                    message: `Bulk upload: ${actualAddedCount} questions added across multiple units for ${subjectCode}`,
+                    type: "UPLOAD",
+                    role: "staff",
+                    createdAt: serverTimestamp(),
+                });
+
+                clearInterval(progressInterval);
+                setUploadProgress(100);
+                setUploadStatus("success");
+                setTimeout(() => {
+                    toast.success(`✅ Successfully processed bulk upload for ${subjectCode}`);
+                    resetForm();
+                }, 500);
+                return;
+            }
+
+            // --- Single Unit Upload Logic (Legacy/Rest of the code) ---
             // Filter questions for selected unit only
             let unitQuestions = allRows
                 .filter((row) => Number(row.Unit) === Number(unit))
@@ -474,12 +607,12 @@ export default function StaffDashboard() {
                 return;
             }
 
-            // Enforce 100-question limit for the batch
-            if (currentCount + unitQuestions.length > 100) {
-                const allowedCount = 100 - currentCount;
+            // Enforce 100-question total limit per subject
+            if (currentTotalCount + unitQuestions.length > 100) {
+                const allowedCount = 100 - currentTotalCount;
                 const confirmBatch = window.confirm(
-                    `This upload contains ${unitQuestions.length} questions, which will exceed the 100-question limit for Unit ${unit} (Current: ${currentCount}).\n\n` +
-                    `Do you want to upload only the first ${allowedCount} questions to reach the limit?`
+                    `The total questions for ${subjectCode} will exceed the 100-question limit (Current Total: ${currentTotalCount}, Batch: ${unitQuestions.length}).\n\n` +
+                    `Do you want to upload only the first ${allowedCount} questions to reach the 100-question subject limit?`
                 );
 
                 if (!confirmBatch) {
