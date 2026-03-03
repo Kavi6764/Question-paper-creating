@@ -119,9 +119,9 @@ export default function AdminDashboard() {
     oneMarkQuestions: 5,
     fourMarkQuestions: 5,
     sixMarkQuestions: 3,
-    eightMarkQuestions: 2,
-    totalQuestions: 15,
-    totalMarks: 64,
+    eightMarkQuestions: 0, // Temporarily 0 (Prev: 2)
+    totalQuestions: 13, // Prev: 15
+    totalMarks: 43, // Prev: 64
     generationTime: "",
     generationDate: ""
   });
@@ -1069,9 +1069,9 @@ export default function AdminDashboard() {
         oneMarkQuestions: 5,
         fourMarkQuestions: 5,
         sixMarkQuestions: 3,
-        eightMarkQuestions: 2,
-        totalQuestions: 15,
-        totalMarks: 59, // 5*1 + 5*4 + 3*6 + 2*8 = 5+20+18+16 = 59
+        eightMarkQuestions: 0, // Prev: 2
+        totalQuestions: 13, // Prev: 15
+        totalMarks: 43, // 5*1 + 5*4 + 3*6 + 0*8 = 43 (Prev: 59)
         generationTime: "",
         generationDate: ""
       });
@@ -1173,36 +1173,41 @@ export default function AdminDashboard() {
 
     // ... (header logic unchanged)
     // Header - College Name
-    doc.setFontSize(18);
+    doc.setFontSize(14);
     doc.setFont(undefined, 'bold');
     const collegeName = collegeDetails?.collegeName || "EXAM MANAGEMENT SYSTEM";
-    doc.text(collegeName.toUpperCase(), 105, 15, { align: 'center' });
+    doc.text(collegeName.toUpperCase(), 105, 12, { align: 'center' });
 
-    // Header - Address (City, State, Pincode only)
-    let yPos = 22;
+    // Header - Address (Full Details)
+    let yPos = 17;
     if (collegeDetails) {
-      doc.setFontSize(10);
+      doc.setFontSize(8);
       doc.setFont(undefined, 'normal');
-      const addressParts = [
+
+      const addr1 = collegeDetails.addressLine1;
+      const addr2 = collegeDetails.addressLine2;
+      const cityInfo = [
         collegeDetails.city,
         collegeDetails.state ? `${collegeDetails.state}${collegeDetails.pincode ? ' - ' + collegeDetails.pincode : ''}` : ''
       ].filter(Boolean).join(', ');
 
-      if (addressParts) {
-        doc.text(addressParts, 105, yPos, { align: 'center' });
-        yPos += 5;
+      const fullAddress = [addr1, addr2, cityInfo].filter(Boolean).join(', ');
+
+      if (fullAddress) {
+        doc.text(fullAddress, 105, yPos, { align: 'center' });
+        yPos += 4;
       }
     }
 
-    doc.setFontSize(16);
+    doc.setFontSize(11);
     doc.setFont(undefined, 'bold');
-    doc.text(paper.title, 105, yPos + 8, { align: 'center' });
+    doc.text(paper.title, 105, yPos + 4, { align: 'center' });
 
-    doc.setFontSize(12);
-    doc.text(`${paper.subjectCode} - ${paper.subjectName}`, 105, yPos + 16, { align: 'center' });
+    doc.setFontSize(9);
+    doc.text(`${paper.subjectCode} - ${paper.subjectName}`, 105, yPos + 9, { align: 'center' });
 
-    const metaY = yPos + 26;
-    doc.setFontSize(10);
+    const metaY = yPos + 16;
+    doc.setFontSize(9);
 
     // Left Side: Date & Time
     doc.text(`Date: ${paper.examDate || '__________'}`, 20, metaY);
@@ -1213,19 +1218,19 @@ export default function AdminDashboard() {
     const marksText = `Max. Marks: ${paper.totalMarks}`;
     doc.text(`${durationText}   ${marksText}`, 190, metaY, { align: 'right' });
 
-    doc.line(20, metaY + 5, 190, metaY + 5);
+    doc.line(20, metaY + 3, 190, metaY + 3);
 
-    doc.setFontSize(11);
-    doc.text('Instructions:', 20, metaY + 12);
     doc.setFontSize(10);
-    doc.text('1. Answer all questions.', 20, metaY + 17);
-    doc.text('2. Each question carries marks as indicated.', 20, metaY + 22);
-    doc.text('3. Draw neat diagrams wherever necessary.', 20, metaY + 27); // Added instruction for diagrams
+    doc.text('Instructions:', 20, metaY + 8);
+    doc.setFontSize(9);
+    doc.text('1. Answer all questions.', 20, metaY + 12);
+    doc.text('2. Each question carries marks as indicated.', 20, metaY + 16);
+    doc.text('3. Draw neat diagrams wherever necessary.', 20, metaY + 20); // Added instruction for diagrams
 
     const sortedQuestions = [...paper.questions].sort((a, b) => a.marks - b.marks);
     let currentMark = null;
     let groupIndex = 0;
-    let contentY = metaY + 36;
+    let contentY = metaY + 28;
 
     for (let i = 0; i < sortedQuestions.length; i++) {
       const q = sortedQuestions[i];
@@ -1234,8 +1239,9 @@ export default function AdminDashboard() {
       const bloomTag = q.bloomLevel ? `[${q.bloomLevel}]` : "";
       const questionText = (q.question || '');
       const questionLines = doc.splitTextToSize(questionText, 140);
-      const textHeight = questionLines.length * 7;
-      const optionsHeight = (q.options?.length || 0) * 7;
+      const lineHeight = 4.5;
+      const textHeight = questionLines.length * lineHeight;
+      const optionsHeight = (q.options?.length || 0) * lineHeight;
 
       let imageHeight = 0;
       let imageData = null;
@@ -1274,21 +1280,21 @@ export default function AdminDashboard() {
         const groupCount = sortedQuestions.filter(sq => sq.marks === q.marks).length;
         const groupTotal = groupCount * q.marks;
 
-        doc.setFontSize(12);
+        doc.setFontSize(9);
         doc.setFont(undefined, 'bold');
         doc.text(`Group-${groupLabel}`, 20, contentY);
         doc.text(`[ ${q.marks} x ${groupCount} = ${groupTotal} ]`, 190, contentY, { align: 'right' });
-        contentY += 8;
+        contentY += 6;
 
-        doc.setFontSize(10);
+        doc.setFontSize(8);
         doc.text("Answer the Following Questions", 20, contentY);
-        contentY += 12;
+        contentY += 8;
 
         groupIndex++;
       }
 
       // Print Question
-      doc.setFontSize(11);
+      doc.setFontSize(9);
       doc.setFont(undefined, 'bold');
       doc.text(`Q${i + 1}.`, 20, contentY);
 
@@ -1296,23 +1302,23 @@ export default function AdminDashboard() {
       doc.text(questionLines, 35, contentY);
 
       if (bloomTag) {
-        doc.setFontSize(9);
+        doc.setFontSize(7);
         doc.setFont(undefined, 'bold');
         doc.text(bloomTag, 190, contentY, { align: 'right' });
       }
 
-      contentY += textHeight + 5;
+      contentY += textHeight + 2;
 
       // Print Options
       if (q.options && q.options.length > 0) {
-        doc.setFontSize(10);
+        doc.setFontSize(8);
         q.options.forEach((opt, optIdx) => {
           if (contentY > 285) {
             doc.addPage();
             contentY = 20;
           }
           doc.text(`${String.fromCharCode(65 + optIdx)}) ${opt}`, 40, contentY);
-          contentY += 7;
+          contentY += lineHeight;
         });
       }
 
@@ -1326,7 +1332,7 @@ export default function AdminDashboard() {
         contentY += imageHeight + 8;
       }
 
-      contentY += 5; // Spacing between questions
+      contentY += 2; // Spacing between questions
     }
 
     doc.save(`${paper.title.replace(/\s+/g, '_')}.pdf`);

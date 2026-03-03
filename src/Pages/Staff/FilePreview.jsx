@@ -230,7 +230,7 @@ export default function FilePreview({ file, previewData, previewPage, setPreview
                                     <div className="space-y-1">
                                         <p className="text-xs font-medium text-blue-700">Template Format</p>
                                         <p className="text-xs text-blue-600/70">
-                                            Includes separate sheets for 2, 4, 6, and 8 marks questions
+                                            Includes separate sheets for 2, 4, and 6 marks questions {/* and 8 marks */}
                                         </p>
                                     </div>
                                 </div>

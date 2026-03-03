@@ -374,7 +374,7 @@ export default function Login() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
             {fields.map((field) => {
               const Icon = field.icon;
               const isPassword = field.type === "password";
@@ -397,6 +397,7 @@ export default function Login() {
                       onChange={(e) => handleChange(field.name, e.target.value)}
                       onFocus={() => field.dropdown && handleUsernameFocus()}
                       onBlur={() => field.dropdown && setTimeout(() => setShowDropdown(false), 150)}
+                      autoComplete="off"
                       className={`block w-full pl-10 pr-10 py-2.5 bg-gray-50/50 border rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 ${errors[field.name] ? "border-red-500" : "border-gray-200"
                         }`}
                       disabled={isLoading}
@@ -426,6 +427,7 @@ export default function Login() {
                               value={searchQuery}
                               onChange={(e) => setSearchQuery(e.target.value)}
                               onClick={(e) => e.stopPropagation()}
+                              autoComplete="off"
                               className="w-full bg-gray-50 rounded-lg pl-9 pr-3 py-2 text-sm border-none focus:ring-0"
                             />
                           </div>
