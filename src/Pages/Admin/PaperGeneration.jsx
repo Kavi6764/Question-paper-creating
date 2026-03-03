@@ -126,20 +126,19 @@ export default function PaperGeneration({
                                     Total Available: {
                                         questionStats.oneMark.available +
                                         questionStats.fourMark.available +
-                                        questionStats.sixMark.available +
-                                        questionStats.eightMark.available
+                                        questionStats.sixMark.available // + questionStats.eightMark.available
                                     }
                                 </span>
                             )}
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {/* lg:grid-cols-4 */}
                             {[
                                 { label: "1-Mark", key: "oneMarkQuestions", statsKey: "oneMark", color: "blue", multiplier: 1 },
                                 { label: "4-Mark", key: "fourMarkQuestions", statsKey: "fourMark", color: "green", multiplier: 4 },
                                 { label: "6-Mark", key: "sixMarkQuestions", statsKey: "sixMark", color: "purple", multiplier: 6 },
-                                { label: "8-Mark", key: "eightMarkQuestions", statsKey: "eightMark", color: "orange", multiplier: 8 }
-                            ].map((item) => (
+                                // { label: "8-Mark", key: "eightMarkQuestions", statsKey: "eightMark", color: "orange", multiplier: 8 }
+                            ].filter(item => item.key !== "eightMarkQuestions").map((item) => (
                                 <div key={item.key} className={`bg-white p-4 rounded-xl border border-gray-100 hover:border-${item.color}-200 transition-all shadow-sm group`}>
                                     <div className="flex items-center justify-between mb-3">
                                         <label className="block text-sm font-bold text-gray-700">{item.label}</label>
@@ -263,7 +262,7 @@ export default function PaperGeneration({
                                 <div className="flex justify-between"><span>1-Mark:</span> <span className="font-medium text-gray-900">{selectedQuestions.filter(q => q.marks === 1 || q.marks === 2).length}</span></div>
                                 <div className="flex justify-between"><span>4-Mark:</span> <span className="font-medium text-gray-900">{selectedQuestions.filter(q => q.marks === 4).length}</span></div>
                                 <div className="flex justify-between"><span>6-Mark:</span> <span className="font-medium text-gray-900">{selectedQuestions.filter(q => q.marks === 6).length}</span></div>
-                                <div className="flex justify-between"><span>8-Mark:</span> <span className="font-medium text-gray-900">{selectedQuestions.filter(q => q.marks === 8).length}</span></div>
+                                {/* <div className="flex justify-between"><span>8-Mark:</span> <span className="font-medium text-gray-900">{selectedQuestions.filter(q => q.marks === 8).length}</span></div> */}
                             </div>
                             <div className="flex gap-2">
                                 <button onClick={generateRandomQuestions} className="flex-1 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-medium hover:bg-gray-50 text-gray-700">Regenerate</button>
