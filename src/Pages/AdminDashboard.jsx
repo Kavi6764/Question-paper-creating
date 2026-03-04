@@ -507,7 +507,7 @@ export default function AdminDashboard() {
         }
       }
 
-      const usernameQuery = query(collection(db, "users"), where("username", "==", newStaff.username));
+      const usernameQuery = query(collection(db, "users"), where("username", "==", newStaff.username.toLowerCase()));
       const usernameSnap = await getDocs(usernameQuery);
       if (!usernameSnap.empty) {
         toast.error("Username already taken");
@@ -528,7 +528,7 @@ export default function AdminDashboard() {
         uid: userCredential.user.uid,
         email: newStaff.email,
         fullName: newStaff.fullName,
-        username: newStaff.username,
+        username: newStaff.username.toLowerCase(),
         department: newStaff.department || "General",
         role: "staff",
         status: "active", // Set to active by default as requested
@@ -794,8 +794,8 @@ export default function AdminDashboard() {
       // Attempt to find user by username or email
       let userSnap;
 
-      // 1. Try Username (exact)
-      const qUsername = query(collection(db, "users"), where("username", "==", searchInput));
+      // 1. Try Username (exact or lowercase)
+      const qUsername = query(collection(db, "users"), where("username", "==", searchInputLower));
       const usernameSnap = await getDocs(qUsername);
 
       if (!usernameSnap.empty) {

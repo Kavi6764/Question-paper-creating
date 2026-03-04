@@ -13,19 +13,19 @@ import {
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { 
-  auth, 
-  db 
+import {
+  auth,
+  db
 } from "../../fireBaseConfig";
-import { 
+import {
   sendEmailVerification,
   createUserWithEmailAndPassword,
   updateProfile
 } from "firebase/auth";
-import { 
-  doc, 
-  setDoc, 
-  serverTimestamp 
+import {
+  doc,
+  setDoc,
+  serverTimestamp
 } from "firebase/firestore";
 
 export default function Register() {
@@ -120,35 +120,35 @@ export default function Register() {
 
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!formValues.fullName.trim())
       newErrors.fullName = "Full name is required";
     else if (formValues.fullName.length < 2)
       newErrors.fullName = "Name must be at least 2 characters";
-    
+
     if (!formValues.sureName.trim())
       newErrors.sureName = "Surname is required";
-    
+
     if (!formValues.phone.trim())
       newErrors.phone = "Phone number is required";
     else if (!/^[6-9]\d{9}$/.test(formValues.phone))
       newErrors.phone = "Enter valid 10-digit Indian number";
-    
+
     if (!formValues.email.trim())
       newErrors.email = "Email is required";
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formValues.email))
       newErrors.email = "Enter valid email address";
-    
+
     if (!formValues.username.trim())
       newErrors.username = "Username is required";
     else if (formValues.username.length < 3)
       newErrors.username = "Username must be at least 3 characters";
-    
+
     if (!formValues.password)
       newErrors.password = "Password is required";
     else if (formValues.password.length < 6)
       newErrors.password = "Password must be at least 6 characters";
-    
+
     if (!formValues.confirmPassword)
       newErrors.confirmPassword = "Please confirm your password";
     else if (formValues.confirmPassword !== formValues.password)
@@ -161,39 +161,39 @@ export default function Register() {
   // Create User Account with Firestore Storage
   const handleCreateAccount = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     setIsLoading(true);
     setFirebaseError("");
-    
+
     try {
-  
-      
+
+
       // 1. Create user in Firebase Authentication
       const credential = await createUserWithEmailAndPassword(
         auth,
         formValues.email,
         formValues.password
       );
-      
-    
+
+
       // 2. Update user profile
       await updateProfile(credential.user, {
         displayName: formValues.fullName,
         photoURL: null // No profile photo
       });
- 
-    
+
+
       // 3. Send email verification
       await sendEmailVerification(credential.user, {
         url: window.location.origin + '/login', // Redirect to login after verification
         handleCodeInApp: false
       });
-    
-      
+
+
       // 4. Store user data in Firestore
       const userId = credential.user.uid;
       const userData = {
@@ -202,7 +202,7 @@ export default function Register() {
         sureName: formValues.sureName,
         phone: "+91" + formValues.phone,
         email: formValues.email,
-        username: formValues.username,
+        username: formValues.username.toLowerCase(),
         phoneVerified: true, // We trust the phone number
         emailVerified: false, // Will be true after verification
         role: "staff",
@@ -214,9 +214,9 @@ export default function Register() {
           registrationDate: new Date().toISOString()
         }
       };
-      
-     
-    
+
+
+
       // Try to store in Firestore
       try {
         const userDocRef = doc(db, "users", userId);
@@ -224,7 +224,7 @@ export default function Register() {
         console.log("Successfully stored in Firestore");
       } catch (firestoreError) {
         console.error("Firestore error:", firestoreError);
-    
+
         setFirebaseError("User account created but data storage failed. Please contact support.");
       }
       toast.success("Account created! Verification email sent.");
@@ -236,40 +236,40 @@ export default function Register() {
         uid: userId,
         timestamp: Date.now()
       }));
-      
+
     } catch (error) {
-  
-      
+
+
       let errorMessage = "Account creation failed. ";
-      
+
       switch (error.code) {
         case 'auth/email-already-in-use':
           errorMessage = "This email is already registered. Please use a different email or login.";
           setErrors(prev => ({ ...prev, email: "Email already in use" }));
           break;
-          
+
         case 'auth/weak-password':
           errorMessage = "Password is too weak. Please use a stronger password.";
           setErrors(prev => ({ ...prev, password: "Password is too weak" }));
           break;
-          
+
         case 'auth/invalid-email':
           errorMessage = "Invalid email address format.";
           setErrors(prev => ({ ...prev, email: "Invalid email address" }));
           break;
-          
+
         case 'auth/operation-not-allowed':
           errorMessage = "Email/password accounts are not enabled. Please contact support.";
           break;
-          
+
         case 'permission-denied':
           errorMessage = "Database permission denied. Please check Firestore rules.";
           break;
-          
+
         default:
           errorMessage += error.message || "Please try again.";
       }
-      
+
       setFirebaseError(errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -280,11 +280,11 @@ export default function Register() {
   // Handle email verification check
   const handleEmailVerificationCheck = async () => {
     setIsLoading(true);
-    
+
     try {
       // Get current user
       const currentUser = auth.currentUser;
-      
+
       if (!currentUser) {
         // Try to get from localStorage
         const pending = localStorage.getItem('pendingVerification');
@@ -298,13 +298,13 @@ export default function Register() {
         return toast.success("Email verified! Account activated.");
 
       }
-      
+
       // Reload user to get latest verification status
       await currentUser.reload();
-      
+
       if (currentUser.emailVerified) {
         setRegistrationStep(3); // Success
-        
+
         // Update Firestore with verified status
         try {
           const userDocRef = doc(db, "users", currentUser.uid);
@@ -313,10 +313,10 @@ export default function Register() {
             status: "active",
             updatedAt: serverTimestamp(),
           }, { merge: true });
-          
+
           // Clear pending verification
           localStorage.removeItem('pendingVerification');
-          
+
         } catch (error) {
           console.error("Error updating verification status:", error);
           // Continue anyway - the user is verified in auth
@@ -324,7 +324,7 @@ export default function Register() {
       } else {
         setFirebaseError("Email not verified yet. Please check your inbox.");
       }
-      
+
     } catch (error) {
       console.error("Verification check error:", error);
       setFirebaseError("Failed to check verification status.");
@@ -335,20 +335,20 @@ export default function Register() {
 
   const resendVerificationEmail = async () => {
     setIsLoading(true);
-    
+
     try {
       const currentUser = auth.currentUser;
-      
+
       if (!currentUser) {
         setFirebaseError("Please login first to resend verification.");
         return;
       }
-      
+
       await sendEmailVerification(currentUser, {
         url: window.location.origin + '/login',
         handleCodeInApp: false
       });
-      
+
       setFirebaseError("Verification email resent! Please check your inbox.");
       toast.success("Verification email resent successfully!");
 
@@ -358,11 +358,11 @@ export default function Register() {
       setIsLoading(false);
     }
   };
- 
+
   return (
     <div className="min-h-screen flex items-center justify-center  bg-linear-to-br from-blue-50 to-gray-100 px-4 py-8">
       <div className="w-full max-w-2xl bg-white shadow-xl rounded-xl p-8 border border-gray-200">
-        
+
         {/* Header */}
         <div className="text-center mb-10">
           <div className="w-20 h-20 mx-auto mb-5 rounded-2xl bg-linear-to-r from-blue-500 to-blue-600 flex items-center justify-center shadow-lg">
@@ -374,7 +374,7 @@ export default function Register() {
           <p className="text-gray-600 mt-2">
             Join our team and get started with your new account
           </p>
-          
+
           {/* Progress Steps */}
           <div className="flex justify-center mt-8 mb-6">
             <div className="flex items-center">
@@ -423,8 +423,8 @@ export default function Register() {
                 const setShow = field.name === "password" ? setShowPassword : setShowConfirmPassword;
 
                 return (
-                  <div 
-                    key={field.name} 
+                  <div
+                    key={field.name}
                     className={field.colSpan === 2 ? "col-span-2" : "col-span-1"}
                   >
                     <label className="block text-sm font-semibold text-gray-900 mb-2">
@@ -434,7 +434,7 @@ export default function Register() {
 
                     <div className="relative group">
                       <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-blue-500" />
-                      
+
                       <input
                         type={isPassword ? (show ? "text" : "password") : field.type}
                         className="w-full rounded-lg border border-gray-300 bg-white pl-11 pr-10 py-3 text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all hover:border-gray-400"
@@ -469,11 +469,11 @@ export default function Register() {
 
             {/* Terms and Conditions */}
             <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg">
-              <input 
-                type="checkbox" 
-                id="terms" 
-                className="mt-1" 
-                required 
+              <input
+                type="checkbox"
+                id="terms"
+                className="mt-1"
+                required
               />
               <label htmlFor="terms" className="text-sm text-gray-700">
                 I agree to the Terms of Service and Privacy Policy. I understand that my data will be stored securely.
@@ -519,7 +519,7 @@ export default function Register() {
             <div className="w-24 h-24 mx-auto rounded-full bg-linear-to-r from-blue-100 to-blue-200 flex items-center justify-center">
               <Mail className="w-12 h-12 text-blue-600" />
             </div>
-            
+
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
                 Verify Your Email
@@ -531,7 +531,7 @@ export default function Register() {
                 <p className="text-lg font-semibold text-blue-800">{formValues.email}</p>
               </div>
             </div>
-            
+
             <div className="space-y-3">
               <button
                 onClick={handleEmailVerificationCheck}
@@ -550,7 +550,7 @@ export default function Register() {
                   </>
                 )}
               </button>
-              
+
               <button
                 onClick={resendVerificationEmail}
                 disabled={isLoading}
@@ -558,7 +558,7 @@ export default function Register() {
               >
                 Resend Verification Email
               </button>
-              
+
               <button
                 onClick={() => setRegistrationStep(1)}
                 className="w-full text-blue-600 hover:text-blue-700 py-2 text-sm"
@@ -566,7 +566,7 @@ export default function Register() {
                 ← Back to Edit Details
               </button>
             </div>
-            
+
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
               <p className="text-sm text-amber-800">
                 <strong>Important:</strong> Check your spam folder if you don't see the email.
@@ -582,7 +582,7 @@ export default function Register() {
             <div className="w-24 h-24 mx-auto rounded-full bg-linear-to-r from-green-100 to-green-200 flex items-center justify-center animate-pulse">
               <Check className="w-12 h-12 text-green-600" />
             </div>
-            
+
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-3">
                 🎉 Registration Complete!
@@ -590,7 +590,7 @@ export default function Register() {
               <p className="text-gray-600 mb-6">
                 Your account has been successfully verified and activated.
               </p>
-              
+
               <div className="bg-linear-to-r from-blue-50 to-gray-50 p-6 rounded-xl border border-gray-200">
                 <div className="grid grid-cols-2 gap-4 text-left">
                   <div>
@@ -612,7 +612,7 @@ export default function Register() {
                 </div>
               </div>
             </div>
-            
+
             <div className="space-y-4">
               <button
                 onClick={() => navigate("/dashboard")}
@@ -620,7 +620,7 @@ export default function Register() {
               >
                 Go to Dashboard
               </button>
-              
+
               <button
                 onClick={() => navigate("/login")}
                 className="w-full bg-white border-2 border-blue-600 text-blue-600 hover:bg-blue-50 py-3 rounded-lg font-medium transition-all"
@@ -628,7 +628,7 @@ export default function Register() {
                 Login to Another Account
               </button>
             </div>
-            
+
             <div className="pt-4">
               <div className="inline-flex items-center gap-2 text-sm text-gray-500">
                 <div className="w-3 h-3 bg-green-500 rounded-full animate-ping"></div>

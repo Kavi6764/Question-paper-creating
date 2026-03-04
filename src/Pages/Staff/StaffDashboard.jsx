@@ -210,9 +210,10 @@ export default function StaffDashboard() {
 
                                 const totalQuestions = assigned.reduce((sum, subject) => {
                                     if (subject.units) {
-                                        return sum + Object.values(subject.units).reduce((uSum, unit) =>
-                                            uSum + (unit.questions?.length || 0), 0
-                                        );
+                                        return sum + Object.values(subject.units).reduce((uSum, unit) => {
+                                            const staffQuestions = (unit.questions || []).filter(q => q.staffId === staffId);
+                                            return uSum + staffQuestions.length;
+                                        }, 0);
                                     }
                                     return sum;
                                 }, 0);
@@ -399,26 +400,28 @@ export default function StaffDashboard() {
             return;
         }
 
-        // Check for 100-question limit across all units
+        // Check for 100-question limit across all units (per-staff)
         const currentSubject = mySubjects.find(s => s.subjectCode === subjectCode);
         const allUnits = currentSubject?.units || {};
-        const currentTotalCount = Object.values(allUnits).reduce((total, unitData) => {
-            return total + (unitData.questions?.length || 0);
+        const currentStaffTotalCount = Object.values(allUnits).reduce((total, unitData) => {
+            const staffQuestions = (unitData.questions || []).filter(q => q.staffId === staffData.id);
+            return total + staffQuestions.length;
         }, 0);
 
-        if (currentTotalCount >= 100) {
-            toast.error(`${subjectCode} already has the maximum limit of 100 questions across all units.`);
+        if (currentStaffTotalCount >= 100) {
+            toast.error(`You have already uploaded the maximum limit of 100 questions for ${subjectCode}.`);
             return;
         }
 
-        // Check if this unit is already uploaded
+        // Check if this unit is already uploaded (per-staff)
         const currentUnitKey = `unit${unit}`;
-        const currentUnitCount = allUnits[currentUnitKey]?.questions?.length || 0;
+        const currentUnitQuestions = allUnits[currentUnitKey]?.questions || [];
+        const currentUnitStaffCount = currentUnitQuestions.filter(q => q.staffId === staffData.id).length;
 
         if (uploadedUnits[subjectCode]?.includes(unit)) {
             const confirm = window.confirm(
-                `Unit ${unit} for ${subjectCode} already has ${currentUnitCount} questions.\n` +
-                `The total questions for this subject is ${currentTotalCount}/100.\n\n` +
+                `Unit ${unit} for ${subjectCode} already has ${currentUnitStaffCount} of your questions.\n` +
+                `Your total questions for this subject is ${currentStaffTotalCount}/100.\n\n` +
                 `Do you want to continue?`
             );
             if (!confirm) return;
@@ -492,10 +495,10 @@ export default function StaffDashboard() {
                     return;
                 }
 
-                // Enforce subject-wide limit
-                if (currentTotalCount + totalNewQuestionsCount > 100) {
-                    const allowed = 100 - currentTotalCount;
-                    toast.error(`Subject total will exceed 100 questions. You can only add ${allowed} more questions.`);
+                // Enforce per-staff subject-wide limit
+                if (currentStaffTotalCount + totalNewQuestionsCount > 100) {
+                    const allowed = 100 - currentStaffTotalCount;
+                    toast.error(`Your total for this subject will exceed 100 questions. You can only add ${allowed} more questions.`);
                     clearInterval(progressInterval);
                     setLoading(false);
                     setUploadStatus(null);
@@ -607,12 +610,12 @@ export default function StaffDashboard() {
                 return;
             }
 
-            // Enforce 100-question total limit per subject
-            if (currentTotalCount + unitQuestions.length > 100) {
-                const allowedCount = 100 - currentTotalCount;
+            // Enforce 100-question total limit per staff per subject
+            if (currentStaffTotalCount + unitQuestions.length > 100) {
+                const allowedCount = 100 - currentStaffTotalCount;
                 const confirmBatch = window.confirm(
-                    `The total questions for ${subjectCode} will exceed the 100-question limit (Current Total: ${currentTotalCount}, Batch: ${unitQuestions.length}).\n\n` +
-                    `Do you want to upload only the first ${allowedCount} questions to reach the 100-question subject limit?`
+                    `Your total questions for ${subjectCode} will exceed the 100-question limit (Current Total: ${currentStaffTotalCount}, Batch: ${unitQuestions.length}).\n\n` +
+                    `Do you want to upload only the first ${allowedCount} questions to reach your 100-question subject limit?`
                 );
 
                 if (!confirmBatch) {
@@ -967,6 +970,7 @@ export default function StaffDashboard() {
                         {activeTab === "upload" && (
                             <div className="animate-fade-in">
                                 <UploadForm
+                                    staffId={staffData.id}
                                     subjectCode={subjectCode}
                                     setSubjectCode={setSubjectCode}
                                     subjectName={subjectName}
