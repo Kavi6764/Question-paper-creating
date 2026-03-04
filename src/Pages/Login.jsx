@@ -42,23 +42,6 @@ export default function Login() {
       console.error("Error fetching users:", error);
     }
   };
-  const ADMIN_ACCOUNTS = {
-    "hod": {
-      email: "hod@exam.com",
-      role: "hod",
-      bypassEmailVerification: true
-    },
-    "dean": {
-      email: "dean@exam.com",
-      role: "dean",
-      bypassEmailVerification: true
-    },
-    "admin": {
-      email: "admin@exam.com",
-      role: "admin",
-      bypassEmailVerification: true
-    }
-  };
   // Open dropdown and fetch users
   const handleUsernameFocus = () => {
     setShowDropdown(true);
@@ -132,8 +115,8 @@ export default function Login() {
 
     setResendLoading(true);
     try {
-      const userEmail = await findUserEmailByUsername(formValues.username);
-      const userCredential = await signInWithEmailAndPassword(auth, userEmail, formValues.password);
+      const userData = await findUserByUsername(formValues.username);
+      const userCredential = await signInWithEmailAndPassword(auth, userData.email, formValues.password);
 
       if (!userCredential.user.emailVerified) {
         await sendEmailVerification(userCredential.user);
@@ -150,16 +133,12 @@ export default function Login() {
     }
   };
 
-  const findUserEmailByUsername = async (username) => {
+  const findUserByUsername = async (username) => {
     const lowercaseUsername = username.toLowerCase();
 
-    // Check for admin accounts first
-    if (ADMIN_ACCOUNTS[lowercaseUsername]) {
-      return ADMIN_ACCOUNTS[lowercaseUsername].email;
-    }
     try {
       const usersRef = collection(db, "users");
-      const q = query(usersRef, where("username", "==", username));
+      const q = query(usersRef, where("username", "==", lowercaseUsername));
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
@@ -171,7 +150,7 @@ export default function Login() {
           throw new Error("Account is not active. Please contact administrator.");
         }
 
-        return userData.email;
+        return userData;
       } else {
         throw new Error("Username not found.");
       }
@@ -189,8 +168,9 @@ export default function Login() {
     setShowResend(false);
 
     try {
-      // 1. Find the email associated with the username
-      const userEmail = await findUserEmailByUsername(formValues.username);
+      // 1. Find the user record in Firestore
+      const userData = await findUserByUsername(formValues.username);
+      const userEmail = userData.email;
 
       // 2. Sign in with email and password
       const userCredential = await signInWithEmailAndPassword(
@@ -200,47 +180,28 @@ export default function Login() {
       );
 
       // 3. Check if email is verified
-      const lowercaseUsername = formValues.username.toLowerCase();
-      const isAdminAccount = ADMIN_ACCOUNTS[lowercaseUsername];
-
-      if (!isAdminAccount && !userCredential.user.emailVerified) {
+      if (!userCredential.user.emailVerified) {
         await signOut(auth);
         setShowResend(true);
         throw new Error("Please verify your email before logging in.");
       }
 
-      // 4. Fetch user role from Firestore
-      let role = "staff";
+      // 4. Determine user role
+      let role = userData?.role || "staff";
 
-      if (formValues.username.toLowerCase() === "hod") {
-        role = "hod";
-      } else if (formValues.username.toLowerCase() === "dean") {
-        role = "dean";
-      } else {
-        const userRef = doc(db, "users", userCredential.user.uid);
-        const userSnap = await getDoc(userRef);
-        const userData = userSnap.data();
-        role = userData?.role || "staff";
-
-        // Update status to active if it was pending and email is verified
-        // Also ensure emailVerified is set to true in Firestore
-        if ((userData?.status === "pending" || userData?.status === "active") && userCredential.user.emailVerified) {
-          try {
-            const updates = { emailVerified: true };
-            if (userData.status === "pending") {
-              updates.status = "active";
-              updates.updatedAt = serverTimestamp();
-            }
-            await updateDoc(userRef, updates);
-            console.log("User verification status synced in Firestore");
-          } catch (updateError) {
-            console.error("Error auto-updating status:", updateError);
+      // Sync verification status in Firestore if needed
+      if ((userData?.status === "pending" || userData?.status === "active") && userCredential.user.emailVerified) {
+        try {
+          const userRef = doc(db, "users", userCredential.user.uid);
+          const updates = { emailVerified: true };
+          if (userData.status === "pending") {
+            updates.status = "active";
+            updates.updatedAt = serverTimestamp();
           }
-        }
-
-        // Also check if status is active/pending (duplicate check but safe)
-        if (userData?.status !== "active" && userData?.status !== "pending") {
-          throw new Error("Account is not active. Please contact administrator.");
+          await updateDoc(userRef, updates);
+          console.log("User verification status synced in Firestore");
+        } catch (updateError) {
+          console.error("Error auto-updating status:", updateError);
         }
       }
 
@@ -322,8 +283,8 @@ export default function Login() {
 
     setIsLoading(true);
     try {
-      const email = await findUserEmailByUsername(formValues.username);
-      await sendPasswordResetEmail(auth, email);
+      const userData = await findUserByUsername(formValues.username);
+      await sendPasswordResetEmail(auth, userData.email);
       toast.success("Password reset link sent to your email!");
     } catch (error) {
       console.error("Forgot password error:", error);
