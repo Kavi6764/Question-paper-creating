@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import logo from '../../assets/logo.png';
 import { createPortal } from 'react-dom';
 import { FileText, Calendar, Clock, Eye, Printer, EyeOff, X, ChevronLeft, ChevronRight, Edit2, RefreshCw, PenTool, CheckCircle, AlertCircle, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
