@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import logo from '../assets/logo.png';
 import { useParams } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../fireBaseConfig';
@@ -63,9 +64,10 @@ export default function QuestionPaperView() {
       <div className="max-w-4xl mx-auto bg-white shadow-lg p-10 print:shadow-none print:max-w-none print:p-0">
 
         {/* Header */}
-        <div className="text-center border-b-2 border-gray-900 pb-6 mb-8">
+        <div className="flex flex-col items-center border-b-2 border-gray-900 pb-6 mb-8 text-center">
+          <img src={logo} alt="Uttaranchal University Logo" className="h-28 object-contain mb-4" />
           <h1 className="text-3xl font-bold uppercase tracking-wider mb-2">University / Institute Name</h1>
-          <h2 className="text-xl font-semibold mb-4">{paper.title}</h2>
+          <h2 className="text-xl font-semibold mb-2">{paper.title}</h2>
 
           <div className="flex justify-between text-sm font-medium mt-4 px-4">
             <div className="text-left space-y-1">

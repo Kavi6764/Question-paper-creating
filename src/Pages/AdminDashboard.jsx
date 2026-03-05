@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import logo from "../assets/logo.png";
 import {
   User,
   Shield,
@@ -54,7 +55,8 @@ import HodDeanAssignment from "./Admin/HodDeanAssignment";
 import CollegeSettings from "./Admin/CollegeSettings";
 import ConfirmationModal from "../components/ConfirmationModal";
 import BackupRestore from "./Admin/BackupRestore";
-import { Database as DatabaseIcon } from "lucide-react";
+import StaffActivities from "./Admin/StaffActivities";
+import { Database as DatabaseIcon, BarChart3 } from "lucide-react";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -1171,15 +1173,26 @@ export default function AdminDashboard() {
     // Use jsPDF for PDF generation/printing
     const doc = new jsPDF();
 
-    // ... (header logic unchanged)
-    // Header - College Name
-    doc.setFontSize(14);
+    // Load Logo
+    const logoData = await loadImage(logo);
+    let yPos = 12;
+
+    if (logoData) {
+      const imgWidth = 40;
+      const imgHeight = (logoData.height * imgWidth) / logoData.width;
+      doc.addImage(logoData.data, 'JPEG', 105 - (imgWidth / 2), 10, imgWidth, imgHeight);
+      yPos = 10 + imgHeight + 10;
+    }
+
+    // Header - University Name
+    doc.setFontSize(18);
     doc.setFont(undefined, 'bold');
     const collegeName = collegeDetails?.collegeName || "EXAM MANAGEMENT SYSTEM";
-    doc.text(collegeName.toUpperCase(), 105, 12, { align: 'center' });
+    doc.text(collegeName.toUpperCase(), 105, yPos, { align: 'center' });
+    yPos += 8;
 
     // Header - Address (Full Details)
-    let yPos = 17;
+    // yPos is already declared above
     if (collegeDetails) {
       doc.setFontSize(8);
       doc.setFont(undefined, 'normal');
@@ -1387,10 +1400,13 @@ export default function AdminDashboard() {
             {[
               { id: 'staff', icon: Users, label: 'Staff Management' },
               { id: 'subjects', icon: Book, label: 'Subject Management' },
-              { id: 'schedule', icon: Timer, label: 'Schedule Papers' },
-              { id: 'generate', icon: FileText, label: 'Generate Papers' },
-              { id: 'papers', icon: BookOpen, label: 'Generated Papers' },
+              ...(userData?.role === 'dean' ? [
+                { id: 'schedule', icon: Timer, label: 'Schedule Papers' },
+                { id: 'generate', icon: FileText, label: 'Generate Papers' },
+                { id: 'papers', icon: BookOpen, label: 'Generated Papers' },
+              ] : []),
               { id: 'assign', icon: GraduationCap, label: 'HOD/Dean Assign' },
+              { id: 'activities', icon: BarChart3, label: 'Staff Activities' },
               { id: 'settings', icon: Building, label: 'Settings' },
               // { id: 'backup', icon: DatabaseIcon, label: 'Backup & Restore' },
               ...(userData?.role === 'hod' || userData?.role === 'dean' ? [{ id: 'staff-view', icon: User, label: 'Switch to Staff Portal' }] : [])
@@ -1540,7 +1556,7 @@ export default function AdminDashboard() {
               />
             )}
 
-            {activeTab === "schedule" && (
+            {activeTab === "schedule" && userData?.role === 'dean' && (
               <ScheduledPapers
                 scheduledPapers={scheduledPapers}
                 setPaperForm={setPaperForm}
@@ -1549,7 +1565,7 @@ export default function AdminDashboard() {
               />
             )}
 
-            {activeTab === "generate" && (
+            {activeTab === "generate" && userData?.role === 'dean' && (
               <PaperGeneration
                 paperForm={paperForm}
                 setPaperForm={setPaperForm}
@@ -1569,7 +1585,7 @@ export default function AdminDashboard() {
               />
             )}
 
-            {activeTab === "papers" && (
+            {activeTab === "papers" && userData?.role === 'dean' && (
               <GeneratedPapers
                 questionPapers={questionPapers}
                 loading={loading}
@@ -1588,6 +1604,13 @@ export default function AdminDashboard() {
               <CollegeSettings
                 onUpdate={setCollegeDetails}
                 userData={userData}
+              />
+            )}
+
+            {activeTab === "activities" && (
+              <StaffActivities
+                allSubjects={allSubjects}
+                staffList={staffList}
               />
             )}
 
