@@ -66,7 +66,7 @@ export default function QuestionPaperView() {
         {/* Header */}
         <div className="flex flex-col items-center border-b-2 border-gray-900 pb-6 mb-8 text-center">
           <img src={logo} alt="Uttaranchal University Logo" className="h-28 object-contain mb-4" />
-          <h1 className="text-3xl font-bold uppercase tracking-wider mb-2">University / Institute Name</h1>
+          <h1 className="text-3xl font-bold uppercase tracking-wider mb-2">Uttaranchal University</h1>
           <h2 className="text-xl font-semibold mb-2">{paper.title}</h2>
 
           <div className="flex justify-between text-sm font-medium mt-4 px-4">
