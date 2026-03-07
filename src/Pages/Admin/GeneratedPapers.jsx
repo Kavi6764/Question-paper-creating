@@ -412,33 +412,76 @@ export default function GeneratedPapers({
                                     {/* Header (Only on Page 1) */}
                                     {pageIndex === 0 && (
                                         <>
-                                            <div className="text-center mb-8 border-b-2 border-gray-900 pb-6">
-                                                {/* College Name & Address */}
-                                                <h1 className="text-2xl font-serif font-bold text-gray-900 uppercase tracking-wide mb-1">
-                                                    {collegeDetails?.collegeName || "EXAM MANAGEMENT SYSTEM"}
-                                                </h1>
-                                                {collegeDetails && (
-                                                    <p className="text-xs font-serif text-gray-600 mb-4">
-                                                        {[
-                                                            collegeDetails.city,
-                                                            collegeDetails.state ? `${collegeDetails.state}${collegeDetails.pincode ? ' - ' + collegeDetails.pincode : ''}` : ''
-                                                        ].filter(Boolean).join(', ')}
-                                                    </p>
-                                                )}
+                                            <div className="text-center mb-6">
+                                                <div className="border border-gray-900 rounded p-4 mb-4 font-serif text-[15px] font-bold">
+                                                    <h1 className="text-xl uppercase tracking-wider mb-1">Uttarakhand University</h1>
+                                                    <h2 className="text-lg font-normal mb-1">Uttaranchal Institute of Technology</h2>
+                                                    <h3 className="text-base mb-3">{generatedPaper.title ? generatedPaper.title.replace(/ - Set [A-Z]/gi, "") : ""}</h3>
 
-                                                <h2 className="text-xl font-serif font-bold text-gray-900 uppercase tracking-wide mb-2 mt-4">{generatedPaper.title}</h2>
-                                                <div className="flex justify-between items-end border-b border-gray-300 pb-2 mb-2">
-                                                    <p className="font-serif font-semibold text-lg">{generatedPaper.subjectCode} - {generatedPaper.subjectName}</p>
-                                                </div>
-                                                <div className="flex justify-between font-serif text-sm">
-                                                    <div className="text-left">
-                                                        <span className="mr-6">Date: {generatedPaper.examDate || "__________"}</span>
-                                                        <span>Time: {generatedPaper.examTime || "__________"}</span>
+                                                    <div className="text-left w-full mt-2 font-normal">
+                                                        <div className="flex justify-between mb-1">
+                                                            <div className="flex gap-2 w-1/2">
+                                                                <span className="italic font-bold">Programme:</span>
+                                                                <span>{generatedPaper.department || "B. Tech (CSE)"}</span>
+                                                            </div>
+                                                            <div className="flex gap-2 w-1/2">
+                                                                <span className="italic font-bold">Semester:</span>
+                                                                <span>{generatedPaper.semester || "5th"}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex justify-between mb-1">
+                                                            <div className="flex gap-2 w-1/2">
+                                                                <span className="italic font-bold">Course:</span>
+                                                                <span className="uppercase">{generatedPaper.subjectName || "FULL STACK DEVELOPMENT"}</span>
+                                                            </div>
+                                                            <div className="flex gap-2 w-1/2">
+                                                                <span className="italic font-bold">Course Code:</span>
+                                                                <span className="uppercase">{generatedPaper.subjectCode || "TCS 300"}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex justify-between mb-1">
+                                                            <div className="flex gap-2 w-1/2">
+                                                                <span className="italic font-bold">Section:</span>
+                                                                <span>A/B/C</span>
+                                                            </div>
+                                                            <div className="flex gap-2 w-1/2">
+                                                                <span className="italic font-bold">Roll No:</span>
+                                                                <span>..............................</span>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <div className="text-right">
-                                                        <span>Duration: {generatedPaper.duration || 3} Hours &nbsp;&nbsp; Max. Marks: {generatedPaper.totalMarks}</span>
-                                                    </div>
                                                 </div>
+
+                                                <div className="font-serif text-[14px] font-bold text-left mb-2">
+                                                    <p>Note: Question Paper has {partIndex || 3} sections. Read carefully before answering.</p>
+                                                </div>
+
+                                                {/* Formatting Function */}
+                                                {(() => {
+                                                    const formatDurationInMinutes = (duration) => {
+                                                        if (!duration) return "180";
+                                                        let str = duration.toString();
+                                                        if (str.includes('.') || str.includes(':')) {
+                                                            let parts = str.split(/[.:]/);
+                                                            let hours = parseInt(parts[0]) || 0;
+                                                            let minsPart = parts[1] || "0";
+                                                            if (minsPart === '5' || minsPart === '50') {
+                                                                return (hours * 60 + 30).toString();
+                                                            } else {
+                                                                let mins = parseInt(minsPart.padEnd(2, '0').slice(0, 2)) || 0;
+                                                                return (hours * 60 + mins).toString();
+                                                            }
+                                                        } else {
+                                                            return (parseInt(str) * 60).toString();
+                                                        }
+                                                    };
+                                                    return (
+                                                        <div className="flex justify-between font-serif text-[15px] font-bold mb-4">
+                                                            <span>Time: {formatDurationInMinutes(generatedPaper.duration)} Minutes</span>
+                                                            <span>Max Marks: {generatedPaper.totalMarks || 30}</span>
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
 
                                             {/* Stats Block (Review only) */}
@@ -468,15 +511,7 @@ export default function GeneratedPapers({
                                                 </div>
                                             </div>
 
-                                            {/* Instructions */}
-                                            <div className="mb-8">
-                                                <h4 className="font-bold text-gray-900 mb-2 uppercase text-sm border-b border-gray-300 inline-block pb-0.5">Instructions:</h4>
-                                                <ul className="list-decimal list-outside ml-4 space-y-1 text-sm font-serif text-gray-800">
-                                                    <li>Answer ALL questions.</li>
-                                                    <li>Figures to the right indicate full marks.</li>
-                                                    <li>Draw neat diagrams wherever necessary.</li>
-                                                </ul>
-                                            </div>
+                                            {/* Removed duplicated Instructions to match your exact pattern */}
                                         </>
                                     )}
 
