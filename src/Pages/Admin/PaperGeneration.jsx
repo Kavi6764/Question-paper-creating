@@ -109,7 +109,7 @@ export default function PaperGeneration({
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Duration (Hours)</label>
-                                    <input type="number" min="1" max="6" value={paperForm.duration} onChange={(e) => setPaperForm({ ...paperForm, duration: parseInt(e.target.value) || 3 })} className="w-full border border-gray-200 bg-white rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
+                                    <input type="number" step="any" min="0" max="10" value={paperForm.duration} onChange={(e) => setPaperForm({ ...paperForm, duration: e.target.value })} className="w-full border border-gray-200 bg-white rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
                                 </div>
                             </div>
                         </div>

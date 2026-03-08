@@ -1178,72 +1178,109 @@ export default function AdminDashboard() {
     let yPos = 12;
 
     if (logoData) {
-      const imgWidth = 40;
+      const imgWidth = 25;
       const imgHeight = (logoData.height * imgWidth) / logoData.width;
       doc.addImage(logoData.data, 'JPEG', 105 - (imgWidth / 2), 10, imgWidth, imgHeight);
       yPos = 10 + imgHeight + 10;
     }
 
     // Header - University Name
-    doc.setFontSize(18);
-    doc.setFont(undefined, 'bold');
-    const collegeName = collegeDetails?.collegeName || "EXAM MANAGEMENT SYSTEM";
-    doc.text(collegeName.toUpperCase(), 105, yPos, { align: 'center' });
-    yPos += 8;
+    doc.setFontSize(14);
+    doc.setFont("times", 'bold');
+    doc.text("UTTARAKHAND UNIVERSITY", 105, yPos, { align: 'center' });
+    yPos += 7;
 
-    // Header - Address (Full Details)
-    // yPos is already declared above
-    if (collegeDetails) {
-      doc.setFontSize(8);
-      doc.setFont(undefined, 'normal');
-
-      const addr1 = collegeDetails.addressLine1;
-      const addr2 = collegeDetails.addressLine2;
-      const cityInfo = [
-        collegeDetails.city,
-        collegeDetails.state ? `${collegeDetails.state}${collegeDetails.pincode ? ' - ' + collegeDetails.pincode : ''}` : ''
-      ].filter(Boolean).join(', ');
-
-      const fullAddress = [addr1, addr2, cityInfo].filter(Boolean).join(', ');
-
-      if (fullAddress) {
-        doc.text(fullAddress, 105, yPos, { align: 'center' });
-        yPos += 4;
-      }
-    }
+    doc.setFontSize(12);
+    doc.setFont("times", 'normal');
+    doc.text("Uttaranchal Institute of Technology", 105, yPos, { align: 'center' });
+    yPos += 6;
 
     doc.setFontSize(11);
-    doc.setFont(undefined, 'bold');
-    doc.text(paper.title, 105, yPos + 4, { align: 'center' });
+    const displayTitle = paper.title ? paper.title.replace(/ - Set [A-Z]/gi, "") : "";
+    doc.text(displayTitle, 105, yPos, { align: 'center' });
+    yPos += 8;
 
-    doc.setFontSize(9);
-    doc.text(`${paper.subjectCode} - ${paper.subjectName}`, 105, yPos + 9, { align: 'center' });
+    // Draw lines for border
+    doc.setLineWidth(0.3);
+    doc.line(15, yPos, 195, yPos);
+    yPos += 6;
 
-    const metaY = yPos + 16;
-    doc.setFontSize(9);
-
-    // Left Side: Date & Time
-    doc.text(`Date: ${paper.examDate || '__________'}`, 20, metaY);
-    doc.text(`Time: ${paper.examTime || '__________'}`, 70, metaY);
-
-    // Right Side: Duration & Marks Combined
-    const durationText = `Duration: ${paper.duration || 3} Hours`;
-    const marksText = `Max. Marks: ${paper.totalMarks}`;
-    doc.text(`${durationText}   ${marksText}`, 190, metaY, { align: 'right' });
-
-    doc.line(20, metaY + 3, 190, metaY + 3);
-
+    const metaY = yPos;
     doc.setFontSize(10);
-    doc.text('Instructions:', 20, metaY + 8);
-    doc.setFontSize(9);
-    doc.text('1. Answer all questions.', 20, metaY + 12);
-    doc.text('2. Each question carries marks as indicated.', 20, metaY + 16);
-    doc.text('3. Draw neat diagrams wherever necessary.', 20, metaY + 20); // Added instruction for diagrams
+
+    // Line 1
+    doc.setFont("times", "bolditalic");
+    doc.text("Programme:", 20, metaY);
+    doc.setFont("times", 'normal');
+    doc.text(paper.department || "B. Tech (CSE)", 45, metaY);
+
+    doc.setFont("times", "bolditalic");
+    doc.text("Semester:", 120, metaY);
+    doc.setFont("times", 'normal');
+    doc.text(paper.semester || "5th", 145, metaY);
+
+    // Line 2
+    doc.setFont("times", "bolditalic");
+    doc.text("Course:", 20, metaY + 6);
+    doc.setFont("times", 'normal');
+    const courseName = (paper.subjectName || "FULL STACK DEVELOPMENT").toUpperCase();
+    doc.text(courseName, 45, metaY + 6);
+
+    doc.setFont("times", "bolditalic");
+    doc.text("Course Code:", 120, metaY + 6);
+    doc.setFont("times", 'normal');
+    const courseCode = (paper.subjectCode || "TCS 300").toUpperCase();
+    doc.text(courseCode, 145, metaY + 6);
+
+    // Line 3
+    doc.setFont("times", "bolditalic");
+    doc.text("Section:", 20, metaY + 12);
+    doc.setFont("times", 'normal');
+    doc.text("A/B/C", 45, metaY + 12);
+
+    doc.setFont("times", "bolditalic");
+    doc.text("Roll No:", 120, metaY + 12);
+    doc.setFont("times", 'normal');
+    doc.text("..............................", 145, metaY + 12);
+
+    // Line bottom of header
+    doc.line(15, metaY + 16, 195, metaY + 16);
+
+    // Instructions and meta
+    const afterBoxY = metaY + 22;
+    doc.setFontSize(10);
+    doc.setFont("times", 'bold');
+
+    const uniqueMarks = new Set([...paper.questions].map(q => q.marks)).size;
+    const numSectionsText = ["one", "two", "three", "four", "five", "six"][uniqueMarks - 1] || uniqueMarks;
+    doc.text(`Note: Question Paper has ${numSectionsText} sections. Read carefully before answering.`, 20, afterBoxY);
+
+    const formatDurationInMinutes = (duration) => {
+      if (!duration) return "180";
+      let str = duration.toString();
+      if (str.includes('.') || str.includes(':')) {
+        let parts = str.split(/[.:]/);
+        let hours = parseInt(parts[0]) || 0;
+        let minsPart = parts[1] || "0";
+        if (minsPart === '5' || minsPart === '50') {
+          return (hours * 60 + 30).toString();
+        } else {
+          let mins = parseInt(minsPart.padEnd(2, '0').slice(0, 2)) || 0;
+          return (hours * 60 + mins).toString();
+        }
+      } else {
+        return (parseInt(str) * 60).toString();
+      }
+    };
+
+    doc.text(`Time: ${formatDurationInMinutes(paper.duration)} Minutes`, 20, afterBoxY + 6);
+    doc.text(`Max Marks: ${paper.totalMarks || 30}`, 190, afterBoxY + 6, { align: 'right' });
 
     const sortedQuestions = [...paper.questions].sort((a, b) => a.marks - b.marks);
     let currentMark = null;
     let groupIndex = 0;
-    let contentY = metaY + 28;
+    let questionIndex = 0;
+    let contentY = afterBoxY + 16;
 
     for (let i = 0; i < sortedQuestions.length; i++) {
       const q = sortedQuestions[i];
@@ -1290,35 +1327,41 @@ export default function AdminDashboard() {
       // Print Group Header if needed
       if (isNewGroup) {
         const groupLabel = String.fromCharCode(65 + groupIndex); // A, B, C...
-        const groupCount = sortedQuestions.filter(sq => sq.marks === q.marks).length;
-        const groupTotal = groupCount * q.marks;
 
-        doc.setFontSize(9);
-        doc.setFont(undefined, 'bold');
-        doc.text(`Group-${groupLabel}`, 20, contentY);
-        doc.text(`[ ${q.marks} x ${groupCount} = ${groupTotal} ]`, 190, contentY, { align: 'right' });
-        contentY += 6;
+        let typeDesc = "Questions";
+        if (q.marks <= 2) typeDesc = "Very Short Answer Type Questions";
+        else if (q.marks <= 4) typeDesc = "Short Answer Type Questions";
+        else typeDesc = "Long Answer Type Questions";
 
-        doc.setFontSize(8);
-        doc.text("Answer the Following Questions", 20, contentY);
+        doc.setFontSize(11);
+        doc.setFont("times", 'bold');
+        doc.text(`Section- ${groupLabel} (${typeDesc})`, 105, contentY, { align: 'center' });
         contentY += 8;
 
+        doc.setFontSize(10);
+        doc.text(`Q. ${groupIndex + 1}: Attempt all Questions    ( ${q.marks} marks each )`, 20, contentY);
+
+        doc.setFontSize(9);
+        doc.text("Course Outcome", 150, contentY, { align: 'center' });
+        doc.text("BT", 185, contentY, { align: 'center' });
+
+        contentY += 8;
         groupIndex++;
+        questionIndex = 0;
       }
 
       // Print Question
-      doc.setFontSize(9);
-      doc.setFont(undefined, 'bold');
-      doc.text(`Q${i + 1}.`, 20, contentY);
+      doc.setFontSize(10);
+      doc.setFont("times", 'bold');
+      doc.text(`${String.fromCharCode(97 + questionIndex)}.`, 20, contentY);
+      questionIndex++;
 
-      doc.setFont(undefined, 'normal');
-      doc.text(questionLines, 35, contentY);
+      doc.setFont("times", 'normal');
+      doc.text(questionLines, 28, contentY);
 
-      if (bloomTag) {
-        doc.setFontSize(7);
-        doc.setFont(undefined, 'bold');
-        doc.text(bloomTag, 190, contentY, { align: 'right' });
-      }
+      // Print CO and BT columns
+      doc.text(q.unit ? `CO${q.unit}` : 'CO1', 150, contentY, { align: 'center' });
+      doc.text(q.bloomLevel ? q.bloomLevel.toUpperCase() : 'RE', 185, contentY, { align: 'center' });
 
       contentY += textHeight + 2;
 
@@ -1597,6 +1640,7 @@ export default function AdminDashboard() {
                 generatedPaper={generatedPaper}
                 formatDateTime={formatDateTime}
                 collegeDetails={collegeDetails}
+                userData={userData}
               />
             )}
 
