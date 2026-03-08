@@ -115,6 +115,7 @@ export default function AdminDashboard() {
   const [paperForm, setPaperForm] = useState({
     title: "",
     subjectCode: "",
+    semester: "",
     examDate: "",
     examTime: "09:30",
     duration: 3,
@@ -936,31 +937,69 @@ export default function AdminDashboard() {
       selected.push(...shuffled.slice(0, paperForm.oneMarkQuestions));
     }
 
-    // 4-mark questions
-    if (availableQuestions.fourMark.length < paperForm.fourMarkQuestions) {
-      toast.error(`Not enough 4-mark questions! Need ${paperForm.fourMarkQuestions}, have ${availableQuestions.fourMark.length}`);
+    const getPairedOrQuestions = (sourceQuestions, countRequired) => {
+      const unitGroups = {};
+      sourceQuestions.forEach(q => {
+        const u = q.unit || 'unknown';
+        if (!unitGroups[u]) unitGroups[u] = [];
+        unitGroups[u].push(q);
+      });
+
+      const pairs = [];
+      const usedIds = new Set();
+
+      // try to get pairs from same unit (shuffled)
+      const groupKeys = Object.keys(unitGroups).sort(() => Math.random() - 0.5);
+      groupKeys.forEach(u => {
+        const shuffledGroup = [...unitGroups[u]].sort(() => Math.random() - 0.5);
+        for (let i = 0; i < shuffledGroup.length - 1; i += 2) {
+          if (pairs.length < countRequired) {
+            pairs.push({ ...shuffledGroup[i], orQuestion: shuffledGroup[i + 1] });
+            usedIds.add(shuffledGroup[i].id);
+            usedIds.add(shuffledGroup[i + 1].id);
+          }
+        }
+      });
+
+      // fallback if not enough pairs from same unit
+      if (pairs.length < countRequired) {
+        const remaining = sourceQuestions.filter(q => !usedIds.has(q.id)).sort(() => Math.random() - 0.5);
+        for (let i = 0; i < remaining.length - 1; i += 2) {
+          if (pairs.length < countRequired) {
+            pairs.push({ ...remaining[i], orQuestion: remaining[i + 1] });
+            usedIds.add(remaining[i].id);
+            usedIds.add(remaining[i + 1].id);
+          }
+        }
+      }
+      return pairs;
+    };
+
+    // 4-mark questions (with OR option, same unit)
+    if (availableQuestions.fourMark.length < paperForm.fourMarkQuestions * 2) {
+      toast.error(`Not enough 4-mark questions for OR choices! Need ${paperForm.fourMarkQuestions * 2}, have ${availableQuestions.fourMark.length}`);
       hasError = true;
     } else {
-      const shuffled = [...availableQuestions.fourMark].sort(() => Math.random() - 0.5);
-      selected.push(...shuffled.slice(0, paperForm.fourMarkQuestions));
+      const pairs = getPairedOrQuestions(availableQuestions.fourMark, paperForm.fourMarkQuestions);
+      selected.push(...pairs);
     }
 
-    // 6-mark questions
-    if (availableQuestions.sixMark.length < paperForm.sixMarkQuestions) {
-      toast.error(`Not enough 6-mark questions! Need ${paperForm.sixMarkQuestions}, have ${availableQuestions.sixMark.length}`);
+    // 6-mark questions (with OR option, same unit)
+    if (availableQuestions.sixMark.length < paperForm.sixMarkQuestions * 2) {
+      toast.error(`Not enough 6-mark questions for OR choices! Need ${paperForm.sixMarkQuestions * 2}, have ${availableQuestions.sixMark.length}`);
       hasError = true;
     } else {
-      const shuffled = [...availableQuestions.sixMark].sort(() => Math.random() - 0.5);
-      selected.push(...shuffled.slice(0, paperForm.sixMarkQuestions));
+      const pairs = getPairedOrQuestions(availableQuestions.sixMark, paperForm.sixMarkQuestions);
+      selected.push(...pairs);
     }
 
-    // 8-mark questions
-    if (availableQuestions.eightMark.length < paperForm.eightMarkQuestions) {
-      toast.error(`Not enough 8-mark questions! Need ${paperForm.eightMarkQuestions}, have ${availableQuestions.eightMark.length}`);
+    // 8-mark questions (with OR option)
+    if (availableQuestions.eightMark.length < paperForm.eightMarkQuestions * 2) {
+      toast.error(`Not enough 8-mark questions for OR choices! Need ${paperForm.eightMarkQuestions * 2}, have ${availableQuestions.eightMark.length}`);
       hasError = true;
     } else {
-      const shuffled = [...availableQuestions.eightMark].sort(() => Math.random() - 0.5);
-      selected.push(...shuffled.slice(0, paperForm.eightMarkQuestions));
+      const pairs = getPairedOrQuestions(availableQuestions.eightMark, paperForm.eightMarkQuestions);
+      selected.push(...pairs);
     }
 
     if (hasError) {
@@ -985,22 +1024,58 @@ export default function AdminDashboard() {
       selected.push(...shuffled.slice(0, requirements.oneMarkQuestions));
     }
 
+    const getPairedOrQuestions = (sourceQuestions, countRequired) => {
+      const unitGroups = {};
+      sourceQuestions.forEach(q => {
+        const u = q.unit || 'unknown';
+        if (!unitGroups[u]) unitGroups[u] = [];
+        unitGroups[u].push(q);
+      });
+
+      const pairs = [];
+      const usedIds = new Set();
+
+      const groupKeys = Object.keys(unitGroups).sort(() => Math.random() - 0.5);
+      groupKeys.forEach(u => {
+        const shuffledGroup = [...unitGroups[u]].sort(() => Math.random() - 0.5);
+        for (let i = 0; i < shuffledGroup.length - 1; i += 2) {
+          if (pairs.length < countRequired) {
+            pairs.push({ ...shuffledGroup[i], orQuestion: shuffledGroup[i + 1] });
+            usedIds.add(shuffledGroup[i].id);
+            usedIds.add(shuffledGroup[i + 1].id);
+          }
+        }
+      });
+
+      if (pairs.length < countRequired) {
+        const remaining = sourceQuestions.filter(q => !usedIds.has(q.id)).sort(() => Math.random() - 0.5);
+        for (let i = 0; i < remaining.length - 1; i += 2) {
+          if (pairs.length < countRequired) {
+            pairs.push({ ...remaining[i], orQuestion: remaining[i + 1] });
+            usedIds.add(remaining[i].id);
+            usedIds.add(remaining[i + 1].id);
+          }
+        }
+      }
+      return pairs;
+    };
+
     // 4-mark
-    if (sourceQuestions.fourMark && sourceQuestions.fourMark.length >= requirements.fourMarkQuestions) {
-      const shuffled = [...sourceQuestions.fourMark].sort(() => Math.random() - 0.5);
-      selected.push(...shuffled.slice(0, requirements.fourMarkQuestions));
+    if (sourceQuestions.fourMark && sourceQuestions.fourMark.length >= requirements.fourMarkQuestions * 2) {
+      const pairs = getPairedOrQuestions(sourceQuestions.fourMark, requirements.fourMarkQuestions);
+      selected.push(...pairs);
     }
 
     // 6-mark
-    if (sourceQuestions.sixMark && sourceQuestions.sixMark.length >= requirements.sixMarkQuestions) {
-      const shuffled = [...sourceQuestions.sixMark].sort(() => Math.random() - 0.5);
-      selected.push(...shuffled.slice(0, requirements.sixMarkQuestions));
+    if (sourceQuestions.sixMark && sourceQuestions.sixMark.length >= requirements.sixMarkQuestions * 2) {
+      const pairs = getPairedOrQuestions(sourceQuestions.sixMark, requirements.sixMarkQuestions);
+      selected.push(...pairs);
     }
 
     // 8-mark
-    if (sourceQuestions.eightMark && sourceQuestions.eightMark.length >= requirements.eightMarkQuestions) {
-      const shuffled = [...sourceQuestions.eightMark].sort(() => Math.random() - 0.5);
-      selected.push(...shuffled.slice(0, requirements.eightMarkQuestions));
+    if (sourceQuestions.eightMark && sourceQuestions.eightMark.length >= requirements.eightMarkQuestions * 2) {
+      const pairs = getPairedOrQuestions(sourceQuestions.eightMark, requirements.eightMarkQuestions);
+      selected.push(...pairs);
     }
 
     return selected;
@@ -1026,6 +1101,7 @@ export default function AdminDashboard() {
           title: `${paperForm.title} - ${titleSuffix}`,
           subjectCode: paperForm.subjectCode,
           subjectName: availableSubjects.find(s => s.code === paperForm.subjectCode)?.name || paperForm.subjectCode,
+          semester: paperForm.semester,
           examDate: paperForm.examDate,
           examTime: paperForm.examTime,
           duration: paperForm.duration,
@@ -1065,6 +1141,7 @@ export default function AdminDashboard() {
       setPaperForm({
         title: "",
         subjectCode: "",
+        semester: "",
         examDate: "",
         examTime: "09:30",
         duration: 3,
@@ -1185,28 +1262,29 @@ export default function AdminDashboard() {
     }
 
     // Header - University Name
-    doc.setFontSize(14);
+    doc.setFontSize(11);
     doc.setFont("times", 'bold');
     doc.text("UTTARAKHAND UNIVERSITY", 105, yPos, { align: 'center' });
-    yPos += 7;
+    yPos += 5;
 
-    doc.setFontSize(12);
+    doc.setFontSize(10);
     doc.setFont("times", 'normal');
     doc.text("Uttaranchal Institute of Technology", 105, yPos, { align: 'center' });
-    yPos += 6;
+    yPos += 4;
 
-    doc.setFontSize(11);
+    doc.setFontSize(10);
+    doc.setFont("times", 'bold');
     const displayTitle = paper.title ? paper.title.replace(/ - Set [A-Z]/gi, "") : "";
     doc.text(displayTitle, 105, yPos, { align: 'center' });
-    yPos += 8;
+    yPos += 5;
 
     // Draw lines for border
     doc.setLineWidth(0.3);
     doc.line(15, yPos, 195, yPos);
-    yPos += 6;
+    yPos += 4;
 
     const metaY = yPos;
-    doc.setFontSize(10);
+    doc.setFontSize(9);
 
     // Line 1
     doc.setFont("times", "bolditalic");
@@ -1221,66 +1299,54 @@ export default function AdminDashboard() {
 
     // Line 2
     doc.setFont("times", "bolditalic");
-    doc.text("Course:", 20, metaY + 6);
+    doc.text("Course:", 20, metaY + 4);
     doc.setFont("times", 'normal');
     const courseName = (paper.subjectName || "FULL STACK DEVELOPMENT").toUpperCase();
-    doc.text(courseName, 45, metaY + 6);
+    doc.text(courseName, 45, metaY + 4);
 
     doc.setFont("times", "bolditalic");
-    doc.text("Course Code:", 120, metaY + 6);
+    doc.text("Course Code:", 120, metaY + 4);
     doc.setFont("times", 'normal');
     const courseCode = (paper.subjectCode || "TCS 300").toUpperCase();
-    doc.text(courseCode, 145, metaY + 6);
+    doc.text(courseCode, 145, metaY + 4);
 
     // Line 3
     doc.setFont("times", "bolditalic");
-    doc.text("Section:", 20, metaY + 12);
+    doc.text("Section:", 20, metaY + 8);
     doc.setFont("times", 'normal');
-    doc.text("A/B/C", 45, metaY + 12);
+    doc.text("A/B/C", 45, metaY + 8);
 
     doc.setFont("times", "bolditalic");
-    doc.text("Roll No:", 120, metaY + 12);
+    doc.text("Roll No:", 120, metaY + 8);
     doc.setFont("times", 'normal');
-    doc.text("..............................", 145, metaY + 12);
+    doc.text("..............................", 145, metaY + 8);
 
     // Line bottom of header
-    doc.line(15, metaY + 16, 195, metaY + 16);
+    doc.line(15, metaY + 11, 195, metaY + 11);
 
     // Instructions and meta
-    const afterBoxY = metaY + 22;
-    doc.setFontSize(10);
+    const afterBoxY = metaY + 16;
+    doc.setFontSize(9);
     doc.setFont("times", 'bold');
+
+    // Add Time and Max Marks
+    const formatDurationInMinutes = (durationInHours) => {
+      if (typeof durationInHours !== 'number') return 'N/A';
+      return durationInHours * 60;
+    };
+    doc.setFont("times", 'normal');
+    doc.text(`Time: ${formatDurationInMinutes(paper.duration)} Minutes`, 20, afterBoxY + 5);
+    doc.text(`Max Marks: ${paper.totalMarks || 30}`, 190, afterBoxY + 5, { align: 'right' });
 
     const uniqueMarks = new Set([...paper.questions].map(q => q.marks)).size;
     const numSectionsText = ["one", "two", "three", "four", "five", "six"][uniqueMarks - 1] || uniqueMarks;
     doc.text(`Note: Question Paper has ${numSectionsText} sections. Read carefully before answering.`, 20, afterBoxY);
 
-    const formatDurationInMinutes = (duration) => {
-      if (!duration) return "180";
-      let str = duration.toString();
-      if (str.includes('.') || str.includes(':')) {
-        let parts = str.split(/[.:]/);
-        let hours = parseInt(parts[0]) || 0;
-        let minsPart = parts[1] || "0";
-        if (minsPart === '5' || minsPart === '50') {
-          return (hours * 60 + 30).toString();
-        } else {
-          let mins = parseInt(minsPart.padEnd(2, '0').slice(0, 2)) || 0;
-          return (hours * 60 + mins).toString();
-        }
-      } else {
-        return (parseInt(str) * 60).toString();
-      }
-    };
-
-    doc.text(`Time: ${formatDurationInMinutes(paper.duration)} Minutes`, 20, afterBoxY + 6);
-    doc.text(`Max Marks: ${paper.totalMarks || 30}`, 190, afterBoxY + 6, { align: 'right' });
-
     const sortedQuestions = [...paper.questions].sort((a, b) => a.marks - b.marks);
     let currentMark = null;
     let groupIndex = 0;
     let questionIndex = 0;
-    let contentY = afterBoxY + 16;
+    let contentY = afterBoxY + 10;
 
     for (let i = 0; i < sortedQuestions.length; i++) {
       const q = sortedQuestions[i];
@@ -1289,8 +1355,14 @@ export default function AdminDashboard() {
       const bloomTag = q.bloomLevel ? `[${q.bloomLevel}]` : "";
       const questionText = (q.question || '');
       const questionLines = doc.splitTextToSize(questionText, 140);
-      const lineHeight = 4.5;
-      const textHeight = questionLines.length * lineHeight;
+      const lineHeight = 3.6;
+      let textHeight = questionLines.length * lineHeight;
+
+      let orQuestionLines = [];
+      if (q.orQuestion && q.orQuestion.question) {
+        orQuestionLines = doc.splitTextToSize(q.orQuestion.question, 140);
+        textHeight += (orQuestionLines.length * lineHeight) + 6;
+      }
       const optionsHeight = (q.options?.length || 0) * lineHeight;
 
       let imageHeight = 0;
@@ -1315,11 +1387,11 @@ export default function AdminDashboard() {
       if (q.marks !== currentMark) {
         currentMark = q.marks;
         isNewGroup = true;
-        headerBlockHeight = 25; // Header space
+        headerBlockHeight = 15; // Header space
       }
 
       // Check if we need a page break
-      if (contentY + headerBlockHeight + questionBlockHeight > 280) {
+      if (contentY + headerBlockHeight + questionBlockHeight > 285) {
         doc.addPage();
         contentY = 20;
       }
@@ -1330,28 +1402,28 @@ export default function AdminDashboard() {
 
         let typeDesc = "Questions";
         if (q.marks <= 2) typeDesc = "Very Short Answer Type Questions";
-        else if (q.marks <= 4) typeDesc = "Short Answer Type Questions";
+        else if (q.marks <= 6) typeDesc = "Short Answer Type Questions";
         else typeDesc = "Long Answer Type Questions";
 
-        doc.setFontSize(11);
+        doc.setFontSize(10);
         doc.setFont("times", 'bold');
         doc.text(`Section- ${groupLabel} (${typeDesc})`, 105, contentY, { align: 'center' });
-        contentY += 8;
-
-        doc.setFontSize(10);
-        doc.text(`Q. ${groupIndex + 1}: Attempt all Questions    ( ${q.marks} marks each )`, 20, contentY);
+        contentY += 5;
 
         doc.setFontSize(9);
+        doc.text(`Q. ${groupIndex + 1}: Attempt all Questions    ( ${q.marks} marks each )`, 20, contentY);
+
+        doc.setFontSize(8);
         doc.text("Course Outcome", 150, contentY, { align: 'center' });
         doc.text("BT", 185, contentY, { align: 'center' });
 
-        contentY += 8;
+        contentY += 5;
         groupIndex++;
         questionIndex = 0;
       }
 
       // Print Question
-      doc.setFontSize(10);
+      doc.setFontSize(9);
       doc.setFont("times", 'bold');
       doc.text(`${String.fromCharCode(97 + questionIndex)}.`, 20, contentY);
       questionIndex++;
@@ -1363,7 +1435,19 @@ export default function AdminDashboard() {
       doc.text(q.unit ? `CO${q.unit}` : 'CO1', 150, contentY, { align: 'center' });
       doc.text(q.bloomLevel ? q.bloomLevel.toUpperCase() : 'RE', 185, contentY, { align: 'center' });
 
-      contentY += textHeight + 2;
+      if (q.orQuestion && q.orQuestion.question) {
+        let currentBaseY = contentY + (questionLines.length * lineHeight) + 1;
+        doc.setFont("times", 'bold');
+        doc.text("OR", 95, currentBaseY);
+        currentBaseY += 4;
+        doc.setFont("times", 'normal');
+        doc.text(orQuestionLines, 28, currentBaseY);
+
+        doc.text(q.orQuestion.unit ? `CO${q.orQuestion.unit}` : 'CO1', 150, currentBaseY, { align: 'center' });
+        doc.text(q.orQuestion.bloomLevel ? q.orQuestion.bloomLevel.toUpperCase() : 'RE', 185, currentBaseY, { align: 'center' });
+      }
+
+      contentY += textHeight + 1;
 
       // Print Options
       if (q.options && q.options.length > 0) {

@@ -148,7 +148,13 @@ export default function QuestionPaperView() {
                       <div key={idx} className="flex gap-4 items-start">
                         <span className="font-medium min-w-[30px]">{String.fromCharCode(97 + idx)}.</span>
                         <div className="flex-1">
-                          <p className="text-justify">{q.question}</p>
+                          <p className="text-justify whitespace-pre-line">
+                            {q.question}
+                            {q.orQuestion && (
+                              <span className="block my-2 text-center font-bold">OR</span>
+                            )}
+                            {q.orQuestion && q.orQuestion.question}
+                          </p>
                         </div>
                         <div className="flex flex-col items-end gap-1 min-w-[60px]">
                           <span className="shrink-0 px-1.5 py-0.5 rounded text-[8px] font-bold bg-gray-50 text-gray-500 border border-gray-200 uppercase tracking-tighter">

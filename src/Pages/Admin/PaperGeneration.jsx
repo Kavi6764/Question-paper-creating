@@ -98,7 +98,11 @@ export default function PaperGeneration({
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Semester</label>
+                                    <input type="text" value={paperForm.semester} onChange={(e) => setPaperForm({ ...paperForm, semester: e.target.value })} placeholder="e.g., 5th" className="w-full border border-gray-200 bg-white rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
+                                </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Exam Date</label>
                                     <input type="date" value={paperForm.examDate} onChange={(e) => setPaperForm({ ...paperForm, examDate: e.target.value })} className="w-full border border-gray-200 bg-white rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
