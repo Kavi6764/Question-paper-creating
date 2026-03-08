@@ -37,6 +37,7 @@ import UploadForm from "./UploadForm";
 import GeneratedPapers from "./GeneratedPapers";
 import FilePreview from "./FilePreview";
 import StaffSettings from "./StaffSettings";
+import UploadPreview from "./UploadPreview";
 import PageContainer from "../../components/PageContainer";
 import ConfirmationModal from "../../components/ConfirmationModal";
 
@@ -74,6 +75,7 @@ export default function StaffDashboard() {
     const [activeTab, setActiveTab] = useState(() => {
         return localStorage.getItem("staffActiveTab") || "dashboard";
     });
+    const [showPreviewMode, setShowPreviewMode] = useState(false);
 
     useEffect(() => {
         localStorage.setItem("staffActiveTab", activeTab);
@@ -127,7 +129,7 @@ export default function StaffDashboard() {
                 try {
                     // 1. Real-time listener for User Profile
                     const userRef = doc(db, "users", user.uid);
-                    unsubscribeUser = onSnapshot(userRef, (docSnap) => {
+                    unsubscribeUser = onSnapshot(userRef, async (docSnap) => {
                         if (docSnap.exists()) {
                             const data = docSnap.data();
                             const newStaffData = {
@@ -178,6 +180,18 @@ export default function StaffDashboard() {
                                     uploadedUnitsObj[subjectCode] = Array.from(unitsMap[subjectCode]);
                                 });
                                 setUploadedUnits(uploadedUnitsObj);
+
+                                const uploadedToday = uploads.filter(u => {
+                                    const uploadDate = u.timestamp;
+                                    const today = new Date();
+                                    today.setHours(0, 0, 0, 0);
+                                    return uploadDate >= today;
+                                }).length;
+
+                                setStats(prev => ({
+                                    ...prev,
+                                    uploadedToday: uploadedToday
+                                }));
                             });
 
                             // 3. SETUP Subjects Listener (Filter by assignedSubjects)
@@ -224,28 +238,10 @@ export default function StaffDashboard() {
                                     totalQuestions: totalQuestions
                                 }));
                             });
-
-                            // 4. SETUP Today's Uploads Listener
-                            const today = new Date();
-                            today.setHours(0, 0, 0, 0);
-
-                            const todayUploadsQuery = query(
-                                collection(db, "uploads"),
-                                where("staffId", "==", staffId),
-                                where("createdAt", ">=", today)
-                            );
-
-                            unsubscribeToday = onSnapshot(todayUploadsQuery, (snapshot) => {
-                                setStats(prev => ({
-                                    ...prev,
-                                    uploadedToday: snapshot.size
-                                }));
-                            });
-
                         } else {
                             // Handle new user creation...
                             const username = location.state?.username || "";
-                            setDoc(userRef, {
+                            await setDoc(userRef, {
                                 email: user.email,
                                 fullName: user.displayName || "Staff Member",
                                 username: username,
@@ -258,10 +254,8 @@ export default function StaffDashboard() {
                             });
                         }
                     });
-
                 } catch (error) {
                     console.error("Error loading staff data:", error);
-                    toast.error("Error loading your data");
                 }
             } else {
                 navigate("/");
@@ -360,11 +354,12 @@ export default function StaffDashboard() {
 
             const rows = allRows;
 
-            const previewRows = rows.slice(0, 10).map((row, index) => ({
+            const previewRows = rows.map((row, index) => ({
                 id: index + 1,
                 questionNo: row.QuestionNo || `Q${index + 1}`,
                 question: row.Question || "",
                 marks: row.Marks || 0,
+                questionType: Number(row.Marks) <= 2 ? 'MCQ' : Number(row.Marks) <= 4 ? 'Short' : 'Long',
                 difficulty: row.Difficulty || "Medium",
                 bloomLevel: row.BloomLevel || row.bloomLevel || "RE",
                 unit: row.Unit || 1,
@@ -387,7 +382,7 @@ export default function StaffDashboard() {
         }
     };
 
-    const handleSubmit = async (e) => {
+    const handlePreviewClick = async (e) => {
         e.preventDefault();
 
         if (!staffData) {
@@ -427,6 +422,15 @@ export default function StaffDashboard() {
             if (!confirm) return;
         }
 
+        if (previewData.length === 0) {
+            toast.error("No valid questions found to preview.");
+            return;
+        }
+
+        setShowPreviewMode(true);
+    };
+
+    const handleConfirmUpload = async () => {
         try {
             setLoading(true);
             setUploadStatus("processing");
@@ -442,24 +446,15 @@ export default function StaffDashboard() {
                 });
             }, 200);
 
-            const data = await file.arrayBuffer();
-            const workbook = XLSX.read(data);
-            setUploadProgress(50);
+            let allRows = previewData;
 
-            // Read all sheets
-            let allRows = [];
-            workbook.SheetNames.forEach(sheetName => {
-                const sheet = workbook.Sheets[sheetName];
-                const sheetRows = XLSX.utils.sheet_to_json(sheet);
-                allRows = [...allRows, ...sheetRows];
-            });
-
-            if (allRows.length === 0) {
-                clearInterval(progressInterval);
-                toast.error("No questions found in the uploaded file");
-                setUploadStatus("error");
-                return;
-            }
+            // Current Staff Subject Counts
+            const currentSubject = mySubjects.find(s => s.subjectCode === subjectCode);
+            const allUnits = currentSubject?.units || {};
+            const currentStaffTotalCount = Object.values(allUnits).reduce((total, unitData) => {
+                const staffQuestions = (unitData.questions || []).filter(q => q.staffId === staffData.id);
+                return total + staffQuestions.length;
+            }, 0);
 
             // --- Multi-Unit (Bulk) Upload Logic ---
             if (unit === "multi") {
@@ -472,13 +467,14 @@ export default function StaffDashboard() {
                     if (unitRows.length > 0) {
                         questionsByUnit[u] = unitRows.map((row, index) => ({
                             id: `${subjectCode}-U${u}-Q${index + 1}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                            questionNo: row.QuestionNo || `Q${index + 1}`,
-                            question: row.Question,
-                            marks: Number(row.Marks) === 2 ? 1 : Number(row.Marks),
-                            difficulty: row.Difficulty || "Medium",
-                            bloomLevel: row.BloomLevel || row.bloomLevel || "RE",
-                            unit: u,
-                            imageURL: row.ImageURL || row.imageURL || "",
+                            questionNo: row.questionNo,
+                            question: row.question,
+                            marks: row.marks,
+                            questionType: row.questionType,
+                            difficulty: row.difficulty,
+                            bloomLevel: row.bloomLevel,
+                            unit: row.unit,
+                            imageURL: row.imageURL,
                             uploadedAt: Date.now(),
                             staffId: staffData.id,
                             staffName: staffData.name,
@@ -533,8 +529,8 @@ export default function StaffDashboard() {
                 Object.keys(questionsByUnit).forEach(u => {
                     const unitKey = `unit${u}`;
                     const existingUnitQuestions = existingData.units?.[unitKey]?.questions || [];
-                    const existingQuestionNos = new Set(existingUnitQuestions.map(q => q.questionNo));
-                    const newUniqueQuestions = questionsByUnit[u].filter(q => !existingQuestionNos.has(q.questionNo));
+                    const existingQuestionTexts = new Set(existingUnitQuestions.map(q => (q.question || "").trim().toLowerCase()));
+                    const newUniqueQuestions = questionsByUnit[u].filter(q => !existingQuestionTexts.has((q.question || "").trim().toLowerCase()));
 
                     const merged = [...existingUnitQuestions, ...newUniqueQuestions];
                     updates[`units.${unitKey}`] = {
@@ -585,16 +581,17 @@ export default function StaffDashboard() {
             // --- Single Unit Upload Logic (Legacy/Rest of the code) ---
             // Filter questions for selected unit only
             let unitQuestions = allRows
-                .filter((row) => Number(row.Unit) === Number(unit))
+                .filter((row) => Number(row.unit) === Number(unit))
                 .map((row, index) => ({
                     id: `${subjectCode}-U${unit}-Q${index + 1}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                    questionNo: row.QuestionNo || `Q${index + 1}`,
-                    question: row.Question,
-                    marks: Number(row.Marks) === 2 ? 1 : Number(row.Marks),
-                    difficulty: row.Difficulty || "Medium",
-                    bloomLevel: row.BloomLevel || row.bloomLevel || "RE",
-                    unit: Number(unit),
-                    imageURL: row.ImageURL || row.imageURL || "",
+                    questionNo: row.questionNo,
+                    question: row.question,
+                    marks: row.marks,
+                    questionType: row.questionType,
+                    difficulty: row.difficulty,
+                    bloomLevel: row.bloomLevel,
+                    unit: row.unit,
+                    imageURL: row.imageURL,
                     uploadedAt: Date.now(),
                     staffId: staffData.id,
                     staffName: staffData.name,
@@ -723,9 +720,9 @@ export default function StaffDashboard() {
                 const existingUnit = existing.units?.[unitKey];
                 const existingQuestions = existingUnit?.questions || [];
 
-                // Merge questions (avoid duplicates by questionNo)
-                const existingQuestionNos = new Set(existingQuestions.map(q => q.questionNo));
-                const newQuestions = unitQuestions.filter(q => !existingQuestionNos.has(q.questionNo));
+                // Merge questions (avoid duplicates by exact question text match)
+                const existingQuestionTexts = new Set(existingQuestions.map(q => (q.question || "").trim().toLowerCase()));
+                const newQuestions = unitQuestions.filter(q => !existingQuestionTexts.has((q.question || "").trim().toLowerCase()));
 
                 const mergedQuestions = [...existingQuestions, ...newQuestions];
 
@@ -768,6 +765,7 @@ export default function StaffDashboard() {
     };
 
     const resetForm = () => {
+        setShowPreviewMode(false);
         setSubjectCode("");
         setSubjectName("");
         setUnit("");
@@ -947,106 +945,118 @@ export default function StaffDashboard() {
                 )}
 
                 {/* Main Content */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start mt-8">
-                    {/* Left Column - Main Content */}
-                    <div className="lg:col-span-2 space-y-6">
-                        {activeTab === "dashboard" && (
-                            <div className="animate-fade-in">
-                                <UploadHistory
-                                    uploads={myUploads}
-                                    limit={5}
-                                    hideControls={true}
-                                    title="Recent Activity"
-                                />
-                            </div>
-                        )}
-
-                        {activeTab === "settings" && (
-                            <div className="animate-fade-in">
-                                <StaffSettings staffData={staffData} />
-                            </div>
-                        )}
-
-                        {activeTab === "upload" && (
-                            <div className="animate-fade-in">
-                                <UploadForm
-                                    staffId={staffData.id}
-                                    subjectCode={subjectCode}
-                                    setSubjectCode={setSubjectCode}
-                                    subjectName={subjectName}
-                                    setSubjectName={setSubjectName}
-                                    unit={unit}
-                                    setUnit={setUnit}
-                                    file={file}
-                                    setFile={setFile}
-                                    mySubjects={mySubjects}
-                                    uploadedUnits={uploadedUnits}
-                                    handleSubmit={handleSubmit}
-                                    loading={loading}
-                                    uploadStatus={uploadStatus}
-                                    uploadProgress={uploadProgress}
-                                    handleFileSelect={handleFileSelect}
-                                    clearFile={clearFile}
-                                    isDragging={isDragging}
-                                    handleDragOver={handleDragOver}
-                                    handleDragLeave={handleDragLeave}
-                                    handleDrop={handleDrop}
-                                    previewData={previewData}
-                                    fileInputRef={fileInputRef}
-                                    downloadTemplate={downloadTemplate}
-                                />
-                            </div>
-                        )}
-
-                        {activeTab === "subjects" && (
-                            <div className="animate-fade-in">
-                                <SubjectList
-                                    mySubjects={mySubjects}
-                                    uploadedUnits={uploadedUnits}
-                                    stats={stats}
-                                    onUploadClick={(subject) => {
-                                        setSubjectCode(subject.subjectCode);
-                                        setSubjectName(subject.subjectName);
-                                        setActiveTab("upload");
-                                    }}
-                                />
-                            </div>
-                        )}
-
-                        {activeTab === "history" && (
-                            <div className="animate-fade-in">
-                                <UploadHistory
-                                    uploads={myUploads}
-                                />
-                            </div>
-                        )}
-
-                        {activeTab === "papers" && (
-                            <div className="animate-fade-in">
-                                <GeneratedPapers
-                                    questionPapers={questionPapers}
-                                    loading={loadingPapers}
-                                />
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Right Column - Preview Panel */}
-                    <div className="lg:col-span-1 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-                        <FilePreview
-                            file={file}
+                {activeTab === "upload" && showPreviewMode ? (
+                    <div className="mt-8">
+                        <UploadPreview
                             previewData={previewData}
-                            searchTerm={searchTerm}
-                            setSearchTerm={setSearchTerm}
-                            paginatedPreview={paginatedPreview}
-                            previewPage={previewPage}
-                            setPreviewPage={setPreviewPage}
-                            totalPreviewPages={totalPreviewPages}
-                            clearFile={clearFile}
-                            downloadTemplate={downloadTemplate}
+                            unit={unit}
+                            subjectName={subjectName}
+                            onConfirm={handleConfirmUpload}
+                            onCancel={() => setShowPreviewMode(false)}
+                            loading={loading}
                         />
                     </div>
-                </div>
+                ) : (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start mt-8">
+                        {/* Left Column - Main Content */}
+                        <div className="lg:col-span-2 space-y-6">
+                            {activeTab === "dashboard" && (
+                                <div className="animate-fade-in">
+                                    <UploadHistory
+                                        uploads={myUploads}
+                                        limit={5}
+                                        hideControls={true}
+                                        title="Recent Activity"
+                                    />
+                                </div>
+                            )}
+
+                            {activeTab === "settings" && (
+                                <div className="animate-fade-in">
+                                    <StaffSettings staffData={staffData} />
+                                </div>
+                            )}
+
+                            {activeTab === "upload" && (
+                                <div className="animate-fade-in">
+                                    <UploadForm
+                                        staffId={staffData.id}
+                                        subjectCode={subjectCode}
+                                        setSubjectCode={setSubjectCode}
+                                        subjectName={subjectName}
+                                        setSubjectName={setSubjectName}
+                                        unit={unit}
+                                        setUnit={setUnit}
+                                        file={file}
+                                        setFile={setFile}
+                                        mySubjects={mySubjects}
+                                        uploadedUnits={uploadedUnits}
+                                        handleSubmit={handlePreviewClick}
+                                        loading={loading}
+                                        uploadStatus={uploadStatus}
+                                        uploadProgress={uploadProgress}
+                                        handleFileSelect={handleFileSelect}
+                                        clearFile={clearFile}
+                                        isDragging={isDragging}
+                                        handleDragOver={handleDragOver}
+                                        handleDragLeave={handleDragLeave}
+                                        handleDrop={handleDrop}
+                                        previewData={previewData}
+                                        fileInputRef={fileInputRef}
+                                        downloadTemplate={downloadTemplate}
+                                    />
+                                </div>
+                            )}
+
+                            {activeTab === "subjects" && (
+                                <div className="animate-fade-in">
+                                    <SubjectList
+                                        mySubjects={mySubjects}
+                                        uploadedUnits={uploadedUnits}
+                                        stats={stats}
+                                        onUploadClick={(subject) => {
+                                            setSubjectCode(subject.subjectCode);
+                                            setSubjectName(subject.subjectName);
+                                            setActiveTab("upload");
+                                        }}
+                                    />
+                                </div>
+                            )}
+
+                            {activeTab === "history" && (
+                                <div className="animate-fade-in">
+                                    <UploadHistory
+                                        uploads={myUploads}
+                                    />
+                                </div>
+                            )}
+                            {activeTab === "papers" && (
+                                <div className="animate-fade-in">
+                                    <GeneratedPapers
+                                        questionPapers={questionPapers}
+                                        loading={loadingPapers}
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Right Column - Preview Panel */}
+                        <div className="lg:col-span-1 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+                            <FilePreview
+                                file={file}
+                                previewData={previewData}
+                                searchTerm={searchTerm}
+                                setSearchTerm={setSearchTerm}
+                                paginatedPreview={paginatedPreview}
+                                previewPage={previewPage}
+                                setPreviewPage={setPreviewPage}
+                                totalPreviewPages={totalPreviewPages}
+                                clearFile={clearFile}
+                                downloadTemplate={downloadTemplate}
+                            />
+                        </div>
+                    </div>
+                )}
             </PageContainer>
 
             <ConfirmationModal
