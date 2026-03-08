@@ -146,7 +146,7 @@ export default function QuestionPaperView() {
                   <div className="space-y-6">
                     {questionsByUnit[unit].map((q, idx) => (
                       <div key={idx} className="flex gap-4 items-start">
-                        <span className="font-medium min-w-[30px]">{q.questionNo || `Q${idx + 1}`}.</span>
+                        <span className="font-medium min-w-[30px]">{String.fromCharCode(97 + idx)}.</span>
                         <div className="flex-1">
                           <p className="text-justify">{q.question}</p>
                         </div>

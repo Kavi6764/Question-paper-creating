@@ -1178,7 +1178,7 @@ export default function AdminDashboard() {
     let yPos = 12;
 
     if (logoData) {
-      const imgWidth = 40;
+      const imgWidth = 25;
       const imgHeight = (logoData.height * imgWidth) / logoData.width;
       doc.addImage(logoData.data, 'JPEG', 105 - (imgWidth / 2), 10, imgWidth, imgHeight);
       yPos = 10 + imgHeight + 10;
@@ -1279,6 +1279,7 @@ export default function AdminDashboard() {
     const sortedQuestions = [...paper.questions].sort((a, b) => a.marks - b.marks);
     let currentMark = null;
     let groupIndex = 0;
+    let questionIndex = 0;
     let contentY = afterBoxY + 16;
 
     for (let i = 0; i < sortedQuestions.length; i++) {
@@ -1346,12 +1347,14 @@ export default function AdminDashboard() {
 
         contentY += 8;
         groupIndex++;
+        questionIndex = 0;
       }
 
       // Print Question
       doc.setFontSize(10);
       doc.setFont("times", 'bold');
-      doc.text(`${String.fromCharCode(97 + i)}.`, 20, contentY);
+      doc.text(`${String.fromCharCode(97 + questionIndex)}.`, 20, contentY);
+      questionIndex++;
 
       doc.setFont("times", 'normal');
       doc.text(questionLines, 28, contentY);
@@ -1637,6 +1640,7 @@ export default function AdminDashboard() {
                 generatedPaper={generatedPaper}
                 formatDateTime={formatDateTime}
                 collegeDetails={collegeDetails}
+                userData={userData}
               />
             )}
 
