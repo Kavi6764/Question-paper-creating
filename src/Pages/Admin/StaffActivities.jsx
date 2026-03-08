@@ -488,12 +488,13 @@ export default function StaffActivities({ allSubjects, staffList }) {
                 </div>
             )}
 
-            <style jsx>{`
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
                 .animate-fade-in { animation: fade-in 0.2s ease-out forwards; }
                 .no-scrollbar::-webkit-scrollbar { display: none; }
                 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-            `}</style>
+            `}} />
         </div>
     );
 }

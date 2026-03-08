@@ -392,7 +392,6 @@ export default function UploadForm({
                                             accept=".xlsx"
                                             hidden
                                             onChange={handleFileSelect}
-                                            required
                                         />
                                     </div>
                                 </div>
