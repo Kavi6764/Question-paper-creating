@@ -95,12 +95,15 @@ export default function StaffActivities({ allSubjects, staffList }) {
         return Object.values(aggregation).sort((a, b) => b.totalQuestions - a.totalQuestions);
     }, [allSubjects, staffList]);
 
-    const filteredActivities = staffActivities.filter(activity => {
-        const matchesSearch = activity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            activity.username.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesDept = filterDepartment === 'all' || activity.department === filterDepartment;
-        return matchesSearch && matchesDept;
-    });
+    const filteredActivities = useMemo(() => {
+        return staffActivities.filter(activity => {
+            const matchesSearch = searchTerm === '' ||
+                activity.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                activity.username.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesDept = filterDepartment === 'all' || activity.department === filterDepartment;
+            return matchesSearch && matchesDept;
+        });
+    }, [staffActivities, searchTerm, filterDepartment]);
 
     const departments = useMemo(() => {
         const depts = new Set(staffList.map(s => s.department).filter(Boolean));
@@ -488,13 +491,12 @@ export default function StaffActivities({ allSubjects, staffList }) {
                 </div>
             )}
 
-            <style dangerouslySetInnerHTML={{
-                __html: `
+            <style jsx>{`
                 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
                 .animate-fade-in { animation: fade-in 0.2s ease-out forwards; }
                 .no-scrollbar::-webkit-scrollbar { display: none; }
                 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-            `}} />
+            `}</style>
         </div>
     );
 }

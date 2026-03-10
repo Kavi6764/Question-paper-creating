@@ -201,7 +201,7 @@ export default function StaffManagement({
                             <th className="px-6 py-4">Role & Dept</th>
                             <th className="px-6 py-4">Contact</th>
                             <th className="px-6 py-4">Assigned Subjects</th>
-                            <th className="px-6 py-4">Status</th>
+                            {/* <th className="px-6 py-4">Status</th> */}
                             <th className="px-6 py-4 text-right">Actions</th>
                         </tr>
                     </thead>
@@ -266,12 +266,12 @@ export default function StaffManagement({
                                         )}
                                     </div>
                                 </td>
-                                <td className="px-6 py-4">
+                                {/* <td className="px-6 py-4">
                                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${statusColors[staff.status || 'active']}`}>
                                         <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${staff.status === 'inactive' ? 'bg-rose-500' : staff.status === 'pending' ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
                                         {staff.status || 'Active'}
                                     </span>
-                                </td>
+                                </td> */}
                                 <td className="px-6 py-4 text-right">
                                     <div className="flex items-center justify-end gap-1">
                                         <button

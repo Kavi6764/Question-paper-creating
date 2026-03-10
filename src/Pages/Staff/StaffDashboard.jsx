@@ -96,12 +96,16 @@ export default function StaffDashboard() {
     const generateSampleData = (marks, count) => {
         return Array.from({ length: count }, (_, i) => ({
             QuestionNo: `Q${i + 1}`,
-            Question: `Sample Question ${i + 1} for ${marks} Marks`,
+            Question: i === 0 ? "Sample Main Question (e.g., Design a DFA over decimal numbers divisible by 4)" : `Sample Question ${i + 1} for ${marks} Marks`,
             Marks: marks,
             Difficulty: i % 3 === 0 ? "Easy" : i % 3 === 1 ? "Medium" : "Hard",
             BloomLevel: i % 6 === 0 ? "RE" : i % 6 === 1 ? "UN" : i % 6 === 2 ? "AP" : i % 6 === 3 ? "AN" : i % 6 === 4 ? "CR" : "EV",
             Unit: 1,
-            ImageURL: "" // Optional image URL
+            ImageURL: "",
+            // Optional OR question fields
+            OrQuestion: i === 0 ? "Sample Alternative Question (e.g., Design a DFA for L={W ∈ {a,b}* | Na(W) mod 5 >= 3})" : "",
+            OrUnit: i === 0 ? 1 : "",
+            OrBloomLevel: i === 0 ? "AP" : ""
         }));
     };
 
@@ -391,18 +395,31 @@ export default function StaffDashboard() {
                 allRows = [...allRows, ...sheetRows];
             });
 
-            const rows = allRows;
+            // Filter out empty rows (where Question text is missing)
+            const rows = allRows.filter(row =>
+                row.Question &&
+                row.Question.toString().trim() !== "" &&
+                row.Marks !== undefined &&
+                [1, 2, 4, 6].includes(Number(row.Marks))
+            );
 
             const previewRows = rows.map((row, index) => ({
                 id: index + 1,
                 questionNo: row.QuestionNo || `Q${index + 1}`,
-                question: row.Question || "",
-                marks: row.Marks || 0,
+                question: String(row.Question).trim(),
+                marks: Number(row.Marks) || 0,
                 questionType: Number(row.Marks) <= 2 ? 'MCQ' : Number(row.Marks) <= 4 ? 'Short' : 'Long',
                 difficulty: row.Difficulty || "Medium",
                 bloomLevel: row.BloomLevel || row.bloomLevel || "RE",
                 unit: row.Unit || 1,
-                imageURL: row.ImageURL || row.imageURL || ""
+                imageURL: row.ImageURL || row.imageURL || "",
+                // Support for OR questions
+                orQuestion: row.OrQuestion ? {
+                    question: String(row.OrQuestion).trim(),
+                    unit: row.OrUnit || row.Unit || 1,
+                    bloomLevel: row.OrBloomLevel || row.BloomLevel || "RE",
+                    imageURL: row.OrImageURL || ""
+                } : null
             }));
 
             setPreviewData(previewRows);
@@ -521,6 +538,7 @@ export default function StaffDashboard() {
                             bloomLevel: row.bloomLevel,
                             unit: row.unit,
                             imageURL: row.imageURL,
+                            orQuestion: row.orQuestion || null,
                             uploadedAt: Date.now(),
                             staffId: staffData.id,
                             staffName: staffData.name,
@@ -680,6 +698,7 @@ export default function StaffDashboard() {
                     bloomLevel: row.bloomLevel,
                     unit: row.unit,
                     imageURL: row.imageURL,
+                    orQuestion: row.orQuestion || null,
                     uploadedAt: Date.now(),
                     staffId: staffData.id,
                     staffName: staffData.name,

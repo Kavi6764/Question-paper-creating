@@ -81,6 +81,12 @@ export default function UploadPreview({ previewData, unit, subjectName, onConfir
                                     <td className="px-4 py-4 text-sm font-bold text-slate-600 text-center bg-slate-50/50">Unit {item.unit}</td>
                                     <td className="px-4 py-4">
                                         <p className="text-sm text-slate-800 break-words line-clamp-2">{item.question}</p>
+                                        {item.orQuestion && (
+                                            <div className="mt-2 pl-3 border-l-2 border-amber-400">
+                                                <span className="text-[10px] font-bold text-amber-600 uppercase block mb-0.5">Alternative (OR)</span>
+                                                <p className="text-xs text-slate-500 italic break-words line-clamp-2">{item.orQuestion.question}</p>
+                                            </div>
+                                        )}
                                     </td>
                                     <td className="px-4 py-4 text-center border-l border-slate-100">
                                         <span className={`inline-block px-2 py-1 rounded-md text-[10px] uppercase font-bold tracking-wider 

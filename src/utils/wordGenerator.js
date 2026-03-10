@@ -9,13 +9,39 @@ export const downloadPaperAsWord = async (paper) => {
         return;
     }
 
-    const loadImageData = async (url) => {
+    const loadImageAsBase64 = async (url) => {
         try {
             if (!url) return null;
-            const response = await fetch(url);
-            if (!response.ok) return null;
+
+            // Handle local logo import
+            if (typeof url === 'object' && url.default) {
+                url = url.default;
+            }
+            if (url.includes('(') && url.includes(')')) {
+                url = url.split(' ')[0];
+            }
+
+            // Prepend base URL if it's just a filename
+            if (!url.startsWith('http') && !url.startsWith('data:') && !url.startsWith('/')) {
+                url = `https://datapro.in/uploads/${url}`;
+            }
+
+            const response = await fetch(url, {
+                mode: 'cors',
+                cache: 'no-cache',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                }
+            });
+
+            if (!response.ok) {
+                console.error(`Failed to load image: ${response.status} ${response.statusText}`);
+                return null;
+            }
+
             const blob = await response.blob();
-            return new Uint8Array(await blob.arrayBuffer());
+            return await blob.arrayBuffer();
         } catch (error) {
             console.error("Error loading image:", error);
             return null;
@@ -23,7 +49,14 @@ export const downloadPaperAsWord = async (paper) => {
     };
 
     try {
-        const logoBuffer = await loadImageData(logo);
+        // Load logo with error handling
+        let logoBuffer = null;
+        try {
+            logoBuffer = await loadImageAsBase64(logo);
+        } catch (logoError) {
+            console.warn("Logo could not be loaded, continuing without logo:", logoError);
+        }
+
         const sortedQuestions = [...paper.questions].sort((a, b) => a.marks - b.marks);
         const docChildren = [];
 
@@ -36,6 +69,7 @@ export const downloadPaperAsWord = async (paper) => {
                         new ImageRun({
                             data: logoBuffer,
                             transformation: { width: 70, height: 70 },
+                            type: 'png',
                         }),
                     ],
                     spacing: { after: 200 }
@@ -140,6 +174,7 @@ export const downloadPaperAsWord = async (paper) => {
         // 4. Questions Loop
         let currentMark = null;
         let groupIndex = 0;
+        let questionCounter = 0;
 
         for (let i = 0; i < sortedQuestions.length; i++) {
             const q = sortedQuestions[i];
@@ -147,7 +182,7 @@ export const downloadPaperAsWord = async (paper) => {
             if (q.marks !== currentMark) {
                 currentMark = q.marks;
                 const sectionChar = String.fromCharCode(65 + groupIndex);
-                const sectionType = q.marks <= 2 ? "Very Short Answer" : (q.marks <= 6 ? "Short Answer" : "Long Answer");
+                const sectionType = q.marks <= 2 ? "Very Short Answer" : (q.marks <= 4 ? "Short Answer" : "Long Answer");
 
                 docChildren.push(
                     new Paragraph({
@@ -161,12 +196,13 @@ export const downloadPaperAsWord = async (paper) => {
                     })
                 );
                 groupIndex++;
+                questionCounter = 0;
             }
 
             docChildren.push(
                 new Paragraph({
                     children: [
-                        new TextRun({ text: `${String.fromCharCode(97 + (i % 26))}. `, bold: true, size: 20 }),
+                        new TextRun({ text: `${String.fromCharCode(97 + questionCounter)}. `, bold: true, size: 20 }),
                         new TextRun({ text: q.question || "", size: 20 }),
                     ],
                     spacing: { before: 100 },
@@ -177,10 +213,11 @@ export const downloadPaperAsWord = async (paper) => {
                     spacing: { after: 100 },
                 })
             );
+            questionCounter++;
 
             if (q.orQuestion?.question) {
                 docChildren.push(
-                    new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "OR", bold: true, size: 18 })], spacing: { before: 100, after: 100 } }),
+                    new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "OR", bold: true, size: 24 })], spacing: { before: 200, after: 200 } }),
                     new Paragraph({ children: [new TextRun({ text: q.orQuestion.question, size: 20 })] }),
                     new Paragraph({
                         alignment: AlignmentType.RIGHT,
@@ -188,6 +225,29 @@ export const downloadPaperAsWord = async (paper) => {
                         spacing: { after: 100 },
                     })
                 );
+
+                if (q.orQuestion.imageURL) {
+                    try {
+                        const orImgBuffer = await loadImageAsBase64(q.orQuestion.imageURL);
+                        if (orImgBuffer) {
+                            docChildren.push(
+                                new Paragraph({
+                                    alignment: AlignmentType.CENTER,
+                                    children: [
+                                        new ImageRun({
+                                            data: orImgBuffer,
+                                            transformation: { width: 300, height: 200 },
+                                            type: 'png',
+                                        })
+                                    ],
+                                    spacing: { before: 200, after: 200 }
+                                })
+                            );
+                        }
+                    } catch (err) {
+                        console.warn("Could not load OR image:", err);
+                    }
+                }
             }
 
             if (q.options?.length > 0) {
@@ -196,16 +256,27 @@ export const downloadPaperAsWord = async (paper) => {
                 });
             }
 
+            // Load and add question image if exists
             if (q.imageURL) {
-                const img = await loadImageData(q.imageURL);
-                if (img) {
-                    docChildren.push(
-                        new Paragraph({
-                            alignment: AlignmentType.CENTER,
-                            children: [new ImageRun({ data: img, transformation: { width: 300, height: 200 } })],
-                            spacing: { before: 200, after: 200 }
-                        })
-                    );
+                try {
+                    const imgBuffer = await loadImageAsBase64(q.imageURL);
+                    if (imgBuffer) {
+                        docChildren.push(
+                            new Paragraph({
+                                alignment: AlignmentType.CENTER,
+                                children: [
+                                    new ImageRun({
+                                        data: imgBuffer,
+                                        transformation: { width: 300, height: 200 },
+                                        type: 'png',
+                                    })
+                                ],
+                                spacing: { before: 200, after: 200 }
+                            })
+                        );
+                    }
+                } catch (imgError) {
+                    console.warn(`Could not load image for question ${i}:`, imgError);
                 }
             }
         }
