@@ -9,6 +9,8 @@ export default function HodDeanAssignment({
     setHodDeanAssignment,
     loading,
     handleAssignHodDean,
+    handleRemoveRole,
+    currentUser,
     staffList
 }) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -54,6 +56,7 @@ export default function HodDeanAssignment({
 
     const RoleTable = ({ title, role, color, icon: Icon }) => {
         const staffWithRole = staffList.filter(staff => staff.role === role);
+        const canRemove = (role === 'hod' && currentUser?.role === 'dean') || currentUser?.role === 'admin';
 
         return (
             <div className={`overflow-hidden rounded-2xl border border-${color}-100 bg-white shadow-sm mb-8`}>
@@ -74,7 +77,7 @@ export default function HodDeanAssignment({
                                     <th className="px-6 py-3">Staff Member</th>
                                     <th className="px-6 py-3">Department</th>
                                     <th className="px-6 py-3">Contact Info</th>
-                                    <th className="px-6 py-3 text-right">Role</th>
+                                    <th className="px-6 py-3 text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
@@ -98,9 +101,20 @@ export default function HodDeanAssignment({
                                             <p className="text-sm text-gray-500">{staff.email}</p>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border uppercase tracking-wide bg-${role === 'hod' ? 'purple' : 'pink'}-50 text-${role === 'hod' ? 'purple' : 'pink'}-700 border-${role === 'hod' ? 'purple' : 'pink'}-100`}>
-                                                {role}
-                                            </span>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border uppercase tracking-wide bg-${role === 'hod' ? 'purple' : 'pink'}-50 text-${role === 'hod' ? 'purple' : 'pink'}-700 border-${role === 'hod' ? 'purple' : 'pink'}-100 mr-2`}>
+                                                    {role}
+                                                </span>
+                                                {canRemove && (
+                                                    <button
+                                                        onClick={() => handleRemoveRole(staff.id, role)}
+                                                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                                        title="Remove Role"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
