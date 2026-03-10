@@ -3,7 +3,9 @@ import logo from '../assets/logo.png';
 import { useParams } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../fireBaseConfig';
-import { Printer, Loader2 } from 'lucide-react';
+import { FileText, FileDown, Loader2 } from 'lucide-react';
+import { downloadPaperAsWord } from '../utils/wordGenerator';
+import { downloadPaperAsPDF } from '../utils/pdfGenerator';
 
 export default function QuestionPaperView() {
   const { id } = useParams();
@@ -51,13 +53,22 @@ export default function QuestionPaperView() {
     <div className="min-h-screen bg-gray-100 p-8 print:p-0 print:bg-white">
       {/* Print Button - Hidden in Print Mode */}
       <div className="max-w-4xl mx-auto mb-6 flex justify-end print:hidden">
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow-sm"
-        >
-          <Printer size={20} />
-          Print / Save as PDF
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => downloadPaperAsWord(paper)}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 shadow-sm transition-all"
+          >
+            <FileText size={20} />
+            Word Doc
+          </button>
+          <button
+            onClick={() => downloadPaperAsPDF(paper)}
+            className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 shadow-sm transition-all"
+          >
+            <FileDown size={20} />
+            PDF
+          </button>
+        </div>
       </div>
 
       {/* Formatting Function */}
