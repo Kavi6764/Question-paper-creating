@@ -855,6 +855,27 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleRemoveRole = async (staffId, role) => {
+    if (!window.confirm(`Are you sure you want to remove the ${role.toUpperCase()} role? They will be demoted to regular staff.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const userRef = doc(db, "users", staffId);
+      await updateDoc(userRef, {
+        role: "staff",
+        updatedAt: serverTimestamp()
+      });
+      toast.success(`Removed ${role.toUpperCase()} role and demoted to staff.`);
+    } catch (error) {
+      console.error("Error removing role:", error);
+      toast.error("Error removing role");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // PAPER GENERATION LOGIC
   const prepareQuestionStats = (questions) => {
     const stats = {
@@ -924,161 +945,100 @@ export default function AdminDashboard() {
     }
   };
 
-  const generateRandomQuestions = () => {
-    const selected = [];
-    let hasError = false;
-
-    // 1-mark questions
-    if (availableQuestions.oneMark.length < paperForm.oneMarkQuestions) {
-      toast.error(`Not enough 1-mark questions! Need ${paperForm.oneMarkQuestions}, have ${availableQuestions.oneMark.length}`);
-      hasError = true;
-    } else {
-      const shuffled = [...availableQuestions.oneMark].sort(() => Math.random() - 0.5);
-      selected.push(...shuffled.slice(0, paperForm.oneMarkQuestions));
-    }
-
-    const getPairedOrQuestions = (sourceQuestions, countRequired) => {
-      const unitGroups = {};
-      sourceQuestions.forEach(q => {
-        const u = q.unit || 'unknown';
-        if (!unitGroups[u]) unitGroups[u] = [];
-        unitGroups[u].push(q);
-      });
-
-      const pairs = [];
-      const usedIds = new Set();
-
-      // try to get pairs from same unit (shuffled)
-      const groupKeys = Object.keys(unitGroups).sort(() => Math.random() - 0.5);
-      groupKeys.forEach(u => {
-        const shuffledGroup = [...unitGroups[u]].sort(() => Math.random() - 0.5);
-        for (let i = 0; i < shuffledGroup.length - 1; i += 2) {
-          if (pairs.length < countRequired) {
-            pairs.push({ ...shuffledGroup[i], orQuestion: shuffledGroup[i + 1] });
-            usedIds.add(shuffledGroup[i].id);
-            usedIds.add(shuffledGroup[i + 1].id);
-          }
-        }
-      });
-
-      // fallback if not enough pairs from same unit
-      if (pairs.length < countRequired) {
-        const remaining = sourceQuestions.filter(q => !usedIds.has(q.id)).sort(() => Math.random() - 0.5);
-        for (let i = 0; i < remaining.length - 1; i += 2) {
-          if (pairs.length < countRequired) {
-            pairs.push({ ...remaining[i], orQuestion: remaining[i + 1] });
-            usedIds.add(remaining[i].id);
-            usedIds.add(remaining[i + 1].id);
-          }
-        }
-      }
-      return pairs;
-    };
-
-    // 4-mark questions (with OR option, same unit)
-    if (availableQuestions.fourMark.length < paperForm.fourMarkQuestions * 2) {
-      toast.error(`Not enough 4-mark questions for OR choices! Need ${paperForm.fourMarkQuestions * 2}, have ${availableQuestions.fourMark.length}`);
-      hasError = true;
-    } else {
-      const pairs = getPairedOrQuestions(availableQuestions.fourMark, paperForm.fourMarkQuestions);
-      selected.push(...pairs);
-    }
-
-    // 6-mark questions (with OR option, same unit)
-    if (availableQuestions.sixMark.length < paperForm.sixMarkQuestions * 2) {
-      toast.error(`Not enough 6-mark questions for OR choices! Need ${paperForm.sixMarkQuestions * 2}, have ${availableQuestions.sixMark.length}`);
-      hasError = true;
-    } else {
-      const pairs = getPairedOrQuestions(availableQuestions.sixMark, paperForm.sixMarkQuestions);
-      selected.push(...pairs);
-    }
-
-    // 8-mark questions (with OR option)
-    if (availableQuestions.eightMark.length < paperForm.eightMarkQuestions * 2) {
-      toast.error(`Not enough 8-mark questions for OR choices! Need ${paperForm.eightMarkQuestions * 2}, have ${availableQuestions.eightMark.length}`);
-      hasError = true;
-    } else {
-      const pairs = getPairedOrQuestions(availableQuestions.eightMark, paperForm.eightMarkQuestions);
-      selected.push(...pairs);
-    }
-
-    if (hasError) {
-      return;
-    }
-
-    setSelectedQuestions(selected);
-    toast.success("Questions selected for paper!");
-  };
-
   const clearAllQuestions = () => {
     setSelectedQuestions([]);
     toast.success("All selected questions cleared");
   };
 
-  const selectRandomQuestions = (requirements, sourceQuestions) => {
+  const getBalancedRandomSelection = (form, source) => {
+    const bloomLevels = ['RE', 'UN', 'AP', 'AN', 'EV'];
+    const units = [1, 2, 3, 4, 5];
     const selected = [];
+    const levelCounts = { RE: 0, UN: 0, AP: 0, AN: 0, EV: 0 };
 
-    // 1-mark
-    if (sourceQuestions.oneMark && sourceQuestions.oneMark.length >= requirements.oneMarkQuestions) {
-      const shuffled = [...sourceQuestions.oneMark].sort(() => Math.random() - 0.5);
-      selected.push(...shuffled.slice(0, requirements.oneMarkQuestions));
-    }
+    const pool = { 1: {}, 4: {}, 6: {}, 8: {} };
+    [...source.oneMark, ...source.fourMark, ...source.sixMark, ...source.eightMark].forEach(q => {
+      const marks = q.marks === 2 ? 1 : q.marks;
+      const unit = q.unit || 1;
+      const bl = (q.bloomLevel || 'RE').toUpperCase().replace('BL-', '');
+      const cleanBL = bloomLevels.includes(bl) ? bl : 'RE';
+      if (!pool[marks][unit]) pool[marks][unit] = {};
+      if (!pool[marks][unit][cleanBL]) pool[marks][unit][cleanBL] = [];
+      pool[marks][unit][cleanBL].push({ ...q });
+    });
 
-    const getPairedOrQuestions = (sourceQuestions, countRequired) => {
-      const unitGroups = {};
-      sourceQuestions.forEach(q => {
-        const u = q.unit || 'unknown';
-        if (!unitGroups[u]) unitGroups[u] = [];
-        unitGroups[u].push(q);
-      });
-
-      const pairs = [];
-      const usedIds = new Set();
-
-      const groupKeys = Object.keys(unitGroups).sort(() => Math.random() - 0.5);
-      groupKeys.forEach(u => {
-        const shuffledGroup = [...unitGroups[u]].sort(() => Math.random() - 0.5);
-        for (let i = 0; i < shuffledGroup.length - 1; i += 2) {
-          if (pairs.length < countRequired) {
-            pairs.push({ ...shuffledGroup[i], orQuestion: shuffledGroup[i + 1] });
-            usedIds.add(shuffledGroup[i].id);
-            usedIds.add(shuffledGroup[i + 1].id);
-          }
-        }
-      });
-
-      if (pairs.length < countRequired) {
-        const remaining = sourceQuestions.filter(q => !usedIds.has(q.id)).sort(() => Math.random() - 0.5);
-        for (let i = 0; i < remaining.length - 1; i += 2) {
-          if (pairs.length < countRequired) {
-            pairs.push({ ...remaining[i], orQuestion: remaining[i + 1] });
-            usedIds.add(remaining[i].id);
-            usedIds.add(remaining[i + 1].id);
-          }
+    const getOptimalQuestion = (m, preferredUnit, preferredBL) => {
+      // Priority 1: Exact Match (Unit + BL)
+      if (pool[m][preferredUnit]?.[preferredBL]?.length > 0) {
+        return pool[m][preferredUnit][preferredBL].pop();
+      }
+      // Priority 2: Bloom Level Match (Any Unit)
+      for (const u of units) {
+        if (pool[m][u]?.[preferredBL]?.length > 0) return pool[m][u][preferredBL].pop();
+      }
+      // Priority 3: Unit Match (Least used BL)
+      const sortedLevels = [...bloomLevels].sort((a, b) => levelCounts[a] - levelCounts[b]);
+      for (const bl of sortedLevels) {
+        if (pool[m][preferredUnit]?.[bl]?.length > 0) return pool[m][preferredUnit][bl].pop();
+      }
+      // Priority 4: Any Match
+      for (const u of units) {
+        for (const bl of bloomLevels) {
+          if (pool[m][u]?.[bl]?.length > 0) return pool[m][u][bl].pop();
         }
       }
-      return pairs;
+      return null;
     };
 
-    // 4-mark
-    if (sourceQuestions.fourMark && sourceQuestions.fourMark.length >= requirements.fourMarkQuestions * 2) {
-      const pairs = getPairedOrQuestions(sourceQuestions.fourMark, requirements.fourMarkQuestions);
-      selected.push(...pairs);
+    // 1-Mark
+    for (let i = 0; i < form.oneMarkQuestions; i++) {
+      const q = getOptimalQuestion(1, units[i % units.length], bloomLevels[i % bloomLevels.length]);
+      if (q) {
+        selected.push(q);
+        levelCounts[(q.bloomLevel || 'RE').toUpperCase().replace('BL-', '')]++;
+      }
     }
 
-    // 6-mark
-    if (sourceQuestions.sixMark && sourceQuestions.sixMark.length >= requirements.sixMarkQuestions * 2) {
-      const pairs = getPairedOrQuestions(sourceQuestions.sixMark, requirements.sixMarkQuestions);
-      selected.push(...pairs);
-    }
+    // 4, 6, 8 Mark Paired
+    [4, 6, 8].forEach(m => {
+      let count = 0;
+      if (m === 4) count = form.fourMarkQuestions;
+      else if (m === 6) count = form.sixMarkQuestions;
+      else if (m === 8) count = form.eightMarkQuestions || 0;
 
-    // 8-mark
-    if (sourceQuestions.eightMark && sourceQuestions.eightMark.length >= requirements.eightMarkQuestions * 2) {
-      const pairs = getPairedOrQuestions(sourceQuestions.eightMark, requirements.eightMarkQuestions);
-      selected.push(...pairs);
-    }
+      for (let i = 0; i < count; i++) {
+        const u = units[i % units.length];
+        const q1 = getOptimalQuestion(m, u, bloomLevels[(i * 2) % bloomLevels.length]);
+        const q2 = getOptimalQuestion(m, u, bloomLevels[(i * 2 + 1) % bloomLevels.length]);
+        if (q1 && q2) {
+          selected.push({ ...q1, orQuestion: q2 });
+          levelCounts[(q1.bloomLevel || 'RE').toUpperCase().replace('BL-', '')]++;
+          levelCounts[(q2.bloomLevel || 'RE').toUpperCase().replace('BL-', '')]++;
+        } else if (q1 || q2) {
+          selected.push(q1 || q2);
+        }
+      }
+    });
 
     return selected;
+  };
+
+  const generateRandomQuestions = () => {
+    if (!paperForm.subjectCode) {
+      toast.error("Please select a subject first");
+      return;
+    }
+    const selected = getBalancedRandomSelection(paperForm, availableQuestions);
+    if (selected.length === 0) {
+      toast.error("Not enough suitable questions found in question bank");
+      return;
+    }
+    setSelectedQuestions(selected);
+    toast.success("Random selection complete (Balanced Units & Bloom Levels)");
+  };
+
+  const selectRandomQuestions = (form, source) => {
+    return getBalancedRandomSelection(form, source);
   };
 
   const handleGeneratePaper = async () => {
@@ -1264,7 +1224,7 @@ export default function AdminDashboard() {
     // Header - University Name
     doc.setFontSize(11);
     doc.setFont("times", 'bold');
-    doc.text("UTTARAKHAND UNIVERSITY", 105, yPos, { align: 'center' });
+    doc.text("Uttaranchal University", 105, yPos, { align: 'center' });
     yPos += 5;
 
     doc.setFontSize(10);
@@ -1749,6 +1709,8 @@ export default function AdminDashboard() {
                 showAssignHodDean={showAssignHodDean}
                 setShowAssignHodDean={setShowAssignHodDean}
                 handleAssignHodDean={handleAssignHodDean}
+                handleRemoveRole={handleRemoveRole}
+                currentUser={userData}
                 loading={loading}
                 staffList={staffList}
               />

@@ -192,7 +192,7 @@ export default function UploadForm({
                                                         const staffQuestions = (u.questions || []).filter(q => q.staffId === staffId);
                                                         return acc + staffQuestions.length;
                                                     }, 0);
-                                                    return total >= 100 ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700';
+                                                    return total >= 225 ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700';
                                                 })()
                                                     }`}>
                                                     My Questions: {(() => {
@@ -201,7 +201,7 @@ export default function UploadForm({
                                                             const staffQuestions = (u.questions || []).filter(q => q.staffId === staffId);
                                                             return acc + staffQuestions.length;
                                                         }, 0);
-                                                    })()}/100
+                                                    })()}/225
                                                 </span>
                                             </div>
                                         )}
@@ -236,7 +236,7 @@ export default function UploadForm({
                                                 const sq = (unit.questions || []).filter(q => q.staffId === staffId);
                                                 return acc + sq.length;
                                             }, 0);
-                                            const isStaffFull = staffTotalQuestions >= 100;
+                                            const isStaffFull = staffTotalQuestions >= 225;
 
                                             return (
                                                 <button
@@ -281,7 +281,7 @@ export default function UploadForm({
                                     <div className="flex flex-col gap-1">
                                         <p className="text-xs text-slate-400 flex items-center gap-1">
                                             <AlertCircle className="w-3 h-3" />
-                                            Green units have questions. Amber units indicate you have reached your 100-question total limit for this subject.
+                                            Green units have questions. Amber units indicate you have reached your 225-question total limit for this subject.
                                         </p>
                                         {(() => {
                                             const currentSub = mySubjects.find(s => s.subjectCode === subjectCode);
@@ -289,11 +289,11 @@ export default function UploadForm({
                                                 const sq = (u.questions || []).filter(q => q.staffId === staffId);
                                                 return acc + sq.length;
                                             }, 0);
-                                            return total >= 100;
+                                            return total >= 225;
                                         })() && (
                                                 <p className="text-xs text-amber-600 font-medium flex items-center gap-1">
                                                     <AlertCircle className="w-3 h-3" />
-                                                    Your subject limit reached (100/100). You cannot add more questions to any unit.
+                                                    Your subject limit reached (225/225). You cannot add more questions to any unit.
                                                 </p>
                                             )}
                                     </div>

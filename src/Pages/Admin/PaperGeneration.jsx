@@ -19,11 +19,28 @@ export default function PaperGeneration({
     clearAllQuestions,
     loading
 }) {
-    // Helper to calculate percentage for progress bars
-    const getAvailabilityPercentage = (available, required) => {
-        if (!required) return 0;
-        return Math.min(100, (available / required) * 100);
-    };
+    const [subjectSearch, setSubjectSearch] = React.useState('');
+    const [showSubjectDropdown, setShowSubjectDropdown] = React.useState(false);
+    const dropdownRef = React.useRef(null);
+
+    // Filter subjects based on search
+    const filteredSubjects = availableSubjects.filter(sub =>
+        sub.name.toLowerCase().includes(subjectSearch.toLowerCase()) ||
+        sub.code.toLowerCase().includes(subjectSearch.toLowerCase())
+    );
+
+    // Handle clicks outside dropdown to close it
+    React.useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setShowSubjectDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const selectedSubject = availableSubjects.find(s => s.code === paperForm.subjectCode);
 
     return (
         <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg border border-white/50 p-8 animate-fade-in space-y-8">
@@ -64,36 +81,89 @@ export default function PaperGeneration({
                                         className="w-full border border-gray-200 bg-white rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Select Subject <span className="text-red-500">*</span></label>
-                                    <div className="relative">
-                                        <select
-                                            value={paperForm.subjectCode}
+                                <div className="space-y-1.5 relative" ref={dropdownRef}>
+                                    <label className="block text-sm font-medium text-gray-700">Select Subject <span className="text-red-500">*</span></label>
+                                    <div className="relative group/search">
+                                        <input
+                                            type="text"
+                                            placeholder="Search & Select Subject..."
+                                            value={subjectSearch || (selectedSubject ? `${selectedSubject.code} - ${selectedSubject.name}` : '')}
                                             onChange={(e) => {
-                                                setPaperForm({ ...paperForm, subjectCode: e.target.value });
-                                                setSelectedQuestions([]);
-                                                if (e.target.value) {
-                                                    loadQuestionsForSubject(e.target.value);
-                                                } else {
-                                                    setAvailableQuestions({ oneMark: [], fourMark: [], sixMark: [], eightMark: [] });
-                                                    setQuestionStats({
-                                                        oneMark: { total: 0, available: 0 },
-                                                        fourMark: { total: 0, available: 0 },
-                                                        sixMark: { total: 0, available: 0 },
-                                                        eightMark: { total: 0, available: 0 }
-                                                    });
+                                                setSubjectSearch(e.target.value);
+                                                setShowSubjectDropdown(true);
+                                                if (selectedSubject) {
+                                                    setPaperForm({ ...paperForm, subjectCode: '' });
                                                 }
                                             }}
-                                            className="w-full border border-gray-200 bg-white rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all appearance-none cursor-pointer"
-                                        >
-                                            <option value="">Choose a subject...</option>
-                                            {availableSubjects.map((subject, idx) => (
-                                                <option key={idx} value={subject.code}>{subject.code} - {subject.name}</option>
-                                            ))}
-                                        </select>
-                                        <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
-                                            <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg>
+                                            onFocus={() => setShowSubjectDropdown(true)}
+                                            className={`w-full border rounded-xl pl-10 pr-10 py-2.5 text-sm transition-all outline-none ${selectedSubject && !subjectSearch
+                                                    ? 'bg-blue-50 border-blue-200 text-blue-700 font-bold'
+                                                    : 'bg-white border-gray-200 text-gray-900 font-medium focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500'
+                                                }`}
+                                        />
+                                        <div className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none transition-colors ${selectedSubject && !subjectSearch ? 'text-blue-500' : 'text-gray-400 group-focus-within/search:text-blue-500'
+                                            }`}>
+                                            <svg className="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                                         </div>
+
+                                        {/* Status Icon/Clear Button */}
+                                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                            {selectedSubject && !subjectSearch ? (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setPaperForm({ ...paperForm, subjectCode: '' });
+                                                        setSubjectSearch('');
+                                                        setSelectedQuestions([]);
+                                                    }}
+                                                    className="p-1.5 hover:bg-blue-100 rounded-full text-blue-500 transition-colors"
+                                                    title="Clear selection"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                                </button>
+                                            ) : (
+                                                <div className="text-gray-300">
+                                                    <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Dropdown Results */}
+                                        {showSubjectDropdown && (
+                                            <div className="absolute top-full left-0 w-full mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 z-[1000] max-h-[280px] overflow-y-auto animate-scale-in origin-top">
+                                                {filteredSubjects.length > 0 ? (
+                                                    <div className="p-1">
+                                                        {filteredSubjects.map((subject, idx) => (
+                                                            <button
+                                                                key={idx}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setPaperForm({ ...paperForm, subjectCode: subject.code });
+                                                                    setSubjectSearch('');
+                                                                    setShowSubjectDropdown(false);
+                                                                    setSelectedQuestions([]);
+                                                                    loadQuestionsForSubject(subject.code);
+                                                                }}
+                                                                className={`w-full text-left px-4 py-3 rounded-lg flex flex-col gap-0.5 transition-all hover:bg-blue-50 group/item ${paperForm.subjectCode === subject.code ? 'bg-blue-50/50' : ''}`}
+                                                            >
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className={`text-sm font-bold ${paperForm.subjectCode === subject.code ? 'text-blue-700' : 'text-gray-900'}`}>{subject.code}</span>
+                                                                    {paperForm.subjectCode === subject.code && <div className="w-2 h-2 bg-blue-500 rounded-full shadow-sm"></div>}
+                                                                </div>
+                                                                <span className="text-xs text-gray-500 group-hover/item:text-blue-600 transition-colors uppercase tracking-tight">{subject.name}</span>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <div className="p-8 text-center">
+                                                        <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-300">
+                                                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 9.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                                        </div>
+                                                        <p className="text-sm text-gray-500">No matching subjects found</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -101,7 +171,22 @@ export default function PaperGeneration({
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Semester</label>
-                                    <input type="text" value={paperForm.semester} onChange={(e) => setPaperForm({ ...paperForm, semester: e.target.value })} placeholder="e.g., 5th" className="w-full border border-gray-200 bg-white rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
+                                    <div className="relative">
+                                        <select
+                                            value={paperForm.semester}
+                                            onChange={(e) => setPaperForm({ ...paperForm, semester: e.target.value })}
+                                            className="w-full border border-gray-200 bg-white rounded-xl px-4 py-2.5 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all appearance-none cursor-pointer hover:border-blue-300"
+                                        >
+                                            <option value="">Select Sem...</option>
+                                            {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => {
+                                                const label = `${sem}${sem === 1 ? 'st' : sem === 2 ? 'nd' : sem === 3 ? 'rd' : 'th'} Semester`;
+                                                return <option key={sem} value={label}>{label}</option>;
+                                            })}
+                                        </select>
+                                        <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
+                                            <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Exam Date</label>

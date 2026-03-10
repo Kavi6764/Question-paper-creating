@@ -8,7 +8,8 @@ import {
     Shield,
     ChevronDown,
     LogOut,
-    Loader2
+    Loader2,
+    BarChart3
 } from "lucide-react";
 import toast from "react-hot-toast";
 import * as XLSX from "xlsx";
@@ -40,6 +41,7 @@ import StaffSettings from "./StaffSettings";
 import UploadPreview from "./UploadPreview";
 import PageContainer from "../../components/PageContainer";
 import ConfirmationModal from "../../components/ConfirmationModal";
+import MyActivities from "./MyActivities";
 
 // Helper to get initials
 const getInitials = (name) => {
@@ -395,7 +397,7 @@ export default function StaffDashboard() {
             return;
         }
 
-        // Check for 100-question limit across all units (per-staff)
+        // Check for 225-question limit across all units (per-staff)
         const currentSubject = mySubjects.find(s => s.subjectCode === subjectCode);
         const allUnits = currentSubject?.units || {};
         const currentStaffTotalCount = Object.values(allUnits).reduce((total, unitData) => {
@@ -403,8 +405,8 @@ export default function StaffDashboard() {
             return total + staffQuestions.length;
         }, 0);
 
-        if (currentStaffTotalCount >= 100) {
-            toast.error(`You have already uploaded the maximum limit of 100 questions for ${subjectCode}.`);
+        if (currentStaffTotalCount >= 225) {
+            toast.error(`You have already uploaded the maximum limit of 225 questions for ${subjectCode}.`);
             return;
         }
 
@@ -416,7 +418,7 @@ export default function StaffDashboard() {
         if (uploadedUnits[subjectCode]?.includes(unit)) {
             const confirm = window.confirm(
                 `Unit ${unit} for ${subjectCode} already has ${currentUnitStaffCount} of your questions.\n` +
-                `Your total questions for this subject is ${currentStaffTotalCount}/100.\n\n` +
+                `Your total questions for this subject is ${currentStaffTotalCount}/225.\n\n` +
                 `Do you want to continue?`
             );
             if (!confirm) return;
@@ -492,9 +494,9 @@ export default function StaffDashboard() {
                 }
 
                 // Enforce per-staff subject-wide limit
-                if (currentStaffTotalCount + totalNewQuestionsCount > 100) {
-                    const allowed = 100 - currentStaffTotalCount;
-                    toast.error(`Your total for this subject will exceed 100 questions. You can only add ${allowed} more questions.`);
+                if (currentStaffTotalCount + totalNewQuestionsCount > 225) {
+                    const allowed = 225 - currentStaffTotalCount;
+                    toast.error(`Your total for this subject will exceed 225 questions. You can only add ${allowed} more questions.`);
                     clearInterval(progressInterval);
                     setLoading(false);
                     setUploadStatus(null);
@@ -607,12 +609,12 @@ export default function StaffDashboard() {
                 return;
             }
 
-            // Enforce 100-question total limit per staff per subject
-            if (currentStaffTotalCount + unitQuestions.length > 100) {
-                const allowedCount = 100 - currentStaffTotalCount;
+            // Enforce 225-question total limit per staff per subject
+            if (currentStaffTotalCount + unitQuestions.length > 225) {
+                const allowedCount = 225 - currentStaffTotalCount;
                 const confirmBatch = window.confirm(
-                    `Your total questions for ${subjectCode} will exceed the 100-question limit (Current Total: ${currentStaffTotalCount}, Batch: ${unitQuestions.length}).\n\n` +
-                    `Do you want to upload only the first ${allowedCount} questions to reach your 100-question subject limit?`
+                    `Your total questions for ${subjectCode} will exceed the 225-question limit (Current Total: ${currentStaffTotalCount}, Batch: ${unitQuestions.length}).\n\n` +
+                    `Do you want to upload only the first ${allowedCount} questions to reach your 225-question subject limit?`
                 );
 
                 if (!confirmBatch) {
@@ -833,7 +835,7 @@ export default function StaffDashboard() {
                                     { id: 'upload', icon: Upload, label: 'Upload' },
                                     { id: 'subjects', icon: BookOpen, label: `My Subjects (${mySubjects.length})` },
                                     { id: 'history', icon: Database, label: `History (${myUploads.length})` },
-                                    { id: 'papers', icon: FileText, label: 'Papers' }
+                                    { id: 'activities', icon: BarChart3, label: 'Activities' }
                                 ].map((item) => {
                                     const Icon = item.icon;
                                     return (
@@ -1030,11 +1032,12 @@ export default function StaffDashboard() {
                                     />
                                 </div>
                             )}
-                            {activeTab === "papers" && (
+
+                            {activeTab === "activities" && (
                                 <div className="animate-fade-in">
-                                    <GeneratedPapers
-                                        questionPapers={questionPapers}
-                                        loading={loadingPapers}
+                                    <MyActivities
+                                        mySubjects={mySubjects}
+                                        staffData={staffData}
                                     />
                                 </div>
                             )}
