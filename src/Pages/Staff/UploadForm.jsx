@@ -177,11 +177,18 @@ export default function UploadForm({
                             {/* Unit Selection */}
                             {subjectCode && (
                                 <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                                    <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                                        <Layers className="w-4 h-4 text-blue-600" />
-                                        Choose Unit
+                                    <label className="text-sm font-semibold text-slate-700 flex flex-col gap-1 w-full">
+                                        <div className="flex items-center gap-2">
+                                            <Layers className="w-4 h-4 text-blue-600" />
+                                            Choose Unit
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 text-[10px] mt-1 text-slate-500 font-normal">
+                                            <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">1 Mark: Max 20</span>
+                                            <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">4 Marks: Max 15</span>
+                                            <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">6 Marks: Max 10</span>
+                                        </div>
                                         {uploadedUnits[subjectCode] && (
-                                            <div className="ml-auto flex items-center gap-3">
+                                            <div className="ml-auto flex items-center gap-3 mt-[-24px]">
                                                 <span className="text-xs font-normal text-slate-400">
                                                     {uploadedUnits[subjectCode].length}/5 units
                                                 </span>
@@ -195,7 +202,7 @@ export default function UploadForm({
                                                     return total >= 225 ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700';
                                                 })()
                                                     }`}>
-                                                    My Questions: {(() => {
+                                                    My Total: {(() => {
                                                         const currentSub = mySubjects.find(s => s.subjectCode === subjectCode);
                                                         return Object.values(currentSub?.units || {}).reduce((acc, u) => {
                                                             const staffQuestions = (u.questions || []).filter(q => q.staffId === staffId);

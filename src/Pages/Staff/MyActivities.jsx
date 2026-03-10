@@ -22,59 +22,83 @@ export default function MyActivities({ mySubjects, staffData }) {
         };
 
         mySubjects.forEach(subject => {
-            if (subject.units) {
-                Object.keys(subject.units).forEach(unitKey => {
-                    const unit = subject.units[unitKey];
-                    const unitNum = unit.unitNumber || unitKey.replace('unit', '');
-                    const questions = (unit.questions || []).filter(q => q.staffId === staffData.id);
+            // Support both nested units object and flattened units.unitX keys
+            const units = subject.units || {};
 
-                    questions.forEach(q => {
-                        stats.totalQuestions++;
+            // Collect all possible unit keys (unit1...unit5 or flattened)
+            const unitKeys = new Set([...Object.keys(units)]);
+            Object.keys(subject).forEach(key => {
+                if (key.startsWith('units.')) {
+                    unitKeys.add(key);
+                }
+            });
 
-                        if (!stats.subjects[subject.subjectCode]) {
-                            stats.subjects[subject.subjectCode] = {
-                                name: subject.subjectName,
-                                count: 0
-                            };
-                        }
-                        stats.subjects[subject.subjectCode].count++;
+            unitKeys.forEach(unitKey => {
+                const unit = units[unitKey] || subject[unitKey];
+                if (!unit) return;
 
-                        if (!stats.summaryStats[subject.subjectCode]) {
-                            stats.summaryStats[subject.subjectCode] = {
-                                name: subject.subjectName,
-                                units: {}
-                            };
-                        }
+                const unitNum = unit.unitNumber || unitKey.replace('units.', '').replace('unit', '');
+                const staffIdString = String(staffData.id || "").trim();
+                const staffEmailLower = (staffData.email || "").toLowerCase().trim();
+                const staffNameLower = (staffData.name || "").toLowerCase().trim();
 
-                        if (!stats.summaryStats[subject.subjectCode].units[unitNum]) {
-                            stats.summaryStats[subject.subjectCode].units[unitNum] = {
-                                mark1: 0,
-                                mark4: 0,
-                                mark6: 0,
-                                total: 0
-                            };
-                        }
+                const questions = (unit.questions || []).filter(q => {
+                    if (!q) return false;
+                    const qId = String(q.staffId || q.userId || "").trim();
+                    const qEmail = (q.staffEmail || q.email || "").toLowerCase().trim();
+                    const qName = (q.staffName || q.name || "").toLowerCase().trim();
 
-                        const unitStats = stats.summaryStats[subject.subjectCode].units[unitNum];
-                        const marks = parseInt(q.marks);
-                        if (marks === 1 || marks === 2) unitStats.mark1++;
-                        else if (marks === 4) unitStats.mark4++;
-                        else if (marks === 6) unitStats.mark6++;
-                        unitStats.total++;
+                    return (qId && qId === staffIdString) ||
+                        (qEmail && qEmail === staffEmailLower) ||
+                        (qName && staffNameLower && qName.includes(staffNameLower) && staffNameLower.length > 3);
+                });
 
-                        stats.uploadDetails.push({
-                            'Question No': q.questionNo || 'N/A',
-                            'Question': q.question || 'N/A',
-                            'Marks': q.marks,
-                            'Subject Code': subject.subjectCode,
-                            'Subject Name': subject.subjectName,
-                            'Unit': unitNum,
-                            'Bloom Level': q.bloomLevel || 'RE',
-                            'Uploaded At': q.uploadedAt ? new Date(q.uploadedAt).toLocaleString() : 'N/A'
-                        });
+                questions.forEach(q => {
+                    stats.totalQuestions++;
+
+                    if (!stats.subjects[subject.subjectCode]) {
+                        stats.subjects[subject.subjectCode] = {
+                            name: subject.subjectName,
+                            count: 0
+                        };
+                    }
+                    stats.subjects[subject.subjectCode].count++;
+
+                    if (!stats.summaryStats[subject.subjectCode]) {
+                        stats.summaryStats[subject.subjectCode] = {
+                            name: subject.subjectName,
+                            units: {}
+                        };
+                    }
+
+                    if (!stats.summaryStats[subject.subjectCode].units[unitNum]) {
+                        stats.summaryStats[subject.subjectCode].units[unitNum] = {
+                            mark1: 0,
+                            mark4: 0,
+                            mark6: 0,
+                            total: 0
+                        };
+                    }
+
+                    const unitStats = stats.summaryStats[subject.subjectCode].units[unitNum];
+                    const marks = parseInt(q.marks);
+                    if (marks === 1 || marks === 2) unitStats.mark1++;
+                    else if (marks === 4) unitStats.mark4++;
+                    else if (marks === 6) unitStats.mark6++;
+                    unitStats.total++;
+
+                    stats.uploadDetails.push({
+                        'Question No': q.questionNo || 'N/A',
+                        'Question': q.question || 'N/A',
+                        'Marks': q.marks,
+                        'Subject Code': subject.subjectCode,
+                        'Subject Name': subject.subjectName,
+                        'Unit': unitNum,
+                        'Bloom Level': q.bloomLevel || 'RE',
+                        'Uploaded At': q.uploadedAt ? new Date(q.uploadedAt).toLocaleString() : 'N/A'
                     });
                 });
-            }
+            });
         });
 
         // Sort uploads by date descending
@@ -136,10 +160,12 @@ export default function MyActivities({ mySubjects, staffData }) {
     }, [activityData.uploadDetails, activeSubjectTab]);
 
     const totalPages = Math.ceil(filteredQuestions.length / itemsPerPage);
-    const paginatedQuestions = filteredQuestions.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-    );
+    const paginatedQuestions = useMemo(() => {
+        return filteredQuestions.slice(
+            (currentPage - 1) * itemsPerPage,
+            currentPage * itemsPerPage
+        );
+    }, [filteredQuestions, currentPage]);
 
     // Reset pagination when tab changes
     React.useEffect(() => {

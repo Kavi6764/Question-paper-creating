@@ -106,11 +106,15 @@ export default function StaffDashboard() {
     };
 
     const downloadTemplate = () => {
-        const itemTiers = [1, 4, 6/*, 8*/];
+        const itemTiers = [
+            { marks: 1, limit: 20 },
+            { marks: 4, limit: 15 },
+            { marks: 6, limit: 10 }
+        ];
         const wb = XLSX.utils.book_new();
 
-        itemTiers.forEach(marks => {
-            const data = generateSampleData(marks, 25);
+        itemTiers.forEach(({ marks, limit }) => {
+            const data = generateSampleData(marks, limit);
             const ws = XLSX.utils.json_to_sheet(data);
             XLSX.utils.book_append_sheet(wb, ws, `${marks} Marks`);
         });
@@ -211,27 +215,60 @@ export default function StaffDashboard() {
                                     subject.subjectCode // Ensure subjectCode exists
                                 );
 
-                                // Deduplicate by subjectCode
-                                const uniqueAssigned = [];
-                                const seenCodes = new Set();
+                                const staffEmail = (newStaffData.email || "").toLowerCase().trim();
+                                const staffName = (newStaffData.name || "").toLowerCase().trim();
+                                const uniqueAssignedMap = new Map();
+
+                                const getStaffCount = (s) => {
+                                    if (!s) return 0;
+                                    let count = 0;
+                                    const allQuestions = [];
+
+                                    // 1. Collect from nested units
+                                    if (s.units) {
+                                        Object.values(s.units).forEach(u => {
+                                            if (u && Array.isArray(u.questions)) allQuestions.push(...u.questions);
+                                        });
+                                    }
+                                    // 2. Collect from flattened unit keys (units.unit1)
+                                    Object.keys(s).forEach(key => {
+                                        if (key.startsWith('units.') && s[key] && Array.isArray(s[key].questions)) {
+                                            allQuestions.push(...s[key].questions);
+                                        }
+                                    });
+
+                                    // 3. Robust filter (ID, Email, or Name)
+                                    return allQuestions.filter(q => {
+                                        if (!q) return false;
+                                        const qId = String(q.staffId || q.userId || "").trim();
+                                        const qEmail = (q.staffEmail || q.email || "").toLowerCase().trim();
+                                        const qName = (q.staffName || q.name || "").toLowerCase().trim();
+
+                                        return (qId && qId === staffId) ||
+                                            (qEmail && qEmail === staffEmail) ||
+                                            (qName && staffName.length > 3 && qName.includes(staffName)); // Check staffName length to avoid false positives with short names
+                                    }).length;
+                                };
 
                                 assigned.forEach(subject => {
-                                    if (!seenCodes.has(subject.subjectCode)) {
-                                        uniqueAssigned.push(subject);
-                                        seenCodes.add(subject.subjectCode);
+                                    const code = (subject.subjectCode || "").trim().toUpperCase();
+                                    const currentStored = uniqueAssignedMap.get(code);
+
+                                    const staffCount = getStaffCount(subject);
+                                    const currentStaffCount = currentStored ? getStaffCount(currentStored) : -1;
+
+                                    // Pick the doc where THIS staff has questions. 
+                                    // If tie, pick the one with more questions overall.
+                                    if (!currentStored || staffCount > currentStaffCount || (staffCount === currentStaffCount && (subject.totalQuestions || 0) > (currentStored.totalQuestions || 0))) {
+                                        uniqueAssignedMap.set(code, subject);
                                     }
                                 });
 
+                                const uniqueAssigned = Array.from(uniqueAssignedMap.values());
                                 setMySubjects(uniqueAssigned);
 
-                                const totalQuestions = assigned.reduce((sum, subject) => {
-                                    if (subject.units) {
-                                        return sum + Object.values(subject.units).reduce((uSum, unit) => {
-                                            const staffQuestions = (unit.questions || []).filter(q => q.staffId === staffId);
-                                            return uSum + staffQuestions.length;
-                                        }, 0);
-                                    }
-                                    return sum;
+                                const totalQuestions = uniqueAssigned.reduce((sum, subject) => {
+                                    return sum + getStaffCount(subject);
                                 }, 0);
 
                                 setStats(prev => ({
@@ -458,6 +495,13 @@ export default function StaffDashboard() {
                 return total + staffQuestions.length;
             }, 0);
 
+            // Unit-wise Mark Limits
+            const LIMITS = {
+                1: 20, // 1 Mark: 20 questions
+                4: 15, // 4 Mark: 15 questions
+                6: 10  // 6 Mark: 10 questions
+            };
+
             // --- Multi-Unit (Bulk) Upload Logic ---
             if (unit === "multi") {
                 const unitsToProcess = [1, 2, 3, 4, 5];
@@ -465,7 +509,7 @@ export default function StaffDashboard() {
                 let totalNewQuestionsCount = 0;
 
                 unitsToProcess.forEach(u => {
-                    const unitRows = allRows.filter(row => Number(row.Unit) === u);
+                    const unitRows = allRows.filter(row => Number(row.unit) === u);
                     if (unitRows.length > 0) {
                         questionsByUnit[u] = unitRows.map((row, index) => ({
                             id: `${subjectCode}-U${u}-Q${index + 1}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
@@ -510,7 +554,9 @@ export default function StaffDashboard() {
                 const q = query(collection(db, "subjects"), where("subjectCode", "==", subjectCode));
                 const querySnapshot = await getDocs(q);
                 if (!querySnapshot.empty) {
-                    subjectRef = querySnapshot.docs[0].ref;
+                    // If multiple docs for same code exist, prefer the one owned by this staff or the first available
+                    const myDoc = querySnapshot.docs.find(d => d.data().staffId === staffData.id);
+                    subjectRef = myDoc ? myDoc.ref : querySnapshot.docs[0].ref;
                 } else {
                     subjectRef = doc(db, "subjects", `${staffData.id}_${subjectCode}`);
                 }
@@ -527,24 +573,64 @@ export default function StaffDashboard() {
                 };
 
                 let actualAddedCount = 0;
+                const unitsData = {};
 
                 Object.keys(questionsByUnit).forEach(u => {
                     const unitKey = `unit${u}`;
-                    const existingUnitQuestions = existingData.units?.[unitKey]?.questions || [];
-                    const existingQuestionTexts = new Set(existingUnitQuestions.map(q => (q.question || "").trim().toLowerCase()));
-                    const newUniqueQuestions = questionsByUnit[u].filter(q => !existingQuestionTexts.has((q.question || "").trim().toLowerCase()));
+                    // Support both nested and flattened data lookups
+                    const existingUnitQuestions = (existingData.units && existingData.units[unitKey])
+                        ? existingData.units[unitKey].questions
+                        : (existingData[`units.${unitKey}`]?.questions || []);
 
-                    const merged = [...existingUnitQuestions, ...newUniqueQuestions];
-                    updates[`units.${unitKey}`] = {
+                    const existingQuestionTexts = new Set(existingUnitQuestions.map(q => (q.question || "").trim().toLowerCase()));
+
+                    // Filter already existing
+                    const uniqueNew = questionsByUnit[u].filter(q => !existingQuestionTexts.has((q.question || "").trim().toLowerCase()));
+
+                    // Enforce per-mark limits for this unit
+                    const finalUnitQuestions = [...existingUnitQuestions];
+                    let unitAddedCount = 0;
+                    let skippedCount = 0;
+
+                    uniqueNew.forEach(q => {
+                        const markLimit = LIMITS[q.marks] || 999;
+                        const staffCountForMark = finalUnitQuestions.filter(exQ =>
+                            Number(exQ.marks) === Number(q.marks) &&
+                            exQ.staffId === staffData.id
+                        ).length;
+
+                        if (staffCountForMark < markLimit) {
+                            finalUnitQuestions.push(q);
+                            unitAddedCount++;
+                        } else {
+                            skippedCount++;
+                        }
+                    });
+
+                    if (skippedCount > 0) {
+                        toast.error(`Unit ${u}: ${skippedCount} items skipped (Limit reached for specific marks)`);
+                    }
+
+                    const unitPayload = {
                         unitNumber: Number(u),
                         unitName: `Unit ${u}`,
-                        questions: merged,
-                        questionCount: merged.length,
-                        createdAt: existingData.units?.[unitKey]?.createdAt || serverTimestamp(),
+                        questions: finalUnitQuestions,
+                        questionCount: finalUnitQuestions.length,
+                        createdAt: (existingData.units?.[unitKey]?.createdAt || existingData[`units.${unitKey}`]?.createdAt || serverTimestamp()),
                         lastUpdated: serverTimestamp(),
                     };
-                    actualAddedCount += newUniqueQuestions.length;
+
+                    if (!subjectSnap.exists()) {
+                        unitsData[unitKey] = unitPayload;
+                    } else {
+                        updates[`units.${unitKey}`] = unitPayload;
+                    }
+                    actualAddedCount += unitAddedCount;
                 });
+
+                if (!subjectSnap.exists()) {
+                    updates.units = unitsData;
+                }
 
                 updates.totalQuestions = (existingData.totalQuestions || 0) + actualAddedCount;
 
@@ -678,12 +764,13 @@ export default function StaffDashboard() {
             let subjectSnap;
 
             // Try to find existing subject by code first (including Admin created ones)
-            const q = query(collection(db, "subjects"), where("subjectCode", "==", subjectCode));
-            const querySnapshot = await getDocs(q);
+            const qSubject = query(collection(db, "subjects"), where("subjectCode", "==", subjectCode));
+            const querySnapshot = await getDocs(qSubject);
 
             if (!querySnapshot.empty) {
-                // Use existing subject
-                subjectRef = querySnapshot.docs[0].ref;
+                // If multiple docs for same code exist, prefer the one owned by this staff or the first available
+                const myDoc = querySnapshot.docs.find(d => d.data().staffId === staffData.id);
+                subjectRef = myDoc ? myDoc.ref : querySnapshot.docs[0].ref;
                 subjectSnap = await getDoc(subjectRef);
             } else {
                 // Fallback: Create new subject with staff-specific ID
@@ -722,22 +809,43 @@ export default function StaffDashboard() {
                 const existingUnit = existing.units?.[unitKey];
                 const existingQuestions = existingUnit?.questions || [];
 
-                // Merge questions (avoid duplicates by exact question text match)
+                // Merge questions (avoid duplicates)
                 const existingQuestionTexts = new Set(existingQuestions.map(q => (q.question || "").trim().toLowerCase()));
-                const newQuestions = unitQuestions.filter(q => !existingQuestionTexts.has((q.question || "").trim().toLowerCase()));
+                const uniqueNew = unitQuestions.filter(q => !existingQuestionTexts.has((q.question || "").trim().toLowerCase()));
 
-                const mergedQuestions = [...existingQuestions, ...newQuestions];
+                const finalMerged = [...existingQuestions];
+                let addedSubCount = 0;
+                let skippedSubCount = 0;
+
+                uniqueNew.forEach(q => {
+                    const markLimit = LIMITS[q.marks] || 999;
+                    const staffCountForMark = finalMerged.filter(exQ =>
+                        Number(exQ.marks) === Number(q.marks) &&
+                        exQ.staffId === staffData.id
+                    ).length;
+
+                    if (staffCountForMark < markLimit) {
+                        finalMerged.push(q);
+                        addedSubCount++;
+                    } else {
+                        skippedSubCount++;
+                    }
+                });
+
+                if (skippedSubCount > 0) {
+                    toast.error(`${skippedSubCount} questions skipped (Unit ${unit} limit reached for specific marks)`);
+                }
 
                 await updateDoc(subjectRef, {
                     [`units.${unitKey}`]: {
                         unitNumber: Number(unit),
                         unitName: `Unit ${unit}`,
-                        questions: mergedQuestions,
-                        questionCount: mergedQuestions.length,
+                        questions: finalMerged,
+                        questionCount: finalMerged.length,
                         createdAt: existingUnit?.createdAt || serverTimestamp(),
                         lastUpdated: serverTimestamp(),
                     },
-                    totalQuestions: (existing.totalQuestions || 0) + newQuestions.length,
+                    totalQuestions: (existing.totalQuestions || 0) + addedSubCount,
                     lastUpdated: serverTimestamp(),
                 });
             }

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import logo from '../../assets/logo.png';
 import { createPortal } from 'react-dom';
-import { FileText, Calendar, Clock, Eye, Printer, EyeOff, X, ChevronLeft, ChevronRight, Edit2, RefreshCw, PenTool, CheckCircle, AlertCircle, Search, Trash2 } from 'lucide-react';
+import { FileText, Calendar, Clock, Eye, Printer, EyeOff, X, ChevronLeft, ChevronRight, Edit2, RefreshCw, PenTool, CheckCircle, AlertCircle, Search, Trash2, FileDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { doc, updateDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from '../../../fireBaseConfig';
@@ -14,7 +14,8 @@ export default function GeneratedPapers({
     setActiveTab,
     setGeneratedPaper,
     setShowPreview,
-    previewPaper,
+    downloadPaperAsWord,
+    downloadPaperAsPDF,
     showPreview,
     generatedPaper,
     formatDateTime,
@@ -275,17 +276,29 @@ export default function GeneratedPapers({
                                         </button>
                                         <button
                                             onClick={() => {
-                                                if (paper.questions && paper.questions.length > 0) {
-                                                    setGeneratedPaper(paper);
-                                                    setTimeout(() => previewPaper(paper), 0);
+                                                if (paper.questions?.length > 0) {
+                                                    downloadPaperAsWord(paper);
                                                 } else {
                                                     toast.error("No questions available");
                                                 }
                                             }}
-                                            className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors border border-transparent hover:border-purple-100"
-                                            title="Print / Save PDF"
+                                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100"
+                                            title="Download DOC"
                                         >
-                                            <Printer className="w-4 h-4" />
+                                            <FileText className="w-4 h-4 text-blue-500" />
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                if (paper.questions?.length > 0) {
+                                                    downloadPaperAsPDF(paper);
+                                                } else {
+                                                    toast.error("No questions available");
+                                                }
+                                            }}
+                                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                                            title="Download PDF"
+                                        >
+                                            <FileDown className="w-4 h-4 text-red-500" />
                                         </button>
                                         {userData?.role === 'dean' && (
                                             <button
@@ -358,10 +371,16 @@ export default function GeneratedPapers({
                         </div>
                         <div className="flex items-center gap-3">
                             <button
-                                onClick={() => previewPaper(generatedPaper)}
+                                onClick={() => downloadPaperAsWord(generatedPaper)}
                                 className="px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium flex items-center gap-2 shadow-lg shadow-blue-500/30 transition-all hover:scale-105"
                             >
-                                <Printer className="w-5 h-5" /> Print / Save PDF
+                                <FileText className="w-5 h-5" /> Word Doc
+                            </button>
+                            <button
+                                onClick={() => downloadPaperAsPDF(generatedPaper)}
+                                className="px-5 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 font-medium flex items-center gap-2 shadow-lg shadow-red-500/30 transition-all hover:scale-105"
+                            >
+                                <FileDown className="w-5 h-5" /> PDF
                             </button>
                             <button
                                 onClick={() => setShowPreview(false)}
