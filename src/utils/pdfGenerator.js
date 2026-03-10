@@ -7,22 +7,53 @@ export const downloadPaperAsPDF = async (paper) => {
 
     const loadImage = (url) => {
         return new Promise((resolve) => {
+            if (!url) {
+                resolve(null);
+                return;
+            }
+
+            // Clean up URL and handle short filenames
+            let finalUrl = url;
+            if (typeof finalUrl === 'string') {
+                // Remove extra info in parentheses if exists
+                if (finalUrl.includes('(') && finalUrl.includes(')')) {
+                    finalUrl = finalUrl.split(' ')[0];
+                }
+
+                // Prepend base URL if it's just a filename
+                if (!finalUrl.startsWith('http') && !finalUrl.startsWith('data:') && !finalUrl.startsWith('/')) {
+                    finalUrl = `https://datapro.in/uploads/${finalUrl}`;
+                }
+            }
+
             const img = new Image();
             img.crossOrigin = 'Anonymous';
+
             img.onload = () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-                resolve({
-                    data: canvas.toDataURL('image/jpeg'),
-                    width: img.width,
-                    height: img.height
-                });
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    resolve({
+                        data: canvas.toDataURL('image/jpeg', 0.8),
+                        width: img.width,
+                        height: img.height
+                    });
+                } catch (error) {
+                    console.error("Error converting image:", error);
+                    resolve(null);
+                }
             };
-            img.onerror = () => resolve(null);
-            img.src = url;
+
+            img.onerror = (error) => {
+                console.error("Failed to load image:", finalUrl, error);
+                resolve(null);
+            };
+
+            // Add cache buster to avoid CORS issues
+            img.src = finalUrl + (finalUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
         });
     };
 
@@ -132,13 +163,13 @@ export const downloadPaperAsPDF = async (paper) => {
         // Calculate dimensions first
         const bloomTag = q.bloomLevel ? `[${q.bloomLevel}]` : "";
         const questionText = (q.question || '');
-        const questionLines = doc.splitTextToSize(questionText, 140);
+        const questionLines = doc.splitTextToSize(questionText, 115);
         const lineHeight = 3.6;
         let textHeight = questionLines.length * lineHeight;
 
         let orQuestionLines = [];
         if (q.orQuestion && q.orQuestion.question) {
-            orQuestionLines = doc.splitTextToSize(q.orQuestion.question, 140);
+            orQuestionLines = doc.splitTextToSize(q.orQuestion.question, 115);
             textHeight += (orQuestionLines.length * lineHeight) + 6;
         }
         const optionsHeight = (q.options?.length || 0) * lineHeight;
@@ -180,7 +211,7 @@ export const downloadPaperAsPDF = async (paper) => {
 
             let typeDesc = "Questions";
             if (q.marks <= 2) typeDesc = "Very Short Answer Type Questions";
-            else if (q.marks <= 6) typeDesc = "Short Answer Type Questions";
+            else if (q.marks <= 4) typeDesc = "Short Answer Type Questions";
             else typeDesc = "Long Answer Type Questions";
 
             doc.setFontSize(10);
@@ -216,11 +247,12 @@ export const downloadPaperAsPDF = async (paper) => {
         if (q.orQuestion && q.orQuestion.question) {
             let currentBaseY = contentY + (questionLines.length * lineHeight) + 1;
             doc.setFont("times", 'bold');
-            doc.text("OR", 95, currentBaseY);
+            doc.text("OR", 105, currentBaseY, { align: 'center' });
             currentBaseY += 4;
             doc.setFont("times", 'normal');
             doc.text(orQuestionLines, 28, currentBaseY);
 
+            // Print OR question CO and BT columns
             doc.text(q.orQuestion.unit ? `CO${q.orQuestion.unit}` : 'CO1', 150, currentBaseY, { align: 'center' });
             doc.text(q.orQuestion.bloomLevel ? q.orQuestion.bloomLevel.toUpperCase() : 'RE', 185, currentBaseY, { align: 'center' });
         }
@@ -248,6 +280,24 @@ export const downloadPaperAsPDF = async (paper) => {
             }
             doc.addImage(imageData.data, 'JPEG', 40, contentY, imageData.displayW, imageHeight);
             contentY += imageHeight + 8;
+        }
+
+        // Print OR Image if exists
+        if (q.orQuestion?.imageURL) {
+            const orImageData = await loadImage(q.orQuestion.imageURL);
+            if (orImageData) {
+                const maxW = 100;
+                const ratio = orImageData.height / orImageData.width;
+                const orImageHeight = Math.min(60, maxW * ratio);
+                const orDisplayW = orImageHeight / ratio;
+
+                if (contentY + orImageHeight > 285) {
+                    doc.addPage();
+                    contentY = 20;
+                }
+                doc.addImage(orImageData.data, 'JPEG', 40, contentY, orDisplayW, orImageHeight);
+                contentY += orImageHeight + 8;
+            }
         }
 
         contentY += 2; // Spacing between questions
