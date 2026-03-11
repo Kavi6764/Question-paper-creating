@@ -83,6 +83,7 @@ export default function StaffActivities({ allSubjects, staffList }) {
                                 'Subject Code': subject.subjectCode,
                                 'Subject Name': subject.subjectName,
                                 'Unit': unitNum,
+                                'CO': q.co || "",
                                 'Bloom Level': q.bloomLevel || 'RE',
                                 'Uploaded At': q.uploadedAt ? new Date(q.uploadedAt).toLocaleString() : 'N/A'
                             });
@@ -428,6 +429,7 @@ export default function StaffActivities({ allSubjects, staffList }) {
                                     <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-sm shadow-sm z-10">
                                         <tr className="text-[9px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-100">
                                             <th className="px-6 py-3">Unit</th>
+                                            <th className="px-6 py-3">CO</th>
                                             <th className="px-6 py-3">Context</th>
                                             <th className="px-6 py-3">Question Content</th>
                                             <th className="px-6 py-3">Marks</th>
@@ -440,6 +442,9 @@ export default function StaffActivities({ allSubjects, staffList }) {
                                             <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                                                 <td className="px-6 py-4">
                                                     <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">UNIT {q.Unit}</span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{q.CO}</span>
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="text-[10px] font-bold text-gray-700">{q['Subject Code']}</div>

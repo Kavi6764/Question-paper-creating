@@ -94,6 +94,7 @@ export default function MyActivities({ mySubjects, staffData }) {
                         'Subject Code': subject.subjectCode,
                         'Subject Name': subject.subjectName,
                         'Unit': unitNum,
+                        'CO': q.co || "",
                         'Bloom Level': q.bloomLevel || 'RE',
                         'Uploaded At': q.uploadedAt ? new Date(q.uploadedAt).toLocaleString() : 'N/A'
                     });
@@ -247,6 +248,7 @@ export default function MyActivities({ mySubjects, staffData }) {
                         <thead className="bg-gray-50/50 border-b border-gray-100">
                             <tr className="text-[10px] uppercase font-black text-gray-400 tracking-widest leading-none">
                                 <th className="px-6 py-4 w-28 whitespace-nowrap">Unit</th>
+                                <th className="px-6 py-4 w-28 whitespace-nowrap">CO</th>
                                 <th className="px-6 py-4 w-40 whitespace-nowrap">Subject</th>
                                 <th className="px-6 py-4">Question Details</th>
                                 <th className="px-6 py-4 w-24 text-center whitespace-nowrap">Marks</th>
@@ -260,6 +262,11 @@ export default function MyActivities({ mySubjects, staffData }) {
                                     <td className="px-6 py-4">
                                         <span className="inline-flex items-center justify-center whitespace-nowrap px-2 py-1 bg-blue-50 text-blue-700 rounded text-[10px] font-bold border border-blue-100 uppercase tracking-tighter min-w-[60px]">
                                             Unit {q.Unit}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className="inline-flex items-center justify-center whitespace-nowrap px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-[10px] font-bold border border-indigo-100 uppercase tracking-tighter min-w-[60px]">
+                                            {q.CO}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4">
