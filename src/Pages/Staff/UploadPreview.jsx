@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircle2, XCircle, FileText, AlertCircle } from 'lucide-react';
+import { handleGoogleDriveUrl } from '../../utils/imageHandler';
 
 export default function UploadPreview({ previewData, unit, subjectName, onConfirm, onCancel, loading }) {
     const totalQuestions = previewData.length;
@@ -83,10 +84,30 @@ export default function UploadPreview({ previewData, unit, subjectName, onConfir
                                     <td className="px-4 py-4 text-sm font-bold text-blue-600 text-center">{item.co || <span className="text-slate-300 font-normal italic">No CO</span>}</td>
                                     <td className="px-4 py-4">
                                         <p className="text-sm text-slate-800 break-words line-clamp-2">{item.question}</p>
+                                        {item.imageURL && (
+                                            <div className="mt-2">
+                                                <img 
+                                                    src={handleGoogleDriveUrl(item.imageURL)} 
+                                                    alt="Preview" 
+                                                    className="max-h-20 rounded border border-slate-200"
+                                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                                />
+                                            </div>
+                                        )}
                                         {item.orQuestion && (
                                             <div className="mt-2 pl-3 border-l-2 border-amber-400">
                                                 <span className="text-[10px] font-bold text-amber-600 uppercase block mb-0.5">Alternative (OR) - {item.orQuestion.co || <span className="text-slate-300 font-normal italic">No CO</span>}</span>
                                                 <p className="text-xs text-slate-500 italic break-words line-clamp-2">{item.orQuestion.question}</p>
+                                                {item.orQuestion.imageURL && (
+                                                    <div className="mt-1">
+                                                        <img 
+                                                            src={handleGoogleDriveUrl(item.orQuestion.imageURL)} 
+                                                            alt="OR Preview" 
+                                                            className="max-h-16 rounded border border-slate-200"
+                                                            onError={(e) => { e.target.style.display = 'none'; }}
+                                                        />
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </td>

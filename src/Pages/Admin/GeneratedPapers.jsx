@@ -8,6 +8,8 @@ import { db } from '../../../fireBaseConfig';
 import EditPaperModal from '../../components/EditPaperModal';
 import ReplaceQuestionModal from '../../components/ReplaceQuestionModal';
 import EditQuestionModal from '../../components/EditQuestionModal';
+import { handleGoogleDriveUrl } from '../../utils/imageHandler';
+
 
 export default function GeneratedPapers({
     questionPapers,
@@ -170,12 +172,14 @@ export default function GeneratedPapers({
                             className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none w-full sm:w-64"
                         />
                     </div>
-                    <button
-                        onClick={() => setActiveTab("generate")}
-                        className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl hover:shadow-lg hover:shadow-emerald-500/30 transition-all flex items-center justify-center gap-2 font-medium"
-                    >
-                        <FileText className="w-4 h-4" /> Generate New
-                    </button>
+                    {userData?.role === 'dean' && (
+                        <button
+                            onClick={() => setActiveTab("generate")}
+                            className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl hover:shadow-lg hover:shadow-emerald-500/30 transition-all flex items-center justify-center gap-2 font-medium"
+                        >
+                            <FileText className="w-4 h-4" /> Generate New
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -622,7 +626,7 @@ export default function GeneratedPapers({
                                                                 {question.imageURL && (
                                                                     <div className="mt-3 relative group/img">
                                                                         <img
-                                                                            src={question.imageURL}
+                                                                            src={handleGoogleDriveUrl(question.imageURL)}
                                                                             alt="Question diagram"
                                                                             className="max-h-64 rounded-lg border border-gray-200 shadow-sm object-contain"
                                                                             onError={(e) => {

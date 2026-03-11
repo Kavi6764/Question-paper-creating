@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Save, Check } from 'lucide-react';
+import { handleGoogleDriveUrl } from '../utils/imageHandler';
 
 export default function EditQuestionModal({
     question,
@@ -102,7 +103,7 @@ export default function EditQuestionModal({
                             {editedQuestion.imageURL && (
                                 <div className="p-2 border border-gray-100 rounded-lg bg-gray-50 flex items-center justify-center">
                                     <img
-                                        src={editedQuestion.imageURL}
+                                        src={handleGoogleDriveUrl(editedQuestion.imageURL)}
                                         alt="Current diagram"
                                         className="max-h-48 rounded shadow-sm border border-gray-200"
                                         onError={(e) => {

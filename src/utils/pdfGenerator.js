@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import logo from "../assets/logo.png";
+import { handleGoogleDriveUrl } from "./imageHandler";
 
 const sanitizeText = (text) => {
     if (!text) return "";
@@ -17,6 +18,7 @@ const sanitizeText = (text) => {
         .replace(/→/g, "->");
 };
 
+
 export const downloadPaperAsPDF = async (paper) => {
     if (!paper) return;
 
@@ -28,7 +30,7 @@ export const downloadPaperAsPDF = async (paper) => {
             }
 
             // Clean up URL and handle short filenames
-            let finalUrl = url;
+            let finalUrl = handleGoogleDriveUrl(url);
             if (typeof finalUrl === 'string') {
                 // Remove extra info in parentheses if exists
                 if (finalUrl.includes('(') && finalUrl.includes(')')) {
@@ -256,18 +258,11 @@ export const downloadPaperAsPDF = async (paper) => {
         doc.text(questionLines, 28, contentY);
 
         // Print CO and BT columns
+        if (q.imageURL) doc.setTextColor(59, 130, 246);
         doc.text(q.co || "", 150, contentY, { align: 'center' });
         doc.text(q.bloomLevel ? q.bloomLevel.toUpperCase() : 'RE', 185, contentY, { align: 'center' });
+        if (q.imageURL) doc.setTextColor(0, 0, 0);
         
-        // Add Image Indicator if exists
-        if (q.imageURL) {
-            doc.setFontSize(7);
-            doc.setFont("times", "bolditalic");
-            doc.setTextColor(59, 130, 246); // Blue
-            doc.text("[IMAGE]", 168, contentY, { align: 'center' });
-            doc.setTextColor(0, 0, 0); // Reset
-            doc.setFontSize(9);
-        }
 
         if (q.orQuestion && q.orQuestion.question) {
             let currentBaseY = contentY + (questionLines.length * lineHeight) + 1;
@@ -278,18 +273,11 @@ export const downloadPaperAsPDF = async (paper) => {
             doc.text(orQuestionLines, 28, currentBaseY);
 
             // Print OR question CO and BT columns
+            if (q.orQuestion.imageURL) doc.setTextColor(59, 130, 246);
             doc.text(q.orQuestion.co || "", 150, currentBaseY, { align: 'center' });
             doc.text(q.orQuestion.bloomLevel ? q.orQuestion.bloomLevel.toUpperCase() : 'RE', 185, currentBaseY, { align: 'center' });
+            if (q.orQuestion.imageURL) doc.setTextColor(0, 0, 0);
             
-            // Add Image Indicator for OR question
-            if (q.orQuestion.imageURL) {
-                doc.setFontSize(7);
-                doc.setFont("times", "bolditalic");
-                doc.setTextColor(59, 130, 246);
-                doc.text("[IMAGE]", 168, currentBaseY, { align: 'center' });
-                doc.setTextColor(0, 0, 0);
-                doc.setFontSize(9);
-            }
         }
 
         contentY += textHeight + 1;

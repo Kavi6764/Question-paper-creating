@@ -1239,6 +1239,8 @@ export default function AdminDashboard() {
               ...(userData?.role === 'dean' ? [
                 { id: 'schedule', icon: Timer, label: 'Schedule Papers' },
                 { id: 'generate', icon: FileText, label: 'Generate Papers' },
+              ] : []),
+              ...(userData?.role === 'dean' || userData?.role === 'hod' ? [
                 { id: 'papers', icon: BookOpen, label: 'Generated Papers' },
               ] : []),
               { id: 'assign', icon: GraduationCap, label: 'HOD/Dean Assign' },
@@ -1421,7 +1423,7 @@ export default function AdminDashboard() {
               />
             )}
 
-            {activeTab === "papers" && userData?.role === 'dean' && (
+            {activeTab === "papers" && (userData?.role === 'dean' || userData?.role === 'hod') && (
               <GeneratedPapers
                 questionPapers={questionPapers}
                 loading={loading}
