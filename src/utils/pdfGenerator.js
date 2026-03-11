@@ -258,6 +258,16 @@ export const downloadPaperAsPDF = async (paper) => {
         // Print CO and BT columns
         doc.text(q.co || "", 150, contentY, { align: 'center' });
         doc.text(q.bloomLevel ? q.bloomLevel.toUpperCase() : 'RE', 185, contentY, { align: 'center' });
+        
+        // Add Image Indicator if exists
+        if (q.imageURL) {
+            doc.setFontSize(7);
+            doc.setFont("times", "bolditalic");
+            doc.setTextColor(59, 130, 246); // Blue
+            doc.text("[IMAGE]", 168, contentY, { align: 'center' });
+            doc.setTextColor(0, 0, 0); // Reset
+            doc.setFontSize(9);
+        }
 
         if (q.orQuestion && q.orQuestion.question) {
             let currentBaseY = contentY + (questionLines.length * lineHeight) + 1;
@@ -270,6 +280,16 @@ export const downloadPaperAsPDF = async (paper) => {
             // Print OR question CO and BT columns
             doc.text(q.orQuestion.co || "", 150, currentBaseY, { align: 'center' });
             doc.text(q.orQuestion.bloomLevel ? q.orQuestion.bloomLevel.toUpperCase() : 'RE', 185, currentBaseY, { align: 'center' });
+            
+            // Add Image Indicator for OR question
+            if (q.orQuestion.imageURL) {
+                doc.setFontSize(7);
+                doc.setFont("times", "bolditalic");
+                doc.setTextColor(59, 130, 246);
+                doc.text("[IMAGE]", 168, currentBaseY, { align: 'center' });
+                doc.setTextColor(0, 0, 0);
+                doc.setFontSize(9);
+            }
         }
 
         contentY += textHeight + 1;

@@ -224,7 +224,10 @@ export const downloadPaperAsWord = async (paper) => {
                 }),
                 new Paragraph({
                     alignment: AlignmentType.RIGHT,
-                    children: [new TextRun({ text: `[${q.co || ''}, ${q.bloomLevel || 'RE'}]`, bold: true, italics: true, size: 16, color: "555555" })],
+                    children: [
+                        new TextRun({ text: `[${q.co || ''}, ${q.bloomLevel || 'RE'}]`, bold: true, italics: true, size: 16, color: "555555" }),
+                        ...(q.imageURL ? [new TextRun({ text: " [IMAGE]", bold: true, size: 16, color: "0000FF" })] : [])
+                    ],
                     spacing: { after: 100 },
                 })
             );
@@ -236,7 +239,10 @@ export const downloadPaperAsWord = async (paper) => {
                     new Paragraph({ children: [new TextRun({ text: sanitizeText(q.orQuestion.question), size: 20 })] }),
                     new Paragraph({
                         alignment: AlignmentType.RIGHT,
-                        children: [new TextRun({ text: `[${q.orQuestion.co || ''}, ${q.orQuestion.bloomLevel || 'RE'}]`, bold: true, italics: true, size: 16, color: "555555" })],
+                        children: [
+                            new TextRun({ text: `[${q.orQuestion.co || ''}, ${q.orQuestion.bloomLevel || 'RE'}]`, bold: true, italics: true, size: 16, color: "555555" }),
+                            ...(q.orQuestion.imageURL ? [new TextRun({ text: " [IMAGE]", bold: true, size: 16, color: "0000FF" })] : [])
+                        ],
                         spacing: { after: 100 },
                     })
                 );
