@@ -3,6 +3,21 @@ import { saveAs } from 'file-saver';
 import toast from 'react-hot-toast';
 import logo from '../assets/logo.png';
 
+const sanitizeText = (text) => {
+    if (!text) return "";
+    return text
+        .replace(/∑|Σ/g, "Sigma")
+        .replace(/∈/g, "in")
+        .replace(/≥/g, ">=")
+        .replace(/≤/g, "<=")
+        .replace(/≠/g, "!=")
+        .replace(/∉/g, "not in")
+        .replace(/⊆/g, "subset of")
+        .replace(/∀/g, "for all")
+        .replace(/∃/g, "exists")
+        .replace(/→/g, "->");
+};
+
 export const downloadPaperAsWord = async (paper) => {
     if (!paper) {
         toast.error("Paper data is missing");
@@ -203,13 +218,13 @@ export const downloadPaperAsWord = async (paper) => {
                 new Paragraph({
                     children: [
                         new TextRun({ text: `${String.fromCharCode(97 + questionCounter)}. `, bold: true, size: 20 }),
-                        new TextRun({ text: q.question || "", size: 20 }),
+                        new TextRun({ text: sanitizeText(q.question || ""), size: 20 }),
                     ],
                     spacing: { before: 100 },
                 }),
                 new Paragraph({
                     alignment: AlignmentType.RIGHT,
-                    children: [new TextRun({ text: `[CO${q.unit || 1}, ${q.bloomLevel || 'RE'}]`, bold: true, italics: true, size: 16, color: "555555" })],
+                    children: [new TextRun({ text: `[${q.co || ''}, ${q.bloomLevel || 'RE'}]`, bold: true, italics: true, size: 16, color: "555555" })],
                     spacing: { after: 100 },
                 })
             );
@@ -218,10 +233,10 @@ export const downloadPaperAsWord = async (paper) => {
             if (q.orQuestion?.question) {
                 docChildren.push(
                     new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "OR", bold: true, size: 24 })], spacing: { before: 200, after: 200 } }),
-                    new Paragraph({ children: [new TextRun({ text: q.orQuestion.question, size: 20 })] }),
+                    new Paragraph({ children: [new TextRun({ text: sanitizeText(q.orQuestion.question), size: 20 })] }),
                     new Paragraph({
                         alignment: AlignmentType.RIGHT,
-                        children: [new TextRun({ text: `[CO${q.orQuestion.unit || 1}, ${q.orQuestion.bloomLevel || 'RE'}]`, bold: true, italics: true, size: 16, color: "555555" })],
+                        children: [new TextRun({ text: `[${q.orQuestion.co || ''}, ${q.orQuestion.bloomLevel || 'RE'}]`, bold: true, italics: true, size: 16, color: "555555" })],
                         spacing: { after: 100 },
                     })
                 );

@@ -2,6 +2,21 @@ import jsPDF from "jspdf";
 import "jspdf-autotable";
 import logo from "../assets/logo.png";
 
+const sanitizeText = (text) => {
+    if (!text) return "";
+    return text
+        .replace(/∑|Σ/g, "Sigma")
+        .replace(/∈/g, "in")
+        .replace(/≥/g, ">=")
+        .replace(/≤/g, "<=")
+        .replace(/≠/g, "!=")
+        .replace(/∉/g, "not in")
+        .replace(/⊆/g, "subset of")
+        .replace(/∀/g, "for all")
+        .replace(/∃/g, "exists")
+        .replace(/→/g, "->");
+};
+
 export const downloadPaperAsPDF = async (paper) => {
     if (!paper) return;
 
@@ -162,14 +177,14 @@ export const downloadPaperAsPDF = async (paper) => {
 
         // Calculate dimensions first
         const bloomTag = q.bloomLevel ? `[${q.bloomLevel}]` : "";
-        const questionText = (q.question || '');
+        const questionText = sanitizeText(q.question || '');
         const questionLines = doc.splitTextToSize(questionText, 115);
         const lineHeight = 3.6;
         let textHeight = questionLines.length * lineHeight;
 
         let orQuestionLines = [];
         if (q.orQuestion && q.orQuestion.question) {
-            orQuestionLines = doc.splitTextToSize(q.orQuestion.question, 115);
+            orQuestionLines = doc.splitTextToSize(sanitizeText(q.orQuestion.question), 115);
             textHeight += (orQuestionLines.length * lineHeight) + 6;
         }
         const optionsHeight = (q.options?.length || 0) * lineHeight;
@@ -241,7 +256,7 @@ export const downloadPaperAsPDF = async (paper) => {
         doc.text(questionLines, 28, contentY);
 
         // Print CO and BT columns
-        doc.text(q.unit ? `CO${q.unit}` : 'CO1', 150, contentY, { align: 'center' });
+        doc.text(q.co || "", 150, contentY, { align: 'center' });
         doc.text(q.bloomLevel ? q.bloomLevel.toUpperCase() : 'RE', 185, contentY, { align: 'center' });
 
         if (q.orQuestion && q.orQuestion.question) {
@@ -253,7 +268,7 @@ export const downloadPaperAsPDF = async (paper) => {
             doc.text(orQuestionLines, 28, currentBaseY);
 
             // Print OR question CO and BT columns
-            doc.text(q.orQuestion.unit ? `CO${q.orQuestion.unit}` : 'CO1', 150, currentBaseY, { align: 'center' });
+            doc.text(q.orQuestion.co || "", 150, currentBaseY, { align: 'center' });
             doc.text(q.orQuestion.bloomLevel ? q.orQuestion.bloomLevel.toUpperCase() : 'RE', 185, currentBaseY, { align: 'center' });
         }
 

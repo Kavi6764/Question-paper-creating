@@ -96,16 +96,13 @@ export default function StaffDashboard() {
     const generateSampleData = (marks, count) => {
         return Array.from({ length: count }, (_, i) => ({
             QuestionNo: `Q${i + 1}`,
-            Question: i === 0 ? "Sample Main Question (e.g., Design a DFA over decimal numbers divisible by 4)" : `Sample Question ${i + 1} for ${marks} Marks`,
+            Question: i === 0 ? "Design a Deterministic Finite Automaton (DFA) for the language L = {w ∈ {0,1,2,3,4,5}* | w mod 5 ≥ 3}, where w is interpreted as a base-6 number." : `Sample Question ${i + 1} for ${marks} Marks`,
             Marks: marks,
             Difficulty: i % 3 === 0 ? "Easy" : i % 3 === 1 ? "Medium" : "Hard",
             BloomLevel: i % 6 === 0 ? "RE" : i % 6 === 1 ? "UN" : i % 6 === 2 ? "AP" : i % 6 === 3 ? "AN" : i % 6 === 4 ? "CR" : "EV",
             Unit: 1,
-            ImageURL: "",
-            // Optional OR question fields
-            OrQuestion: i === 0 ? "Sample Alternative Question (e.g., Design a DFA for L={W ∈ {a,b}* | Na(W) mod 5 >= 3})" : "",
-            OrUnit: i === 0 ? 1 : "",
-            OrBloomLevel: i === 0 ? "AP" : ""
+            CO: `CO${(i % 3) + 1}`,
+            ImageURL: ""
         }));
     };
 
@@ -221,11 +218,10 @@ export default function StaffDashboard() {
 
                                 const staffEmail = (newStaffData.email || "").toLowerCase().trim();
                                 const staffName = (newStaffData.name || "").toLowerCase().trim();
-                                const uniqueAssignedMap = new Map();
+                                const groupedSubjects = new Map();
 
                                 const getStaffCount = (s) => {
                                     if (!s) return 0;
-                                    let count = 0;
                                     const allQuestions = [];
 
                                     // 1. Collect from nested units
@@ -250,34 +246,56 @@ export default function StaffDashboard() {
 
                                         return (qId && qId === staffId) ||
                                             (qEmail && qEmail === staffEmail) ||
-                                            (qName && staffName.length > 3 && qName.includes(staffName)); // Check staffName length to avoid false positives with short names
+                                            (qName && staffName.length > 3 && qName.includes(staffName));
                                     }).length;
                                 };
 
+                                // Group and Merge subjects by Code
                                 assigned.forEach(subject => {
                                     const code = (subject.subjectCode || "").trim().toUpperCase();
-                                    const currentStored = uniqueAssignedMap.get(code);
-
                                     const staffCount = getStaffCount(subject);
-                                    const currentStaffCount = currentStored ? getStaffCount(currentStored) : -1;
 
-                                    // Pick the doc where THIS staff has questions. 
-                                    // If tie, pick the one with more questions overall.
-                                    if (!currentStored || staffCount > currentStaffCount || (staffCount === currentStaffCount && (subject.totalQuestions || 0) > (currentStored.totalQuestions || 0))) {
-                                        uniqueAssignedMap.set(code, subject);
+                                    if (!groupedSubjects.has(code)) {
+                                        groupedSubjects.set(code, {
+                                            ...subject,
+                                            totalQuestions: staffCount, // Set to THIS staff's count
+                                            _docs: [subject]
+                                        });
+                                    } else {
+                                        const existing = groupedSubjects.get(code);
+                                        existing._docs.push(subject);
+                                        existing.totalQuestions += staffCount;
+
+                                        // Merge units for display/stats if needed
+                                        if (subject.units) {
+                                            existing.units = existing.units || {};
+                                            Object.keys(subject.units).forEach(uKey => {
+                                                if (!existing.units[uKey]) {
+                                                    existing.units[uKey] = subject.units[uKey];
+                                                } else {
+                                                    const existingQuestions = existing.units[uKey].questions || [];
+                                                    const newQuestions = subject.units[uKey].questions || [];
+                                                    const qTexts = new Set(existingQuestions.map(q => q.question?.trim().toLowerCase()));
+                                                    const uniqueNew = newQuestions.filter(q => !qTexts.has(q.question?.trim().toLowerCase()));
+                                                    existing.units[uKey].questions = [...existingQuestions, ...uniqueNew];
+                                                    existing.units[uKey].questionCount = existing.units[uKey].questions.length;
+                                                }
+                                            });
+                                        }
                                     }
                                 });
 
-                                const uniqueAssigned = Array.from(uniqueAssignedMap.values());
-                                setMySubjects(uniqueAssigned);
+                                const mergedSubjects = Array.from(groupedSubjects.values());
+                                setMySubjects(mergedSubjects);
 
-                                const totalQuestions = uniqueAssigned.reduce((sum, subject) => {
+                                // Total questions is the sum of staff-specific questions across all merged docs
+                                const totalQuestions = assigned.reduce((sum, subject) => {
                                     return sum + getStaffCount(subject);
                                 }, 0);
 
                                 setStats(prev => ({
                                     ...prev,
-                                    totalSubjects: uniqueAssigned.length,
+                                    totalSubjects: mergedSubjects.length,
                                     totalQuestions: totalQuestions
                                 }));
                             });
@@ -412,12 +430,14 @@ export default function StaffDashboard() {
                 difficulty: row.Difficulty || "Medium",
                 bloomLevel: row.BloomLevel || row.bloomLevel || "RE",
                 unit: row.Unit || 1,
+                co: row.CO || row.co || row.C0 || row.c0 || "", // Support both O and Zero
                 imageURL: row.ImageURL || row.imageURL || "",
                 // Support for OR questions
                 orQuestion: row.OrQuestion ? {
                     question: String(row.OrQuestion).trim(),
                     unit: row.OrUnit || row.Unit || 1,
                     bloomLevel: row.OrBloomLevel || row.BloomLevel || "RE",
+                    co: row.OrCO || row.orCo || row.OrC0 || row.orc0 || "",
                     imageURL: row.OrImageURL || ""
                 } : null
             }));
@@ -537,6 +557,7 @@ export default function StaffDashboard() {
                             difficulty: row.difficulty,
                             bloomLevel: row.bloomLevel,
                             unit: row.unit,
+                            co: row.co || "",
                             imageURL: row.imageURL,
                             orQuestion: row.orQuestion || null,
                             uploadedAt: Date.now(),
@@ -585,10 +606,14 @@ export default function StaffDashboard() {
                     lastUpdated: serverTimestamp(),
                     subjectCode,
                     subjectName,
-                    staffId: staffData.id,
-                    staffName: staffData.name,
-                    staffEmail: staffData.email,
                 };
+
+                // Only set owner info if it doesn't exist
+                if (!existingData.staffId) {
+                    updates.staffId = staffData.id;
+                    updates.staffName = staffData.name;
+                    updates.staffEmail = staffData.email;
+                }
 
                 let actualAddedCount = 0;
                 const unitsData = {};
@@ -697,6 +722,7 @@ export default function StaffDashboard() {
                     difficulty: row.difficulty,
                     bloomLevel: row.bloomLevel,
                     unit: row.unit,
+                    co: row.co || "",
                     imageURL: row.imageURL,
                     orQuestion: row.orQuestion || null,
                     uploadedAt: Date.now(),

@@ -577,7 +577,7 @@ export default function AdminDashboard() {
       const staffRef = doc(db, "users", staffId);
       await updateDoc(staffRef, {
         fullName: newStaff.fullName,
-        username: newStaff.username,
+        username: (newStaff.username || "").toLowerCase().trim(),
         department: newStaff.department || "General",
         assignedSubjects: newStaff.subjects || [],
         updatedAt: serverTimestamp()

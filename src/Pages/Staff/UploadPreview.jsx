@@ -69,6 +69,7 @@ export default function UploadPreview({ previewData, unit, subjectName, onConfir
                             <tr>
                                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200 w-16 text-center">No.</th>
                                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200 w-24 text-center">Unit</th>
+                                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200 w-24 text-center">CO</th>
                                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200">Question Text</th>
                                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200 w-32 border-l border-slate-200 text-center">Type / BT</th>
                                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-200 w-24 text-center">Marks</th>
@@ -79,11 +80,12 @@ export default function UploadPreview({ previewData, unit, subjectName, onConfir
                                 <tr key={idx} className="hover:bg-slate-50 transition-colors">
                                     <td className="px-4 py-4 text-sm font-medium text-slate-500 text-center">{idx + 1}</td>
                                     <td className="px-4 py-4 text-sm font-bold text-slate-600 text-center bg-slate-50/50">Unit {item.unit}</td>
+                                    <td className="px-4 py-4 text-sm font-bold text-blue-600 text-center">{item.co || <span className="text-slate-300 font-normal italic">No CO</span>}</td>
                                     <td className="px-4 py-4">
                                         <p className="text-sm text-slate-800 break-words line-clamp-2">{item.question}</p>
                                         {item.orQuestion && (
                                             <div className="mt-2 pl-3 border-l-2 border-amber-400">
-                                                <span className="text-[10px] font-bold text-amber-600 uppercase block mb-0.5">Alternative (OR)</span>
+                                                <span className="text-[10px] font-bold text-amber-600 uppercase block mb-0.5">Alternative (OR) - {item.orQuestion.co || <span className="text-slate-300 font-normal italic">No CO</span>}</span>
                                                 <p className="text-xs text-slate-500 italic break-words line-clamp-2">{item.orQuestion.question}</p>
                                             </div>
                                         )}
