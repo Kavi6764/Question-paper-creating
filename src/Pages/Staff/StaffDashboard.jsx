@@ -102,7 +102,7 @@ export default function StaffDashboard() {
             BloomLevel: i % 6 === 0 ? "RE" : i % 6 === 1 ? "UN" : i % 6 === 2 ? "AP" : i % 6 === 3 ? "AN" : i % 6 === 4 ? "CR" : "EV",
             Unit: 1,
             CO: `CO${(i % 3) + 1}`,
-            ImageURL: ""
+            ImageURL: i === 0 ? "https://picsum.photos/400/300" : ""
         }));
     };
 

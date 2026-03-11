@@ -6,6 +6,7 @@ import { db } from '../../fireBaseConfig';
 import { FileText, FileDown, Loader2 } from 'lucide-react';
 import { downloadPaperAsWord } from '../utils/wordGenerator';
 import { downloadPaperAsPDF } from '../utils/pdfGenerator';
+import { handleGoogleDriveUrl } from '../utils/imageHandler';
 
 export default function QuestionPaperView() {
   const { id } = useParams();
@@ -165,6 +166,28 @@ export default function QuestionPaperView() {
                               <span className="block my-2 text-center font-bold">OR</span>
                             )}
                             {q.orQuestion && q.orQuestion.question}
+                            
+                            {/* Images */}
+                            {q.imageURL && (
+                              <div className="mt-3">
+                                <img 
+                                  src={handleGoogleDriveUrl(q.imageURL)} 
+                                  alt="Question diagram" 
+                                  className="max-h-64 object-contain rounded border border-gray-200"
+                                  onError={(e) => { e.target.style.display = 'none'; }}
+                                />
+                              </div>
+                            )}
+                            {q.orQuestion?.imageURL && (
+                              <div className="mt-3">
+                                <img 
+                                  src={handleGoogleDriveUrl(q.orQuestion.imageURL)} 
+                                  alt="OR Question diagram" 
+                                  className="max-h-64 object-contain rounded border border-gray-200"
+                                  onError={(e) => { e.target.style.display = 'none'; }}
+                                />
+                              </div>
+                            )}
                           </p>
                         </div>
                         <div className="flex flex-col items-end gap-1 min-w-[60px]">

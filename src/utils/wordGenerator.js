@@ -2,6 +2,7 @@ import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, Align
 import { saveAs } from 'file-saver';
 import toast from 'react-hot-toast';
 import logo from '../assets/logo.png';
+import { handleGoogleDriveUrl } from './imageHandler';
 
 const sanitizeText = (text) => {
     if (!text) return "";
@@ -17,6 +18,7 @@ const sanitizeText = (text) => {
         .replace(/∃/g, "exists")
         .replace(/→/g, "->");
 };
+
 
 export const downloadPaperAsWord = async (paper) => {
     if (!paper) {
@@ -35,6 +37,8 @@ export const downloadPaperAsWord = async (paper) => {
             if (url.includes('(') && url.includes(')')) {
                 url = url.split(' ')[0];
             }
+
+            url = handleGoogleDriveUrl(url);
 
             // Prepend base URL if it's just a filename
             if (!url.startsWith('http') && !url.startsWith('data:') && !url.startsWith('/')) {
@@ -225,8 +229,13 @@ export const downloadPaperAsWord = async (paper) => {
                 new Paragraph({
                     alignment: AlignmentType.RIGHT,
                     children: [
-                        new TextRun({ text: `[${q.co || ''}, ${q.bloomLevel || 'RE'}]`, bold: true, italics: true, size: 16, color: "555555" }),
-                        ...(q.imageURL ? [new TextRun({ text: " [IMAGE]", bold: true, size: 16, color: "0000FF" })] : [])
+                        new TextRun({ 
+                            text: `[${q.co || ''}, ${q.bloomLevel || 'RE'}]`, 
+                            bold: true, 
+                            italics: true, 
+                            size: 16, 
+                            color: q.imageURL ? "3B82F6" : "555555" 
+                        }),
                     ],
                     spacing: { after: 100 },
                 })
@@ -240,8 +249,13 @@ export const downloadPaperAsWord = async (paper) => {
                     new Paragraph({
                         alignment: AlignmentType.RIGHT,
                         children: [
-                            new TextRun({ text: `[${q.orQuestion.co || ''}, ${q.orQuestion.bloomLevel || 'RE'}]`, bold: true, italics: true, size: 16, color: "555555" }),
-                            ...(q.orQuestion.imageURL ? [new TextRun({ text: " [IMAGE]", bold: true, size: 16, color: "0000FF" })] : [])
+                            new TextRun({ 
+                                text: `[${q.orQuestion.co || ''}, ${q.orQuestion.bloomLevel || 'RE'}]`, 
+                                bold: true, 
+                                italics: true, 
+                                size: 16, 
+                                color: q.orQuestion.imageURL ? "3B82F6" : "555555" 
+                            }),
                         ],
                         spacing: { after: 100 },
                     })
