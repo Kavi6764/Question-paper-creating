@@ -7,7 +7,8 @@ export default function EditPaperModal({ paper, onClose, onSave }) {
         title: '',
         examDate: '',
         examTime: '',
-        duration: ''
+        duration: '',
+        section: ''
     });
 
     useEffect(() => {
@@ -16,7 +17,8 @@ export default function EditPaperModal({ paper, onClose, onSave }) {
                 title: paper.title || '',
                 examDate: paper.examDate || '',
                 examTime: paper.examTime || '',
-                duration: paper.duration || ''
+                duration: paper.duration || '',
+                section: paper.section || ''
             });
         }
     }, [paper]);
@@ -71,6 +73,20 @@ export default function EditPaperModal({ paper, onClose, onSave }) {
                                 required
                             />
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Section
+                        </label>
+                        <input
+                            type="text"
+                            value={formData.section}
+                            onChange={(e) => setFormData({ ...formData, section: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="e.g. A"
+                            required
+                        />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">

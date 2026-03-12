@@ -19,9 +19,11 @@ export default function StaffManagement({
     handleToggleStaffStatus,
     handleAssignSubject,
     handleRemoveSubject,
-    setActiveTab
+    setActiveTab,
+    departments = []
 }) {
     const [searchTerm, setSearchTerm] = useState("");
+    const [filterDept, setFilterDept] = useState("all");
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
 
@@ -39,6 +41,10 @@ export default function StaffManagement({
             );
         }
 
+        if (filterDept !== "all") {
+            list = list.filter(staff => staff.department === filterDept);
+        }
+
         // Sort by createdAt (newest first)
         return list.sort((a, b) => {
             const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : (a.createdAt?.seconds ? a.createdAt.seconds * 1000 : a.createdAt || 0);
@@ -54,10 +60,10 @@ export default function StaffManagement({
         currentPage * itemsPerPage
     );
 
-    // Reset page when search changes
+    // Reset page when search or filter changes
     React.useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm]);
+    }, [searchTerm, filterDept]);
 
     // Color Mappings
     const roleColors = {
@@ -111,6 +117,19 @@ export default function StaffManagement({
                         />
                     </div>
 
+                    <div className="flex gap-2 mr-2">
+                        <select
+                            value={filterDept}
+                            onChange={(e) => setFilterDept(e.target.value)}
+                            className="text-sm border border-gray-200 bg-gray-50 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 focus:bg-white transition-all shadow-sm cursor-pointer"
+                        >
+                            <option value="all">All Departments</option>
+                            {departments.map(dept => (
+                                <option key={dept.id} value={dept.name}>{dept.name}</option>
+                            ))}
+                        </select>
+                    </div>
+
                     <div className="flex gap-2">
                         <button onClick={() => setActiveTab("hod-dean")} className="px-4 py-2.5 bg-white text-purple-700 border border-purple-200 rounded-xl hover:bg-purple-50 hover:border-purple-300 flex items-center gap-2 transition-all shadow-sm font-medium">
                             <Award className="w-4 h-4" /> Assign HOD/Dean
@@ -147,9 +166,18 @@ export default function StaffManagement({
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Username <span className="text-red-500">*</span></label>
                                     <input type="text" value={newStaff.username} onChange={(e) => setNewStaff({ ...newStaff, username: e.target.value })} className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" placeholder="johndoe" />
                                 </div>
-                                <div>
+                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Department</label>
-                                    <input type="text" value={newStaff.department} onChange={(e) => setNewStaff({ ...newStaff, department: e.target.value })} className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" placeholder="CSE" />
+                                    <select 
+                                        value={newStaff.department} 
+                                        onChange={(e) => setNewStaff({ ...newStaff, department: e.target.value })} 
+                                        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all bg-white cursor-pointer"
+                                    >
+                                        <option value="">Select Department</option>
+                                        {departments.map(dept => (
+                                            <option key={dept.id} value={dept.name}>{dept.name}</option>
+                                        ))}
+                                    </select>
                                 </div>
                             </div>
 

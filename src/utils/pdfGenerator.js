@@ -140,7 +140,8 @@ export const downloadPaperAsPDF = async (paper) => {
     doc.setFont("times", "bolditalic");
     doc.text("Section:", 20, metaY + 8);
     doc.setFont("times", 'normal');
-    doc.text("A/B/C", 45, metaY + 8);
+    const paperSection = (paper.section || "A/B/C").toUpperCase();
+    doc.text(paperSection, 45, metaY + 8);
 
     doc.setFont("times", "bolditalic");
     doc.text("Roll No:", 120, metaY + 8);

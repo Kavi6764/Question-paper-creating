@@ -59,7 +59,8 @@ import CollegeSettings from "./Admin/CollegeSettings";
 import ConfirmationModal from "../components/ConfirmationModal";
 import BackupRestore from "./Admin/BackupRestore";
 import StaffActivities from "./Admin/StaffActivities";
-import { Database as DatabaseIcon, BarChart3 } from "lucide-react";
+import DepartmentManagement from "./Admin/DepartmentManagement";
+import { Database as DatabaseIcon, BarChart3, Building2 } from "lucide-react";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -71,6 +72,7 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState({
     totalStaff: 0,
     totalSubjects: 0,
+    totalDepartments: 0,
     scheduledPapers: 0,
     generatedPapers: 0
   });
@@ -129,7 +131,9 @@ export default function AdminDashboard() {
     totalQuestions: 13, // Prev: 15
     totalMarks: 43, // Prev: 64
     generationTime: "",
-    generationDate: ""
+    generationDate: "",
+    department: "",
+    section: ""
   });
 
   const [selectedQuestions, setSelectedQuestions] = useState([]);
@@ -152,6 +156,9 @@ export default function AdminDashboard() {
   });
 
   const [collegeDetails, setCollegeDetails] = useState(null);
+
+  // Department Management State
+  const [departments, setDepartments] = useState([]);
 
 
   // Check authentication and role
@@ -188,7 +195,8 @@ export default function AdminDashboard() {
               email: user.email,
               name: userData.fullName || userData.name,
               username: userData.username,
-              role: userData.role
+              role: userData.role,
+              department: userData.department || ""
             });
             loadData();
           } else {
@@ -269,10 +277,22 @@ export default function AdminDashboard() {
         checkScheduledPapers(scheduled);
       });
 
+      // Load departments
+      const deptQuery = query(collection(db, "departments"));
+      const unsubscribeDepts = onSnapshot(deptQuery, (snapshot) => {
+        const depts = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setDepartments(depts);
+        setStats(prev => ({ ...prev, totalDepartments: depts.length }));
+      });
+
       return () => {
         unsubscribeStaff();
         unsubscribeSubjects();
         unsubscribePapers();
+        unsubscribeDepts();
       };
     } catch (error) {
       console.error("Error loading data:", error);
@@ -409,7 +429,8 @@ export default function AdminDashboard() {
             eightMark: { count: questionsByMarks.eightMark.length, totalMarks: questionsByMarks.eightMark.reduce((sum, q) => sum + (q.marks || 0), 0) }
           },
           generatedAt: serverTimestamp(),
-          visible: true
+          visible: true,
+          department: scheduledPaper.department || ""
         };
       };
 
@@ -879,6 +900,91 @@ export default function AdminDashboard() {
     }
   };
 
+  // DEPARTMENT MANAGEMENT FUNCTIONS
+  const handleAddDepartment = async (name) => {
+    if (!name) return;
+    try {
+      setLoading(true);
+      await addDoc(collection(db, "departments"), {
+        name,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      toast.success("Department created successfully");
+    } catch (error) {
+      console.error("Error adding department:", error);
+      toast.error("Error adding department");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateDepartment = async (id, name) => {
+    if (!name) return;
+    try {
+      setLoading(true);
+      await updateDoc(doc(db, "departments", id), {
+        name,
+        updatedAt: serverTimestamp()
+      });
+      toast.success("Department updated successfully");
+    } catch (error) {
+      console.error("Error updating department:", error);
+      toast.error("Error updating department");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteDepartment = async (id, name) => {
+    if (window.confirm(`Are you sure you want to delete the department "${name}"? This will NOT delete staff members, but they will be unassigned.`)) {
+      try {
+        setLoading(true);
+        await deleteDoc(doc(db, "departments", id));
+        toast.success("Department deleted successfully");
+      } catch (error) {
+        console.error("Error deleting department:", error);
+        toast.error("Error deleting department");
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleAssignStaffToDept = async (staffId, deptName) => {
+    try {
+      setLoading(true);
+      const staffRef = doc(db, "users", staffId);
+      await updateDoc(staffRef, {
+        department: deptName,
+        updatedAt: serverTimestamp()
+      });
+      toast.success("Staff assigned to department successfully");
+    } catch (error) {
+      console.error("Error assigning staff to dept:", error);
+      toast.error("Error assigning staff to dept");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveStaffFromDept = async (staffId) => {
+    try {
+      setLoading(true);
+      const staffRef = doc(db, "users", staffId);
+      await updateDoc(staffRef, {
+        department: "",
+        updatedAt: serverTimestamp()
+      });
+      toast.success("Staff removed from department successfully");
+    } catch (error) {
+      console.error("Error removing staff from dept:", error);
+      toast.error("Error removing staff from dept");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // PAPER GENERATION LOGIC
   const prepareQuestionStats = (questions) => {
     const stats = {
@@ -1083,7 +1189,9 @@ export default function AdminDashboard() {
             fourMark: { count: fourMarkCount, totalMarks: fourMarkCount * 4 },
             sixMark: { count: sixMarkCount, totalMarks: sixMarkCount * 6 },
             eightMark: { count: eightMarkCount, totalMarks: eightMarkCount * 8 }
-          }
+          },
+          department: paperForm.department || "",
+          section: paperForm.section || ""
         };
       };
 
@@ -1115,7 +1223,9 @@ export default function AdminDashboard() {
         totalQuestions: 13, // Prev: 15
         totalMarks: 43, // 5*1 + 5*4 + 3*6 + 0*8 = 43 (Prev: 59)
         generationTime: "",
-        generationDate: ""
+        generationDate: "",
+        department: "",
+        section: ""
       });
       setSelectedQuestions([]);
       setAvailableQuestions({
@@ -1170,7 +1280,9 @@ export default function AdminDashboard() {
         isAutoGenerated: true,
         visible: false,
         createdBy: userData.uid || "admin",
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        department: paperForm.department || "",
+        section: paperForm.section || ""
       };
 
       await addDoc(collection(db, "questionPapers"), scheduledPaper);
@@ -1237,6 +1349,7 @@ export default function AdminDashboard() {
               { id: 'staff', icon: Users, label: 'Staff Management' },
               { id: 'subjects', icon: Book, label: 'Subject Management' },
               ...(userData?.role === 'dean' ? [
+                { id: 'departments', icon: Building2, label: 'Dept Management' },
                 { id: 'schedule', icon: Timer, label: 'Schedule Papers' },
                 { id: 'generate', icon: FileText, label: 'Generate Papers' },
               ] : []),
@@ -1305,7 +1418,7 @@ export default function AdminDashboard() {
       <div className="p-4 sm:ml-64">
         <PageContainer className="p-4 mt-2">
           {/* Header Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
             <div className="glass-card rounded-2xl p-5 animate-scale-in" style={{ animationDelay: '0s' }}>
               <div className="flex justify-between items-start">
                 <div>
@@ -1329,6 +1442,20 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
+
+            {userData?.role === 'dean' && (
+              <div className="glass-card rounded-2xl p-5 animate-scale-in" style={{ animationDelay: '0.15s' }}>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Departments</p>
+                    <h3 className="text-2xl font-bold text-gray-900 mt-1">{departments.length}</h3>
+                  </div>
+                  <div className="p-3 bg-indigo-500/10 rounded-xl text-indigo-600">
+                    <Building2 className="w-5 h-5" />
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="glass-card rounded-2xl p-5 animate-scale-in" style={{ animationDelay: '0.2s' }}>
               <div className="flex justify-between items-start">
@@ -1374,6 +1501,7 @@ export default function AdminDashboard() {
                 handleToggleStaffStatus={handleToggleStaffStatus}
                 loading={loading}
                 userData={userData}
+                departments={departments}
               />
             )}
 
@@ -1391,6 +1519,20 @@ export default function AdminDashboard() {
                 handleDeleteSubject={handleDeleteSubject}
                 handleEditSubject={handleEditSubject}
                 loading={loading}
+                departments={departments}
+              />
+            )}
+
+            {activeTab === "departments" && userData?.role === 'dean' && (
+              <DepartmentManagement
+                departments={departments}
+                staffList={staffList}
+                loading={loading}
+                handleAddDepartment={handleAddDepartment}
+                handleUpdateDepartment={handleUpdateDepartment}
+                handleDeleteDepartment={handleDeleteDepartment}
+                handleAssignStaffToDept={handleAssignStaffToDept}
+                handleRemoveStaffFromDept={handleRemoveStaffFromDept}
               />
             )}
 
@@ -1465,6 +1607,7 @@ export default function AdminDashboard() {
                 currentUser={userData}
                 loading={loading}
                 staffList={staffList}
+                departments={departments}
               />
             )}
 

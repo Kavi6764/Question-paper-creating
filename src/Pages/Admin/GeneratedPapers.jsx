@@ -36,6 +36,13 @@ export default function GeneratedPapers({
         return questionPapers
             .filter(paper => paper.status === "generated")
             .filter(paper => {
+                // If user is HOD, they only see papers from their department
+                if (userData?.role === 'hod' && userData?.department) {
+                    return paper.department === userData.department;
+                }
+                return true;
+            })
+            .filter(paper => {
                 if (!searchTerm) return true;
                 const search = searchTerm.toLowerCase();
                 return (
@@ -188,7 +195,7 @@ export default function GeneratedPapers({
                     <thead>
                         <tr className="bg-gray-50/50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500 font-semibold">
                             <th className="px-6 py-4">Paper Details</th>
-                            <th className="px-6 py-4">Status</th>
+                            {/* <th className="px-6 py-4">Status</th> */}
                             <th className="px-6 py-4">Exam Info</th>
                             <th className="px-6 py-4">Stats</th>
                             <th className="px-6 py-4 text-right">Actions</th>
@@ -212,7 +219,7 @@ export default function GeneratedPapers({
                                         </div>
                                     </div>
                                 </td>
-                                <td className="px-6 py-4">
+                                {/* <td className="px-6 py-4">
                                     <button
                                         onClick={async () => {
                                             try {
@@ -233,7 +240,7 @@ export default function GeneratedPapers({
                                         {paper.visible ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
                                         {paper.visible ? 'Visible' : 'Hidden'}
                                     </button>
-                                </td>
+                                </td> */}
                                 <td className="px-6 py-4">
                                     <div className="text-xs text-gray-500 space-y-1">
                                         <span className="block flex items-center gap-1.5">
@@ -495,7 +502,7 @@ export default function GeneratedPapers({
                                                         <div className="flex justify-between mb-1">
                                                             <div className="flex gap-2 w-1/2">
                                                                 <span className="italic font-bold">Section:</span>
-                                                                <span>A/B/C</span>
+                                                                <span className="uppercase">{generatedPaper.section || "A/B/C"}</span>
                                                             </div>
                                                             <div className="flex gap-2 w-1/2">
                                                                 <span className="italic font-bold">Roll No:</span>

@@ -11,7 +11,8 @@ export default function HodDeanAssignment({
     handleAssignHodDean,
     handleRemoveRole,
     currentUser,
-    staffList
+    staffList,
+    departments = []
 }) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
@@ -260,13 +261,16 @@ export default function HodDeanAssignment({
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Department <span className="text-red-500">*</span></label>
-                                <input
-                                    type="text"
+                                <select
                                     value={hodDeanAssignment.department}
                                     onChange={(e) => setHodDeanAssignment({ ...hodDeanAssignment, department: e.target.value })}
-                                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all"
-                                    placeholder="e.g. Computer Science"
-                                />
+                                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all appearance-none cursor-pointer bg-white"
+                                >
+                                    <option value="">Select Department</option>
+                                    {departments.map(dept => (
+                                        <option key={dept.id} value={dept.name}>{dept.name}</option>
+                                    ))}
+                                </select>
                             </div>
 
                             <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex gap-3">
