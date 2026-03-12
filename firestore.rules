@@ -48,5 +48,11 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
     }
+
+    // DEPARTMENTS
+    match /departments/{deptId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
   }
 }

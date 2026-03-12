@@ -142,7 +142,7 @@ export const downloadPaperAsWord = async (paper) => {
                 new TableRow({
                     children: [
                         new TableCell({
-                            children: [new Paragraph({ children: [new TextRun({ text: "Section: ", bold: true, italics: true }), new TextRun({ text: "A/B/C" })] })],
+                            children: [new Paragraph({ children: [new TextRun({ text: "Section: ", bold: true, italics: true }), new TextRun({ text: (paper.section || "A/B/C").toUpperCase() })] })],
                         }),
                         new TableCell({
                             children: [new Paragraph({ children: [new TextRun({ text: "Roll No: ", bold: true, italics: true }), new TextRun({ text: ".............................." })] })],

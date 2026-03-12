@@ -19,11 +19,13 @@ export default function SubjectManagement({
     handleAddSubject,
     handleUpdateSubject,
     handleEditSubject,
-    handleDeleteSubject
+    handleDeleteSubject,
+    departments = []
 }) {
     const [currentPage, setCurrentPage] = useState(1);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterSemester, setFilterSemester] = useState('all');
+    const [filterDept, setFilterDept] = useState('all');
     const [showFilters, setShowFilters] = useState(false);
     const itemsPerPage = 7; // Increased for table view
 
@@ -37,7 +39,10 @@ export default function SubjectManagement({
         const matchesSemester = filterSemester === 'all' ||
             subject.semester?.toString() === filterSemester;
 
-        return matchesSearch && matchesSemester;
+        const matchesDept = filterDept === 'all' ||
+            subject.department === filterDept;
+
+        return matchesSearch && matchesSemester && matchesDept;
     });
 
     // Sort by recently added
@@ -57,7 +62,7 @@ export default function SubjectManagement({
     // Reset page when filters change
     React.useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, filterSemester]);
+    }, [searchTerm, filterSemester, filterDept]);
 
     // Color Helpers
     const getRandomGradient = (code) => {
@@ -183,6 +188,16 @@ export default function SubjectManagement({
                             <option value="all">All Semesters</option>
                             {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => (
                                 <option key={sem} value={sem}>Semester {sem}</option>
+                            ))}
+                        </select>
+                        <select
+                            value={filterDept}
+                            onChange={(e) => setFilterDept(e.target.value)}
+                            className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white cursor-pointer"
+                        >
+                            <option value="all">All Departments</option>
+                            {departments.map(dept => (
+                                <option key={dept.id} value={dept.name}>{dept.name}</option>
                             ))}
                         </select>
                         <button
@@ -399,13 +414,16 @@ export default function SubjectManagement({
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Department</label>
-                                        <input
-                                            type="text"
-                                            value={newSubject.department}
-                                            onChange={(e) => setNewSubject({ ...newSubject, department: e.target.value })}
-                                            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all text-sm"
-                                            placeholder="e.g. CSE"
-                                        />
+                                        <select 
+                                            value={newSubject.department} 
+                                            onChange={(e) => setNewSubject({ ...newSubject, department: e.target.value })} 
+                                            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all bg-white cursor-pointer text-sm"
+                                        >
+                                            <option value="">Select Department</option>
+                                            {departments.map(dept => (
+                                                <option key={dept.id} value={dept.name}>{dept.name}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                     <div className="space-y-1.5">
                                         <label className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Semester</label>
