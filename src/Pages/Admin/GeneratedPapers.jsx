@@ -474,8 +474,8 @@ export default function GeneratedPapers({
                                         <>
                                             <div className="text-center mb-6">
                                                 <div className="border border-gray-900 rounded p-4 mb-4 font-serif text-[15px] font-bold">
-                                                    <h1 className="text-xl uppercase tracking-wider mb-1">Uttarakhand University</h1>
-                                                    <h2 className="text-lg font-normal mb-1">Uttarakhand Institute of Technology</h2>
+                                                    <h1 className="text-xl uppercase tracking-wider mb-1"> Uttaranchal  University</h1>
+                                                    <h2 className="text-lg font-normal mb-1">Uttaranchal Institute of Technology</h2>
                                                     <h3 className="text-base mb-3">{generatedPaper.title ? generatedPaper.title.replace(/ - Set [A-Z]/gi, "") : ""}</h3>
 
                                                     <div className="text-left w-full mt-2 font-normal">

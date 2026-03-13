@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { 
-    Search, Layers, 
+import {
+    Search, Layers,
     Download, ChevronLeft, ChevronRight, Trash2
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -32,7 +32,7 @@ export default function QuestionBank({ allSubjects, userData, onDeleteUnit }) {
                     const unit = subject.units[unitKey];
                     const unitNum = unit.unitNumber || unitKey.replace('unit', '');
                     const questions = unit.questions || [];
-                    
+
                     questions.forEach((q, idx) => {
                         pool.push({
                             ...q,
@@ -51,10 +51,10 @@ export default function QuestionBank({ allSubjects, userData, onDeleteUnit }) {
     // Apply Filters
     const filteredQuestions = useMemo(() => {
         return allQuestions.filter(q => {
-            const matchesSearch = searchTerm === '' || 
+            const matchesSearch = searchTerm === '' ||
                 (q.question || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (q.subjectCode || '').toLowerCase().includes(searchTerm.toLowerCase());
-            
+
             const matchesSubject = selectedSubject === 'all' || q.subjectCode === selectedSubject;
             const matchesUnit = selectedUnit === 'all' || q.unit.toString() === selectedUnit;
             const matchesMarks = selectedMarks === 'all' || (q.marks && q.marks.toString() === selectedMarks);
@@ -118,7 +118,7 @@ export default function QuestionBank({ allSubjects, userData, onDeleteUnit }) {
                         Question Bank
                     </h2>
                     <p className="text-xs text-gray-500 mt-0.5">
-                        {userData?.role === 'hod' ? `${userData.department} Department • ` : ''} 
+                        {userData?.role === 'hod' ? `${userData.department} Department • ` : ''}
                         {filteredQuestions.length} Questions Found
                     </p>
                 </div>
@@ -165,7 +165,7 @@ export default function QuestionBank({ allSubjects, userData, onDeleteUnit }) {
                                 <option key={u} value={u.toString()}>Unit {u}</option>
                             ))}
                         </select>
-                        <select
+                        {/* <select
                             value={selectedMarks}
                             onChange={(e) => setSelectedMarks(e.target.value)}
                             className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white outline-none cursor-pointer hover:border-gray-300"
@@ -174,8 +174,8 @@ export default function QuestionBank({ allSubjects, userData, onDeleteUnit }) {
                             {[1, 4, 6].map(m => (
                                 <option key={m} value={m.toString()}>{m} Marks</option>
                             ))}
-                        </select>
-                        
+                        </select> */}
+
                         {selectedSubject !== 'all' && selectedUnit !== 'all' && (
                             <button
                                 onClick={handleDeleteClick}
