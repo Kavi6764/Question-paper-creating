@@ -29,7 +29,8 @@ import {
   onSnapshot,
   deleteDoc,
   arrayRemove,
-  addDoc
+  addDoc,
+  writeBatch
 } from "firebase/firestore";
 import { db, auth, firebaseConfig } from "../../fireBaseConfig";
 import { initializeApp, getApps, getApp } from "firebase/app";
@@ -60,7 +61,8 @@ import ConfirmationModal from "../components/ConfirmationModal";
 import BackupRestore from "./Admin/BackupRestore";
 import StaffActivities from "./Admin/StaffActivities";
 import DepartmentManagement from "./Admin/DepartmentManagement";
-import { Database as DatabaseIcon, BarChart3, Building2 } from "lucide-react";
+import QuestionBank from "./Admin/QuestionBank";
+import { Database as DatabaseIcon, BarChart3, Building2, Layers } from "lucide-react";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -304,11 +306,52 @@ export default function AdminDashboard() {
   const filteredStaffForRole = useMemo(() => {
     if (!staffList || !userData) return [];
     if (userData.role === 'hod') {
-      // HODs cannot see Dean details
-      return staffList.filter(s => s.role !== 'dean' && s.username !== 'dean');
+      const dept = userData.department;
+      // HODs see staff in their department and cannot see Dean
+      return staffList.filter(s =>
+        s.role !== 'dean' &&
+        s.username !== 'dean' &&
+        (s.department === dept)
+      );
     }
     return staffList;
   }, [staffList, userData]);
+
+  const filteredSubjectsForRole = useMemo(() => {
+    if (!allSubjects || !userData) return [];
+    if (userData.role === 'hod') {
+      const dept = userData.department;
+      return allSubjects.filter(sub => sub.department === dept);
+    }
+    return allSubjects;
+  }, [allSubjects, userData]);
+
+  const filteredAvailableSubjectsForRole = useMemo(() => {
+    if (!availableSubjects || !userData) return [];
+    if (userData.role === 'hod') {
+      const dept = userData.department;
+      return availableSubjects.filter(sub => sub.department === dept);
+    }
+    return availableSubjects;
+  }, [availableSubjects, userData]);
+
+  const filteredPapersForRole = useMemo(() => {
+    if (!questionPapers || !userData) return [];
+    if (userData.role === 'hod') {
+      const dept = userData.department;
+      return questionPapers.filter(paper => paper.department === dept);
+    }
+    return questionPapers;
+  }, [questionPapers, userData]);
+
+  const filteredScheduledPapersForRole = useMemo(() => {
+    if (!scheduledPapers || !userData) return [];
+    if (userData.role === 'hod') {
+      const dept = userData.department;
+      return scheduledPapers.filter(paper => paper.department === dept);
+    }
+    return scheduledPapers;
+  }, [scheduledPapers, userData]);
 
   // Calculate total questions and marks
   useEffect(() => {
@@ -1299,6 +1342,76 @@ export default function AdminDashboard() {
   };
 
 
+  const handleDeleteUnitQuestions = async (subjectCode, unitNumber) => {
+    if (!window.confirm(`⚠️ PERMANENT ACTION\n\nAre you sure you want to delete ALL questions for Unit ${unitNumber} of subject ${subjectCode}?\n\nThis cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const subject = allSubjects.find(s => s.subjectCode === subjectCode);
+      if (!subject) {
+        toast.error("Subject not found");
+        return;
+      }
+
+      const subjectRef = doc(db, "subjects", subject.id);
+      const unitKey = `unit${unitNumber}`;
+
+      // Get current questions in this unit to know how many to subtract
+      const subjectDoc = await getDoc(subjectRef);
+      const subjectData = subjectDoc.data();
+      const unitQuestionsCount = subjectData.units?.[unitKey]?.questions?.length || 0;
+
+      const newTotalQuestions = Math.max(0, (subjectData.totalQuestions || 0) - unitQuestionsCount);
+
+      const batch = writeBatch(db);
+
+      // 1. Update Subject (Clear questions and update total count)
+      batch.update(subjectRef, {
+        [`units.${unitKey}.questions`]: [],
+        [`units.${unitKey}.questionCount`]: 0,
+        totalQuestions: newTotalQuestions
+      });
+
+      // 2. Clear from Uploads History
+      const uploadsQuery = query(
+        collection(db, "uploads"),
+        where("subjectCode", "==", subjectCode)
+      );
+      const uploadSnaps = await getDocs(uploadsQuery);
+      uploadSnaps.forEach((doc) => {
+        const data = doc.data();
+        // Check unit with loose equality/Number conversion to handle string vs number issues
+        if (data.unit !== undefined && Number(data.unit) === Number(unitNumber)) {
+          batch.delete(doc.ref);
+        }
+      });
+
+      // 3. Clear from Activities feed
+      const activityQuery = query(
+        collection(db, "activities"),
+        where("subjectCode", "==", subjectCode)
+      );
+      const activitySnaps = await getDocs(activityQuery);
+      activitySnaps.forEach((doc) => {
+        const data = doc.data();
+        if (data.unit !== undefined && Number(data.unit) === Number(unitNumber)) {
+          batch.delete(doc.ref);
+        }
+      });
+
+      await batch.commit();
+
+      toast.success(`Successfully deleted questions and history for Unit ${unitNumber} of ${subjectCode}`);
+    } catch (error) {
+      console.error("Error deleting questions:", error);
+      toast.error("An error occurred while deleting questions");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await signOut(auth);
@@ -1348,15 +1461,16 @@ export default function AdminDashboard() {
             {[
               { id: 'staff', icon: Users, label: 'Staff Management' },
               { id: 'subjects', icon: Book, label: 'Subject Management' },
+              { id: 'question-bank', icon: Layers, label: 'Question Bank' },
               ...(userData?.role === 'dean' ? [
                 { id: 'departments', icon: Building2, label: 'Dept Management' },
                 { id: 'schedule', icon: Timer, label: 'Schedule Papers' },
                 { id: 'generate', icon: FileText, label: 'Generate Papers' },
+                { id: 'assign', icon: GraduationCap, label: 'HOD/Dean Assign' },
               ] : []),
               ...(userData?.role === 'dean' || userData?.role === 'hod' ? [
                 { id: 'papers', icon: BookOpen, label: 'Generated Papers' },
               ] : []),
-              { id: 'assign', icon: GraduationCap, label: 'HOD/Dean Assign' },
               { id: 'activities', icon: BarChart3, label: 'Staff Activities' },
               { id: 'settings', icon: Building, label: 'Settings' },
               // { id: 'backup', icon: DatabaseIcon, label: 'Backup & Restore' },
@@ -1435,7 +1549,7 @@ export default function AdminDashboard() {
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Subjects</p>
-                  <h3 className="text-2xl font-bold text-gray-900 mt-1">{allSubjects.length}</h3>
+                  <h3 className="text-2xl font-bold text-gray-900 mt-1">{filteredSubjectsForRole.length}</h3>
                 </div>
                 <div className="p-3 bg-indigo-500/10 rounded-xl text-indigo-600">
                   <Book className="w-5 h-5" />
@@ -1461,7 +1575,7 @@ export default function AdminDashboard() {
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Scheduled Papers</p>
-                  <h3 className="text-2xl font-bold text-gray-900 mt-1">{scheduledPapers.length}</h3>
+                  <h3 className="text-2xl font-bold text-gray-900 mt-1">{filteredScheduledPapersForRole.length}</h3>
                 </div>
                 <div className="p-3 bg-amber-500/10 rounded-xl text-amber-600">
                   <Timer className="w-5 h-5" />
@@ -1473,7 +1587,7 @@ export default function AdminDashboard() {
               <div className="flex justify-between items-start">
                 <div>
                   <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Generated Papers</p>
-                  <h3 className="text-2xl font-bold text-gray-900 mt-1">{questionPapers.length}</h3>
+                  <h3 className="text-2xl font-bold text-gray-900 mt-1">{filteredPapersForRole.length}</h3>
                 </div>
                 <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-600">
                   <FileText className="w-5 h-5" />
@@ -1486,7 +1600,7 @@ export default function AdminDashboard() {
             {activeTab === "staff" && (
               <StaffManagement
                 staffList={filteredStaffForRole}
-                availableSubjects={availableSubjects}
+                availableSubjects={filteredAvailableSubjectsForRole}
                 showAddStaff={showAddStaff}
                 setShowAddStaff={setShowAddStaff}
                 newStaff={newStaff}
@@ -1507,7 +1621,7 @@ export default function AdminDashboard() {
 
             {activeTab === "subjects" && (
               <SubjectManagement
-                allSubjects={allSubjects}
+                allSubjects={filteredSubjectsForRole}
                 showAddSubject={showAddSubject}
                 setShowAddSubject={setShowAddSubject}
                 newSubject={newSubject}
@@ -1538,9 +1652,9 @@ export default function AdminDashboard() {
 
             {activeTab === "schedule" && userData?.role === 'dean' && (
               <ScheduledPapers
-                scheduledPapers={scheduledPapers}
+                scheduledPapers={filteredScheduledPapersForRole}
                 setPaperForm={setPaperForm}
-                availableSubjects={availableSubjects}
+                availableSubjects={filteredAvailableSubjectsForRole}
                 setActiveTab={setActiveTab}
               />
             )}
@@ -1549,7 +1663,7 @@ export default function AdminDashboard() {
               <PaperGeneration
                 paperForm={paperForm}
                 setPaperForm={setPaperForm}
-                availableSubjects={availableSubjects}
+                availableSubjects={filteredAvailableSubjectsForRole}
                 questionStats={questionStats}
                 setQuestionStats={setQuestionStats}
                 selectedQuestions={selectedQuestions}
@@ -1567,7 +1681,7 @@ export default function AdminDashboard() {
 
             {activeTab === "papers" && (userData?.role === 'dean' || userData?.role === 'hod') && (
               <GeneratedPapers
-                questionPapers={questionPapers}
+                questionPapers={filteredPapersForRole}
                 loading={loading}
                 setActiveTab={setActiveTab}
                 setGeneratedPaper={setGeneratedPaper}
@@ -1591,8 +1705,8 @@ export default function AdminDashboard() {
 
             {activeTab === "activities" && (
               <StaffActivities
-                allSubjects={allSubjects}
-                staffList={staffList}
+                allSubjects={filteredSubjectsForRole}
+                staffList={filteredStaffForRole}
               />
             )}
 
@@ -1608,6 +1722,14 @@ export default function AdminDashboard() {
                 loading={loading}
                 staffList={staffList}
                 departments={departments}
+              />
+            )}
+
+            {activeTab === "question-bank" && (
+              <QuestionBank
+                allSubjects={allSubjects}
+                userData={userData}
+                onDeleteUnit={handleDeleteUnitQuestions}
               />
             )}
 
