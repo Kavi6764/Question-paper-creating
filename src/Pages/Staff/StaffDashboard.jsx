@@ -413,40 +413,67 @@ export default function StaffDashboard() {
                 allRows = [...allRows, ...sheetRows];
             });
 
-            // Filter out empty rows (where Question text is missing)
-            const rows = allRows.filter(row =>
-                row.Question &&
-                row.Question.toString().trim() !== "" &&
-                row.Marks !== undefined &&
-                [1, 2, 4, 6].includes(Number(row.Marks))
-            );
+            if (allRows.length === 0) {
+                toast.error("The uploaded file is empty.");
+                return;
+            }
 
-            const previewRows = rows.map((row, index) => ({
-                id: index + 1,
-                questionNo: row.QuestionNo || `Q${index + 1}`,
-                question: String(row.Question).trim(),
-                marks: Number(row.Marks) || 0,
-                questionType: Number(row.Marks) <= 2 ? 'MCQ' : Number(row.Marks) <= 4 ? 'Short' : 'Long',
-                difficulty: row.Difficulty || "Medium",
-                bloomLevel: row.BloomLevel || row.bloomLevel || "RE",
-                unit: row.Unit || 1,
-                co: row.CO || row.co || row.C0 || row.c0 || "", // Support both O and Zero
-                imageURL: row.ImageURL || row.imageURL || "",
-                // Support for OR questions
-                orQuestion: row.OrQuestion ? {
-                    question: String(row.OrQuestion).trim(),
-                    unit: row.OrUnit || row.Unit || 1,
-                    bloomLevel: row.OrBloomLevel || row.BloomLevel || "RE",
-                    co: row.OrCO || row.orCo || row.OrC0 || row.orc0 || "",
-                    imageURL: row.OrImageURL || ""
-                } : null
-            }));
+            const previewRows = [];
+
+            allRows.forEach((row, index) => {
+                // If the entire row is empty, skip it
+                if (Object.keys(row).length === 0) return;
+
+                const missingFields = [];
+                if (!row.Question || row.Question.toString().trim() === "") missingFields.push("Question");
+                
+                const marksVal = row.Marks !== undefined ? Number(row.Marks) : null;
+                if (marksVal === null || ![1, 2, 4, 6].includes(marksVal)) {
+                    missingFields.push("Marks (must be 1, 2, 4, or 6)");
+                }
+
+                if (!row.Unit) missingFields.push("Unit");
+                
+                const coVal = row.CO || row.co || row.C0 || row.c0;
+                if (!coVal) missingFields.push("CO");
+                
+                const bloomVal = row.BloomLevel || row.bloomLevel;
+                if (!bloomVal) missingFields.push("BloomLevel");
+
+                previewRows.push({
+                    id: previewRows.length + 1,
+                    questionNo: row.QuestionNo || `Q${previewRows.length + 1}`,
+                    question: row.Question ? String(row.Question).trim() : "",
+                    marks: marksVal,
+                    questionType: marksVal <= 2 ? 'MCQ' : marksVal <= 4 ? 'Short' : 'Long',
+                    difficulty: row.Difficulty || "Medium",
+                    bloomLevel: bloomVal || "",
+                    unit: row.Unit || "",
+                    co: coVal || "",
+                    imageURL: row.ImageURL || row.imageURL || "",
+                    hasError: missingFields.length > 0,
+                    missingFields: missingFields,
+                    orQuestion: row.OrQuestion ? {
+                        question: String(row.OrQuestion).trim(),
+                        unit: row.OrUnit || row.Unit || "",
+                        bloomLevel: row.OrBloomLevel || bloomVal || "",
+                        co: row.OrCO || row.orCo || row.OrC0 || row.orc0 || coVal || "",
+                        imageURL: row.OrImageURL || ""
+                    } : null
+                });
+            });
 
             setPreviewData(previewRows);
-            toast.success(`Preview loaded: ${previewRows.length} questions found`);
+
+            const errorCount = previewRows.filter(r => r.hasError).length;
+            if (errorCount > 0) {
+                toast.error(`${errorCount} rows have missing or invalid data. Please fix them in the preview before uploading.`);
+            } else {
+                toast.success(`Check preview: ${previewRows.length} questions ready`);
+            }
         } catch (error) {
             console.error("Error parsing file:", error);
-            toast.error("Error reading file for preview");
+            toast.error("Failed to process Excel file. Please use the provided template.");
         }
     };
 
@@ -1104,6 +1131,7 @@ export default function StaffDashboard() {
                     <div className="mt-8">
                         <UploadPreview
                             previewData={previewData}
+                            setPreviewData={setPreviewData}
                             unit={unit}
                             subjectName={subjectName}
                             onConfirm={handleConfirmUpload}
