@@ -8,9 +8,9 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
     const [editingId, setEditingId] = useState(null);
 
     // Group by Question Type
-    const mcqCount = previewData.filter(q => q.marks <= 2).length;
-    const shortCount = previewData.filter(q => q.marks === 4).length;
-    const longCount = previewData.filter(q => q.marks === 6).length;
+    const mcqCount = previewData.filter(q => Number(q.marks) === 1).length;
+    const shortCount = previewData.filter(q => Number(q.marks) === 4).length;
+    const longCount = previewData.filter(q => Number(q.marks) === 6).length;
 
     const hasGlobalErrors = previewData.some(q => q.hasError);
 
@@ -18,14 +18,14 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
         const newData = previewData.map(q => {
             if (q.id === id) {
                 const updated = { ...q, [field]: value };
-                
+
                 // Re-validate this row
                 const missingFields = [];
                 if (!updated.question || updated.question.toString().trim() === "") missingFields.push("Question");
-                
+
                 const marksVal = updated.marks !== undefined ? Number(updated.marks) : null;
-                if (marksVal === null || ![1, 2, 4, 6].includes(marksVal)) {
-                    missingFields.push("Marks (must be 1, 2, 4, or 6)");
+                if (marksVal === null || ![1, 4, 6].includes(marksVal)) {
+                    missingFields.push("Marks (must be 1, 4, or 6)");
                 }
 
                 if (!updated.unit) missingFields.push("Unit");
@@ -34,11 +34,12 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
 
                 updated.hasError = missingFields.length > 0;
                 updated.missingFields = missingFields;
-                
+
                 // Update questionType based on marks
-                if (marksVal <= 2) updated.questionType = 'MCQ';
-                else if (marksVal <= 4) updated.questionType = 'Short';
-                else updated.questionType = 'Long';
+                if (marksVal === 1) updated.questionType = 'MCQ';
+                else if (marksVal === 4) updated.questionType = 'Short';
+                else if (marksVal === 6) updated.questionType = 'Long';
+                else updated.questionType = 'Unknown';
 
                 return updated;
             }
@@ -88,8 +89,8 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
                         onClick={validateAndConfirm}
                         disabled={loading || hasGlobalErrors}
                         className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold transition-all shadow-md 
-                            ${hasGlobalErrors 
-                                ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
+                            ${hasGlobalErrors
+                                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                                 : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-200 hover:scale-[1.02] active:scale-[0.98]'}`}
                     >
                         {loading ? <div className="animate-spin w-5 h-5 border-2 border-white rounded-full border-t-transparent" /> : <CheckCircle2 size={20} />}
@@ -110,21 +111,21 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
 
             {/* Summary Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl text-center">
+                <div className={`p-4 rounded-2xl text-center border ${totalQuestions === 45 ? 'bg-blue-50 border-blue-100' : 'bg-slate-50 border-slate-100'}`}>
                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Questions</p>
-                    <p className="text-2xl font-bold text-slate-900 mt-1">{totalQuestions}</p>
+                    <p className={`text-2xl font-bold mt-1 ${totalQuestions === 45 ? 'text-blue-700' : 'text-slate-900'}`}>{totalQuestions} / 45</p>
                 </div>
-                <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl text-center">
-                    <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">1 / 2 Marks</p>
-                    <p className="text-2xl font-bold text-emerald-700 mt-1">{mcqCount}</p>
+                <div className={`p-4 rounded-2xl text-center border ${mcqCount === 20 ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-100'}`}>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">1 Mark</p>
+                    <p className={`text-2xl font-bold mt-1 ${mcqCount === 20 ? 'text-emerald-700' : 'text-slate-900'}`}>{mcqCount} / 20</p>
                 </div>
-                <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl text-center">
-                    <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider">4 Marks</p>
-                    <p className="text-2xl font-bold text-amber-700 mt-1">{shortCount}</p>
+                <div className={`p-4 rounded-2xl text-center border ${shortCount === 15 ? 'bg-amber-50 border-amber-100' : 'bg-slate-50 border-slate-100'}`}>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">4 Marks</p>
+                    <p className={`text-2xl font-bold mt-1 ${shortCount === 15 ? 'text-amber-700' : 'text-slate-900'}`}>{shortCount} / 15</p>
                 </div>
-                <div className="bg-purple-50 border border-purple-100 p-4 rounded-2xl text-center">
-                    <p className="text-xs font-semibold text-purple-600 uppercase tracking-wider">6 Marks</p>
-                    <p className="text-2xl font-bold text-purple-700 mt-1">{longCount}</p>
+                <div className={`p-4 rounded-2xl text-center border ${longCount === 10 ? 'bg-purple-50 border-purple-100' : 'bg-slate-50 border-slate-100'}`}>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">6 Marks</p>
+                    <p className={`text-2xl font-bold mt-1 ${longCount === 10 ? 'text-purple-700' : 'text-slate-900'}`}>{longCount} / 10</p>
                 </div>
             </div>
 
@@ -167,7 +168,7 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
                                                         )}
                                                     </div>
                                                     {isEditing ? (
-                                                        <select 
+                                                        <select
                                                             value={item.unit}
                                                             onChange={(e) => handleUpdateRow(item.id, 'unit', e.target.value)}
                                                             className={`w-full text-xs font-bold p-1 rounded border ${item.missingFields?.includes('Unit') ? 'border-red-300' : 'border-slate-200'}`}
@@ -184,7 +185,7 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
                                                 <div>
                                                     <span className="text-[10px] font-bold text-slate-400 uppercase block leading-none mb-1">CO</span>
                                                     {isEditing ? (
-                                                        <input 
+                                                        <input
                                                             type="text"
                                                             value={item.co}
                                                             onChange={(e) => handleUpdateRow(item.id, 'co', e.target.value)}
@@ -202,7 +203,7 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
                                         <td className="px-4 py-5">
                                             <div className="relative">
                                                 {isEditing ? (
-                                                    <textarea 
+                                                    <textarea
                                                         value={item.question}
                                                         onChange={(e) => handleUpdateRow(item.id, 'question', e.target.value)}
                                                         className={`w-full text-sm p-3 rounded-xl border min-h-[80px] focus:ring-2 focus:ring-blue-500 outline-none transition-all ${item.missingFields?.includes('Question') ? 'border-red-300 bg-red-50/20' : 'border-slate-200 bg-white'}`}
@@ -215,9 +216,9 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
                                                         </p>
                                                         {item.imageURL && (
                                                             <div className="pt-2">
-                                                                <img 
-                                                                    src={handleGoogleDriveUrl(item.imageURL)} 
-                                                                    alt="Preview" 
+                                                                <img
+                                                                    src={handleGoogleDriveUrl(item.imageURL)}
+                                                                    alt="Preview"
                                                                     className="max-h-24 rounded-lg border border-slate-200 shadow-sm"
                                                                     onError={(e) => { e.target.style.display = 'none'; }}
                                                                 />
@@ -225,7 +226,7 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
                                                         )}
                                                     </div>
                                                 )}
-                                                
+
                                                 {item.orQuestion && (
                                                     <div className="mt-4 pl-4 border-l-4 border-amber-200 bg-amber-50/30 p-3 rounded-r-xl">
                                                         <div className="flex items-center gap-2 mb-2">
@@ -244,7 +245,7 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
                                                         Missing: {item.missingFields?.join(', ')}
                                                     </div>
                                                 )}
-                                                
+
                                                 {isUnitMismatch && !item.hasError && !isEditing && (
                                                     <div className="mt-2 flex items-center gap-2 text-amber-600 text-[10px] font-bold uppercase">
                                                         <AlertCircle size={12} />
@@ -258,7 +259,7 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
                                                 <div>
                                                     <span className={`inline-flex px-2 py-1 rounded-lg text-[10px] uppercase font-black tracking-tighter 
                                                         ${item.questionType === 'MCQ' ? 'bg-emerald-100 text-emerald-700' :
-                                                          item.questionType === 'Short' ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700'}
+                                                            item.questionType === 'Short' ? 'bg-amber-100 text-amber-700' : 'bg-purple-100 text-purple-700'}
                                                     `}>
                                                         {item.questionType}
                                                     </span>
@@ -266,7 +267,7 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
                                                 <div>
                                                     <span className="text-[10px] font-bold text-slate-400 uppercase block leading-none mb-1">BT Level</span>
                                                     {isEditing ? (
-                                                        <select 
+                                                        <select
                                                             value={item.bloomLevel}
                                                             onChange={(e) => handleUpdateRow(item.id, 'bloomLevel', e.target.value)}
                                                             className={`w-full text-xs font-bold p-1 rounded border ${item.missingFields?.includes('BloomLevel') ? 'border-red-300' : 'border-slate-200'}`}
@@ -287,13 +288,13 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
                                                 <select 
                                                     value={item.marks}
                                                     onChange={(e) => handleUpdateRow(item.id, 'marks', e.target.value)}
-                                                    className={`w-full text-xs font-bold p-1 rounded border ${item.missingFields?.includes('Marks (must be 1, 2, 4, or 6)') ? 'border-red-300' : 'border-slate-200'}`}
+                                                    className={`w-full text-xs font-bold p-1 rounded border ${item.missingFields?.includes('Marks (must be 1, 4, or 6)') ? 'border-red-300' : 'border-slate-200'}`}
                                                 >
                                                     <option value="">Marks</option>
-                                                    {[1, 2, 4, 6].map(m => <option key={m} value={m}>{m}</option>)}
+                                                    {[1, 4, 6].map(m => <option key={m} value={m}>{m}</option>)}
                                                 </select>
                                             ) : (
-                                                <span className={`text-lg font-black ${item.hasError && (item.marks === null || ![1, 2, 4, 6].includes(item.marks)) ? 'text-red-500' : 'text-slate-800'}`}>
+                                                <span className={`text-lg font-black ${item.hasError && (item.marks === null || ![1, 4, 6].includes(Number(item.marks))) ? 'text-red-500' : 'text-slate-800'}`}>
                                                     {item.marks || '!!'}
                                                 </span>
                                             )}
@@ -301,7 +302,7 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
                                         <td className="px-4 py-5">
                                             <div className="flex flex-col gap-2">
                                                 {isEditing ? (
-                                                    <button 
+                                                    <button
                                                         onClick={() => setEditingId(null)}
                                                         className="p-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-all flex items-center justify-center shadow-sm shadow-emerald-100"
                                                         title="Save Changes"
@@ -309,7 +310,7 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
                                                         <Save size={16} />
                                                     </button>
                                                 ) : (
-                                                    <button 
+                                                    <button
                                                         onClick={() => setEditingId(item.id)}
                                                         className="p-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-blue-600 hover:text-white transition-all flex items-center justify-center"
                                                         title="Edit Question"
@@ -317,7 +318,7 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
                                                         <Edit3 size={16} />
                                                     </button>
                                                 )}
-                                                <button 
+                                                <button
                                                     onClick={() => handleDeleteRow(item.id)}
                                                     className="p-2 bg-red-50 text-red-400 rounded-xl hover:bg-red-500 hover:text-white transition-all flex items-center justify-center"
                                                     title="Delete Question"
@@ -349,7 +350,8 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
                 </div>
             </div>
 
-            <style dangerouslySetInnerHTML={{ __html: `
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 @keyframes shake {
                     0%, 100% { transform: translateX(0); }
                     10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }

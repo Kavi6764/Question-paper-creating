@@ -426,17 +426,17 @@ export default function StaffDashboard() {
 
                 const missingFields = [];
                 if (!row.Question || row.Question.toString().trim() === "") missingFields.push("Question");
-                
+
                 const marksVal = row.Marks !== undefined ? Number(row.Marks) : null;
                 if (marksVal === null || ![1, 2, 4, 6].includes(marksVal)) {
                     missingFields.push("Marks (must be 1, 2, 4, or 6)");
                 }
 
                 if (!row.Unit) missingFields.push("Unit");
-                
+
                 const coVal = row.CO || row.co || row.C0 || row.c0;
                 if (!coVal) missingFields.push("CO");
-                
+
                 const bloomVal = row.BloomLevel || row.bloomLevel;
                 if (!bloomVal) missingFields.push("BloomLevel");
 
@@ -534,10 +534,12 @@ export default function StaffDashboard() {
     };
 
     const handleConfirmUpload = async () => {
+        if (loading) return; // Prevent double submission
+        
         try {
             setLoading(true);
             setUploadStatus("processing");
-            setUploadProgress(30);
+            setUploadProgress(10);
 
             const progressInterval = setInterval(() => {
                 setUploadProgress((prev) => {
@@ -550,386 +552,218 @@ export default function StaffDashboard() {
             }, 200);
 
             let allRows = previewData;
+            const REQ = { 1: 20, 4: 15, 6: 10 };
+            const UNIT_TOTAL = 45;
 
-            // Current Staff Subject Counts
-            const currentSubject = mySubjects.find(s => s.subjectCode === subjectCode);
-            const allUnits = currentSubject?.units || {};
-            const currentStaffTotalCount = Object.values(allUnits).reduce((total, unitData) => {
-                const staffQuestions = (unitData.questions || []).filter(q => q.staffId === staffData.id);
-                return total + staffQuestions.length;
-            }, 0);
-
-            // Unit-wise Mark Limits
-            const LIMITS = {
-                1: 20, // 1 Mark: 20 questions
-                4: 15, // 4 Mark: 15 questions
-                6: 10  // 6 Mark: 10 questions
+            // Helper to find existing questions
+            const getExistingUnitQuestions = (data, u) => {
+                if (!data) return [];
+                if (data.units && data.units[`unit${u}`]) return data.units[`unit${u}`].questions || [];
+                const flatKey = `units.unit${u}`;
+                if (data[flatKey]) return data[flatKey].questions || [];
+                if (data[`unit${u}`]) return data[`unit${u}`].questions || [];
+                return [];
             };
 
-            // --- Multi-Unit (Bulk) Upload Logic ---
-            if (unit === "multi") {
-                const unitsToProcess = [1, 2, 3, 4, 5];
-                const questionsByUnit = {};
-                let totalNewQuestionsCount = 0;
+            const countMark = (qs, m) => {
+                if (!Array.isArray(qs)) return 0;
+                return qs.filter(q => Number(q.marks) === m).length;
+            };
 
-                unitsToProcess.forEach(u => {
-                    const unitRows = allRows.filter(row => Number(row.unit) === u);
-                    if (unitRows.length > 0) {
-                        questionsByUnit[u] = unitRows.map((row, index) => ({
-                            id: `${subjectCode}-U${u}-Q${index + 1}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                            questionNo: row.questionNo,
-                            question: row.question,
-                            marks: row.marks,
-                            questionType: row.questionType,
-                            difficulty: row.difficulty,
-                            bloomLevel: row.bloomLevel,
-                            unit: row.unit,
-                            co: row.co || "",
-                            imageURL: row.imageURL,
-                            orQuestion: row.orQuestion || null,
-                            uploadedAt: Date.now(),
-                            staffId: staffData.id,
-                            staffName: staffData.name,
-                            staffEmail: staffData.email,
-                        }));
-                        totalNewQuestionsCount += questionsByUnit[u].length;
+            const validateUnitCompleteness = (uNum, existing, incoming) => {
+                const results = { ok: true, errors: [] };
+                const merged = [...existing, ...incoming];
+                
+                [1, 4, 6].forEach(m => {
+                    const count = countMark(merged, m);
+                    if (count !== REQ[m]) {
+                        results.ok = false;
+                        results.errors.push(`${m} Mark: Have ${count}, need exactly ${REQ[m]}`);
                     }
                 });
 
-                if (totalNewQuestionsCount === 0) {
-                    clearInterval(progressInterval);
-                    toast.error("No valid Unit information found in the Excel sheet. Please ensure there is a 'Unit' column with values 1-5.");
-                    setUploadStatus("error");
-                    return;
+                if (merged.length !== UNIT_TOTAL) {
+                    results.ok = false;
+                    results.errors.push(`Total: Have ${merged.length}, need exactly ${UNIT_TOTAL}`);
                 }
-
-                // Enforce per-staff subject-wide limit
-                if (currentStaffTotalCount + totalNewQuestionsCount > 225) {
-                    const allowed = 225 - currentStaffTotalCount;
-                    toast.error(`Your total for this subject will exceed 225 questions. You can only add ${allowed} more questions.`);
-                    clearInterval(progressInterval);
-                    setLoading(false);
-                    setUploadStatus(null);
-                    return;
+                
+                // Fail-safe: Check for invalid marks that shouldn't be there
+                const invalidMarks = merged.filter(q => ![1, 4, 6].includes(Number(q.marks)));
+                if (invalidMarks.length > 0) {
+                    results.ok = false;
+                    results.errors.push(`${invalidMarks.length} questions have invalid marks (only 1, 4, 6 allowed)`);
                 }
+                
+                return results;
+            };
 
-                setUploadProgress(70);
-
-                // Find subject doc
-                let subjectRef;
-                const q = query(collection(db, "subjects"), where("subjectCode", "==", subjectCode));
-                const querySnapshot = await getDocs(q);
-                if (!querySnapshot.empty) {
-                    // If multiple docs for same code exist, prefer the one owned by this staff or the first available
-                    const myDoc = querySnapshot.docs.find(d => d.data().staffId === staffData.id);
-                    subjectRef = myDoc ? myDoc.ref : querySnapshot.docs[0].ref;
-                } else {
-                    subjectRef = doc(db, "subjects", `${staffData.id}_${subjectCode}`);
-                }
-
-                const subjectSnap = await getDoc(subjectRef);
-                const existingData = subjectSnap.exists() ? subjectSnap.data() : { units: {}, totalQuestions: 0 };
-                const updates = {
-                    lastUpdated: serverTimestamp(),
-                    subjectCode,
-                    subjectName,
-                };
-
-                // Only set owner info if it doesn't exist
-                if (!existingData.staffId) {
-                    updates.staffId = staffData.id;
-                    updates.staffName = staffData.name;
-                    updates.staffEmail = staffData.email;
-                }
-
-                let actualAddedCount = 0;
-                const unitsData = {};
-
-                Object.keys(questionsByUnit).forEach(u => {
-                    const unitKey = `unit${u}`;
-                    // Support both nested and flattened data lookups
-                    const existingUnitQuestions = (existingData.units && existingData.units[unitKey])
-                        ? existingData.units[unitKey].questions
-                        : (existingData[`units.${unitKey}`]?.questions || []);
-
-                    const existingQuestionTexts = new Set(existingUnitQuestions.map(q => (q.question || "").trim().toLowerCase()));
-
-                    // Filter already existing
-                    const uniqueNew = questionsByUnit[u].filter(q => !existingQuestionTexts.has((q.question || "").trim().toLowerCase()));
-
-                    // Enforce per-mark limits for this unit
-                    const finalUnitQuestions = [...existingUnitQuestions];
-                    let unitAddedCount = 0;
-                    let skippedCount = 0;
-
-                    uniqueNew.forEach(q => {
-                        const markLimit = LIMITS[q.marks] || 999;
-                        const staffCountForMark = finalUnitQuestions.filter(exQ =>
-                            Number(exQ.marks) === Number(q.marks) &&
-                            exQ.staffId === staffData.id
-                        ).length;
-
-                        if (staffCountForMark < markLimit) {
-                            finalUnitQuestions.push(q);
-                            unitAddedCount++;
-                        } else {
-                            skippedCount++;
-                        }
-                    });
-
-                    if (skippedCount > 0) {
-                        toast.error(`Unit ${u}: ${skippedCount} items skipped (Limit reached for specific marks)`);
-                    }
-
-                    const unitPayload = {
-                        unitNumber: Number(u),
-                        unitName: `Unit ${u}`,
-                        questions: finalUnitQuestions,
-                        questionCount: finalUnitQuestions.length,
-                        createdAt: (existingData.units?.[unitKey]?.createdAt || existingData[`units.${unitKey}`]?.createdAt || serverTimestamp()),
-                        lastUpdated: serverTimestamp(),
-                    };
-
-                    if (!subjectSnap.exists()) {
-                        unitsData[unitKey] = unitPayload;
-                    } else {
-                        updates[`units.${unitKey}`] = unitPayload;
-                    }
-                    actualAddedCount += unitAddedCount;
-                });
-
-                if (!subjectSnap.exists()) {
-                    updates.units = unitsData;
-                }
-
-                updates.totalQuestions = (existingData.totalQuestions || 0) + actualAddedCount;
-
-                if (!subjectSnap.exists()) {
-                    updates.createdAt = serverTimestamp();
-                    await setDoc(subjectRef, updates);
-                } else {
-                    await updateDoc(subjectRef, updates);
-                }
-
-                // Log Activity once
-                const activityRef = doc(collection(db, "activities"));
-                await setDoc(activityRef, {
-                    activityId: activityRef.id,
-                    staffId: staffData.id,
-                    staffName: staffData.name,
-                    username: staffData.username,
-                    subjectCode,
-                    subjectName,
-                    message: `Bulk upload: ${actualAddedCount} questions added across multiple units for ${subjectCode}`,
-                    type: "UPLOAD",
-                    role: "staff",
-                    createdAt: serverTimestamp(),
-                });
-
+            // 1. Basic empty check
+            const emptyQuestions = allRows.filter(r => !r.question || r.question.toString().trim() === "");
+            if (emptyQuestions.length > 0) {
                 clearInterval(progressInterval);
-                setUploadProgress(100);
-                setUploadStatus("success");
-                setTimeout(() => {
-                    toast.success(`✅ Successfully processed bulk upload for ${subjectCode}`);
-                    resetForm();
-                }, 500);
+                toast.error(`Error: ${emptyQuestions.length} questions are empty.`);
+                setLoading(false);
                 return;
             }
 
-            // --- Single Unit Upload Logic (Legacy/Rest of the code) ---
-            // Filter questions for selected unit only
-            let unitQuestions = allRows
-                .filter((row) => Number(row.unit) === Number(unit))
-                .map((row, index) => ({
-                    id: `${subjectCode}-U${unit}-Q${index + 1}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                    questionNo: row.questionNo,
-                    question: row.question,
-                    marks: row.marks,
-                    questionType: row.questionType,
-                    difficulty: row.difficulty,
-                    bloomLevel: row.bloomLevel,
-                    unit: row.unit,
-                    co: row.co || "",
-                    imageURL: row.imageURL,
-                    orQuestion: row.orQuestion || null,
+            // 2. Fetch Existing Subject Data
+            let subjectRef = null;
+            const qSub = query(collection(db, "subjects"), where("subjectCode", "==", subjectCode));
+            const querySnapshot = await getDocs(qSub);
+            let existingData = { units: {}, totalQuestions: 0 };
+            
+            if (!querySnapshot.empty) {
+                const myDocs = querySnapshot.docs.filter(d => d.data().staffId === staffData.id);
+                subjectRef = myDocs.length > 0 ? myDocs[0].ref : querySnapshot.docs[0].ref;
+                const snap = await getDoc(subjectRef);
+                if (snap.exists()) existingData = snap.data();
+            } else {
+                subjectRef = doc(db, "subjects", `${staffData.id}_${subjectCode}`);
+            }
+
+            // 3. Group New Questions by Unit
+            const newQuestionsByUnit = {};
+            if (unit === "multi") {
+                [1, 2, 3, 4, 5].forEach(u => {
+                    const rows = allRows.filter(row => Number(row.unit) === u);
+                    if (rows.length > 0) newQuestionsByUnit[u] = rows;
+                });
+            } else {
+                newQuestionsByUnit[unit] = allRows.filter(row => Number(row.unit) === Number(unit));
+            }
+
+            if (Object.keys(newQuestionsByUnit).length === 0) {
+                clearInterval(progressInterval);
+                toast.error("No questions found for the selected unit(s).");
+                setLoading(false);
+                return;
+            }
+
+            // 4. PRE-CALCULATE AND VALIDATE COMPLETENESS
+            const updates = { lastUpdated: serverTimestamp(), subjectCode, subjectName };
+            const validationErrors = [];
+            const finalState = {};
+
+            Object.keys(newQuestionsByUnit).forEach(u => {
+                const unitKey = `unit${u}`;
+                const existingQs = getExistingUnitQuestions(existingData, u);
+                const existingTexts = new Set(existingQs.map(q => (q.question || "").trim().toLowerCase()));
+
+                const mappedNew = newQuestionsByUnit[u].map((row, idx) => ({
+                    id: `${subjectCode}-U${u}-Q${idx}-${Date.now()}-${Math.random().toString(36).substr(2,4)}`,
+                    ...row,
                     uploadedAt: Date.now(),
                     staffId: staffData.id,
                     staffName: staffData.name,
-                    staffEmail: staffData.email,
+                    staffEmail: staffData.email
                 }));
 
-            setUploadProgress(70);
+                const uniqueNew = mappedNew.filter(q => !existingTexts.has((q.question || "").trim().toLowerCase()));
+                const merged = [...existingQs, ...uniqueNew];
 
-            if (unitQuestions.length === 0) {
-                clearInterval(progressInterval);
-                toast.error(`No questions found for Unit ${unit} in the uploaded file`);
-                setUploadStatus("error");
-                return;
-            }
-
-            // Enforce 225-question total limit per staff per subject
-            if (currentStaffTotalCount + unitQuestions.length > 225) {
-                const allowedCount = 225 - currentStaffTotalCount;
-                const confirmBatch = window.confirm(
-                    `Your total questions for ${subjectCode} will exceed the 225-question limit (Current Total: ${currentStaffTotalCount}, Batch: ${unitQuestions.length}).\n\n` +
-                    `Do you want to upload only the first ${allowedCount} questions to reach your 225-question subject limit?`
-                );
-
-                if (!confirmBatch) {
-                    clearInterval(progressInterval);
-                    setLoading(false);
-                    setUploadStatus(null);
-                    return;
+                const v = validateUnitCompleteness(u, [], merged);
+                if (!v.ok) {
+                    validationErrors.push(`Unit ${u}:\n• ${v.errors.join('\n• ')}`);
                 }
-                unitQuestions = unitQuestions.slice(0, allowedCount);
-            }
 
-            // Validate Marks
-            const invalidQuestions = unitQuestions.filter(q => ![1, 2, 4, 6/*, 8*/].includes(q.marks));
-            if (invalidQuestions.length > 0) {
-                clearInterval(progressInterval);
-                toast.error(`Found ${invalidQuestions.length} questions with invalid marks. Allowed marks: 1, 4, 6.`);
-                setUploadStatus("error");
-                return;
-            }
-
-            // 1. Create upload record
-            const uploadRef = doc(collection(db, "uploads"));
-            await setDoc(uploadRef, {
-                uploadId: uploadRef.id,
-                staffId: staffData.id,
-                staffName: staffData.name,
-                staffEmail: staffData.email,
-                staffUsername: staffData.username,
-                subjectCode,
-                subjectName,
-                unit: Number(unit),
-                questionCount: unitQuestions.length,
-                questions: unitQuestions,
-                status: "completed",
-                action: "question_upload",
-                createdAt: serverTimestamp(),
+                finalState[u] = {
+                    metadata: {
+                        unitNumber: Number(u),
+                        unitName: `Unit ${u}`,
+                        questions: merged,
+                        questionCount: merged.length,
+                        createdAt: (existingData.units?.[unitKey]?.createdAt || existingData[unitKey]?.createdAt || serverTimestamp()),
+                        lastUpdated: serverTimestamp(),
+                    },
+                    uniqueNewCount: uniqueNew.length,
+                    newQuestions: uniqueNew
+                };
             });
 
-            setUploadProgress(85);
+            if (validationErrors.length > 0) {
+                clearInterval(progressInterval);
+                window.alert(`❌ UPLOAD REJECTED - INCOMPLETE UNIT DATA\n\nEach unit must contain exactly:\n- 20 questions (1 Mark)\n- 15 questions (4 Marks)\n- 10 questions (6 Marks)\n\nDiscrepancies found:\n\n${validationErrors.join('\n\n')}`);
+                setLoading(false);
+                setUploadStatus("error");
+                throw new Error("Validation failed - blocking upload"); // Fail-safe to prevent any DB writes
+            }
 
-            // 2. Create activity log
+            // 5. IF VALID, PROCEED TO DATABASE WRITES
+            setUploadProgress(70);
+
+            // A. Update Subject
+            if (!existingData.staffId) {
+                updates.staffId = staffData.id;
+                updates.staffName = staffData.name;
+                updates.staffEmail = staffData.email;
+            }
+
+            let totalAdded = 0;
+            let finalSubjectTotalCount = 0;
+            
+            // Temporary construction of the final units object to count total questions
+            const finalUnits = existingData.units || {};
+
+            Object.keys(finalState).forEach(u => {
+                const unitKey = `unit${u}`;
+                finalUnits[unitKey] = finalState[u].metadata;
+                
+                if (existingData.units) updates[`units.${unitKey}`] = finalState[u].metadata;
+                else updates[unitKey] = finalState[u].metadata;
+                
+                totalAdded += finalState[u].uniqueNewCount;
+            });
+
+            // Calculate total subject questions across ALL units
+            finalSubjectTotalCount = Object.values(finalUnits).reduce((acc, unit) => acc + (unit.questions?.length || 0), 0);
+            updates.totalQuestions = finalSubjectTotalCount;
+
+            if (querySnapshot.empty) {
+                updates.createdAt = serverTimestamp();
+                await setDoc(subjectRef, updates);
+            }
+            else await updateDoc(subjectRef, updates);
+
+            // B. Log Individual Upload Records
+            for (const u of Object.keys(finalState)) {
+                if (finalState[u].uniqueNewCount > 0) { // Only log if new questions were actually added
+                    const uploadRef = doc(collection(db, "uploads"));
+                    await setDoc(uploadRef, {
+                        uploadId: uploadRef.id,
+                        staffId: staffData.id,
+                        staffName: staffData.name,
+                        staffEmail: staffData.email,
+                        subjectCode,
+                        subjectName,
+                        unit: Number(u),
+                        questionCount: finalState[u].uniqueNewCount,
+                        questions: finalState[u].newQuestions,
+                        status: "completed",
+                        createdAt: serverTimestamp(),
+                    });
+                }
+            }
+
+            // C. Log One Activity Record
             const activityRef = doc(collection(db, "activities"));
             await setDoc(activityRef, {
                 activityId: activityRef.id,
                 staffId: staffData.id,
                 staffName: staffData.name,
-                staffEmail: staffData.email,
                 username: staffData.username,
                 subjectCode,
                 subjectName,
-                unit: Number(unit),
-                message: `${unitQuestions.length} questions uploaded to ${subjectCode} - Unit ${unit}`,
-                questionCount: unitQuestions.length,
+                message: `Uploaded ${totalAdded} questions to ${subjectCode} (Units: ${Object.keys(finalState).join(', ')})`,
                 type: "UPLOAD",
                 role: "staff",
                 createdAt: serverTimestamp(),
             });
 
-            // 3. Update or create subject document
-            let subjectRef;
-            let subjectSnap;
-
-            // Try to find existing subject by code first (including Admin created ones)
-            const qSubject = query(collection(db, "subjects"), where("subjectCode", "==", subjectCode));
-            const querySnapshot = await getDocs(qSubject);
-
-            if (!querySnapshot.empty) {
-                // If multiple docs for same code exist, prefer the one owned by this staff or the first available
-                const myDoc = querySnapshot.docs.find(d => d.data().staffId === staffData.id);
-                subjectRef = myDoc ? myDoc.ref : querySnapshot.docs[0].ref;
-                subjectSnap = await getDoc(subjectRef);
-            } else {
-                // Fallback: Create new subject with staff-specific ID
-                const subjectDocId = `${staffData.id}_${subjectCode}`;
-                subjectRef = doc(db, "subjects", subjectDocId);
-                subjectSnap = await getDoc(subjectRef);
-            }
-
-            const unitKey = `unit${unit}`;
-
-            if (!subjectSnap.exists()) {
-                // Create new subject
-                await setDoc(subjectRef, {
-                    subjectCode,
-                    subjectName,
-                    staffId: staffData.id,
-                    staffName: staffData.name,
-                    staffEmail: staffData.email,
-                    units: {
-                        [unitKey]: {
-                            unitNumber: Number(unit),
-                            unitName: `Unit ${unit}`,
-                            questions: unitQuestions,
-                            questionCount: unitQuestions.length,
-                            createdAt: serverTimestamp(),
-                            lastUpdated: serverTimestamp(),
-                        }
-                    },
-                    totalQuestions: unitQuestions.length,
-                    createdAt: serverTimestamp(),
-                    lastUpdated: serverTimestamp(),
-                });
-            } else {
-                // Update existing subject
-                const existing = subjectSnap.data();
-                const existingUnit = existing.units?.[unitKey];
-                const existingQuestions = existingUnit?.questions || [];
-
-                // Merge questions (avoid duplicates)
-                const existingQuestionTexts = new Set(existingQuestions.map(q => (q.question || "").trim().toLowerCase()));
-                const uniqueNew = unitQuestions.filter(q => !existingQuestionTexts.has((q.question || "").trim().toLowerCase()));
-
-                const finalMerged = [...existingQuestions];
-                let addedSubCount = 0;
-                let skippedSubCount = 0;
-
-                uniqueNew.forEach(q => {
-                    const markLimit = LIMITS[q.marks] || 999;
-                    const staffCountForMark = finalMerged.filter(exQ =>
-                        Number(exQ.marks) === Number(q.marks) &&
-                        exQ.staffId === staffData.id
-                    ).length;
-
-                    if (staffCountForMark < markLimit) {
-                        finalMerged.push(q);
-                        addedSubCount++;
-                    } else {
-                        skippedSubCount++;
-                    }
-                });
-
-                if (skippedSubCount > 0) {
-                    toast.error(`${skippedSubCount} questions skipped (Unit ${unit} limit reached for specific marks)`);
-                }
-
-                await updateDoc(subjectRef, {
-                    [`units.${unitKey}`]: {
-                        unitNumber: Number(unit),
-                        unitName: `Unit ${unit}`,
-                        questions: finalMerged,
-                        questionCount: finalMerged.length,
-                        createdAt: existingUnit?.createdAt || serverTimestamp(),
-                        lastUpdated: serverTimestamp(),
-                    },
-                    totalQuestions: (existing.totalQuestions || 0) + addedSubCount,
-                    lastUpdated: serverTimestamp(),
-                });
-            }
-
             clearInterval(progressInterval);
             setUploadProgress(100);
             setUploadStatus("success");
-
             setTimeout(() => {
-                toast.success(
-                    `✅ ${unitQuestions.length} questions uploaded to ${subjectCode} - Unit ${unit}`
-                );
+                toast.success(`✅ Successfully uploaded ${totalAdded} questions.`);
                 resetForm();
             }, 500);
 
