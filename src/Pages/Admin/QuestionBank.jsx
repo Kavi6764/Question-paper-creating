@@ -27,25 +27,41 @@ export default function QuestionBank({ allSubjects, userData, onDeleteUnit }) {
     const allQuestions = useMemo(() => {
         const pool = [];
         filteredSubjectsByDept.forEach(subject => {
-            const mergedUnits = subject.units ? { ...subject.units } : {};
+            const unitMaps = new Map();
+
+            // 1. Legacy top-level units
             Object.keys(subject).forEach(key => {
-                 if (key.startsWith('unit') && !key.startsWith('units') && subject[key]) {
-                     mergedUnits[key] = subject[key];
-                 }
+                if (key.startsWith('unit') && !key.startsWith('units') && subject[key]) {
+                    const num = parseInt(key.replace('unit', ''));
+                    if (!isNaN(num)) unitMaps.set(num, subject[key]);
+                }
             });
 
-            Object.keys(mergedUnits).forEach(unitKey => {
-                const unit = mergedUnits[unitKey];
-                const unitNum = unit.unitNumber || unitKey.replace('unit', '');
-                const questions = unit.questions || [];
+            // 2. Flattened units.unitX
+            Object.keys(subject).forEach(key => {
+                if (key.startsWith('units.')) {
+                    const num = parseInt(key.replace('units.unit', ''));
+                    if (!isNaN(num) && subject[key]) unitMaps.set(num, subject[key]);
+                }
+            });
 
+            // 3. Nested units object
+            if (subject.units) {
+                Object.keys(subject.units).forEach(key => {
+                    const num = parseInt(key.replace('unit', ''));
+                    if (!isNaN(num) && subject.units[key]) unitMaps.set(num, subject.units[key]);
+                });
+            }
+
+            unitMaps.forEach((unit, unitNum) => {
+                const questions = unit.questions || [];
                 questions.forEach((q, idx) => {
                     pool.push({
                         ...q,
                         subjectCode: subject.subjectCode,
                         subjectName: subject.subjectName,
                         unit: unitNum,
-                        id: `${subject.id}-${unitKey}-${idx}-${Math.random().toString(36).substr(2, 9)}`
+                        id: `${subject.id}-U${unitNum}-${idx}-${Math.random().toString(36).substr(2, 4)}`
                     });
                 });
             });

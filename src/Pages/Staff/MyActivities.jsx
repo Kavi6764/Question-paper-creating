@@ -22,22 +22,33 @@ export default function MyActivities({ mySubjects, staffData }) {
         };
 
         mySubjects.forEach(subject => {
-            // Support both nested units object and flattened units.unitX keys
-            const units = subject.units || {};
+            const unitMaps = new Map(); // Deduplicate units by number
 
-            // Collect all possible unit keys (unit1...unit5 or flattened)
-            const unitKeys = new Set([...Object.keys(units)]);
+            // 1. Legacy top-level units
             Object.keys(subject).forEach(key => {
-                if (key.startsWith('units.')) {
-                    unitKeys.add(key);
+                if (key.startsWith('unit') && !key.startsWith('units') && subject[key]) {
+                    const num = parseInt(key.replace('unit', ''));
+                    if (!isNaN(num)) unitMaps.set(num, subject[key]);
                 }
             });
 
-            unitKeys.forEach(unitKey => {
-                const unit = units[unitKey] || subject[unitKey];
-                if (!unit) return;
+            // 2. Flattened units.unitX
+            Object.keys(subject).forEach(key => {
+                if (key.startsWith('units.')) {
+                    const num = parseInt(key.replace('units.unit', ''));
+                    if (!isNaN(num) && subject[key]) unitMaps.set(num, subject[key]);
+                }
+            });
 
-                const unitNum = unit.unitNumber || unitKey.replace('units.', '').replace('unit', '');
+            // 3. Nested units object
+            if (subject.units) {
+                Object.keys(subject.units).forEach(key => {
+                    const num = parseInt(key.replace('unit', ''));
+                    if (!isNaN(num) && subject.units[key]) unitMaps.set(num, subject.units[key]);
+                });
+            }
+
+            unitMaps.forEach((unit, unitNum) => {
                 const staffIdString = String(staffData.id || "").trim();
                 const staffEmailLower = (staffData.email || "").toLowerCase().trim();
                 const staffNameLower = (staffData.name || "").toLowerCase().trim();
