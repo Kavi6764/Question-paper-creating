@@ -37,7 +37,8 @@ export default function StaffManagement({
                 (staff.fullName || "").toLowerCase().includes(lowerTerm) ||
                 (staff.email || "").toLowerCase().includes(lowerTerm) ||
                 (staff.username || "").toLowerCase().includes(lowerTerm) ||
-                (staff.department || "").toLowerCase().includes(lowerTerm)
+                (staff.department || "").toLowerCase().includes(lowerTerm) ||
+                (staff.role || "").toLowerCase().includes(lowerTerm)
             );
         }
 
@@ -51,7 +52,7 @@ export default function StaffManagement({
             const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : b.createdAt || 0);
             return timeB - timeA;
         });
-    }, [staffList, searchTerm]);
+    }, [staffList, searchTerm, filterDept]);
 
     // Pagination Logic
     const totalPages = Math.ceil(filteredStaff.length / itemsPerPage);
