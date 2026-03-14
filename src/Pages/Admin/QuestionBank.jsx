@@ -27,23 +27,28 @@ export default function QuestionBank({ allSubjects, userData, onDeleteUnit }) {
     const allQuestions = useMemo(() => {
         const pool = [];
         filteredSubjectsByDept.forEach(subject => {
-            if (subject.units) {
-                Object.keys(subject.units).forEach(unitKey => {
-                    const unit = subject.units[unitKey];
-                    const unitNum = unit.unitNumber || unitKey.replace('unit', '');
-                    const questions = unit.questions || [];
+            const mergedUnits = subject.units ? { ...subject.units } : {};
+            Object.keys(subject).forEach(key => {
+                 if (key.startsWith('unit') && !key.startsWith('units') && subject[key]) {
+                     mergedUnits[key] = subject[key];
+                 }
+            });
 
-                    questions.forEach((q, idx) => {
-                        pool.push({
-                            ...q,
-                            subjectCode: subject.subjectCode,
-                            subjectName: subject.subjectName,
-                            unit: unitNum,
-                            id: `${subject.id}-${unitKey}-${idx}-${Math.random().toString(36).substr(2, 9)}`
-                        });
+            Object.keys(mergedUnits).forEach(unitKey => {
+                const unit = mergedUnits[unitKey];
+                const unitNum = unit.unitNumber || unitKey.replace('unit', '');
+                const questions = unit.questions || [];
+
+                questions.forEach((q, idx) => {
+                    pool.push({
+                        ...q,
+                        subjectCode: subject.subjectCode,
+                        subjectName: subject.subjectName,
+                        unit: unitNum,
+                        id: `${subject.id}-${unitKey}-${idx}-${Math.random().toString(36).substr(2, 9)}`
                     });
                 });
-            }
+            });
         });
         return pool;
     }, [filteredSubjectsByDept]);

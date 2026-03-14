@@ -237,6 +237,13 @@ export default function StaffDashboard() {
                                         }
                                     });
 
+                                    // 2.5. Collect from top-level unit keys (unit1, unit2...) which happens on first upload
+                                    Object.keys(s).forEach(key => {
+                                        if (key.startsWith('unit') && !key.startsWith('units') && s[key] && Array.isArray(s[key].questions)) {
+                                            allQuestions.push(...s[key].questions);
+                                        }
+                                    });
+
                                     // 3. Robust filter (ID, Email, or Name)
                                     return allQuestions.filter(q => {
                                         if (!q) return false;
@@ -254,6 +261,14 @@ export default function StaffDashboard() {
                                 assigned.forEach(subject => {
                                     const code = (subject.subjectCode || "").trim().toUpperCase();
                                     const staffCount = getStaffCount(subject);
+
+                                    // Normalize top-level units to subject.units
+                                    if (!subject.units) subject.units = {};
+                                    Object.keys(subject).forEach(key => {
+                                        if (key.startsWith('unit') && !key.startsWith('units') && subject[key]) {
+                                            subject.units[key] = subject.units[key] || subject[key];
+                                        }
+                                    });
 
                                     if (!groupedSubjects.has(code)) {
                                         groupedSubjects.set(code, {

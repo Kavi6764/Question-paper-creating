@@ -33,9 +33,16 @@ export default function StaffActivities({ allSubjects, staffList }) {
         });
 
         allSubjects.forEach(subject => {
-            if (subject.units) {
-                Object.keys(subject.units).forEach(unitKey => {
-                    const unit = subject.units[unitKey];
+            const mergedUnits = subject.units ? { ...subject.units } : {};
+            Object.keys(subject).forEach(key => {
+                 if (key.startsWith('unit') && !key.startsWith('units') && subject[key]) {
+                     mergedUnits[key] = subject[key];
+                 }
+            });
+
+            if (Object.keys(mergedUnits).length > 0) {
+                Object.keys(mergedUnits).forEach(unitKey => {
+                    const unit = mergedUnits[unitKey];
                     const unitNum = unit.unitNumber || unitKey.replace('unit', '');
                     const questions = unit.questions || [];
 
