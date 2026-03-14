@@ -30,7 +30,8 @@ import {
   deleteDoc,
   arrayRemove,
   addDoc,
-  writeBatch
+  writeBatch,
+  deleteField
 } from "firebase/firestore";
 import { db, auth, firebaseConfig } from "../../fireBaseConfig";
 import { initializeApp, getApps, getApp } from "firebase/app";
@@ -1349,30 +1350,46 @@ export default function AdminDashboard() {
 
     try {
       setLoading(true);
-      const subject = allSubjects.find(s => s.subjectCode === subjectCode);
-      if (!subject) {
+      const matchingSubjects = allSubjects.filter(s => s.subjectCode === subjectCode);
+      if (matchingSubjects.length === 0) {
         toast.error("Subject not found");
         return;
       }
 
-      const subjectRef = doc(db, "subjects", subject.id);
       const unitKey = `unit${unitNumber}`;
-
-      // Get current questions in this unit to know how many to subtract
-      const subjectDoc = await getDoc(subjectRef);
-      const subjectData = subjectDoc.data();
-      const unitQuestionsCount = subjectData.units?.[unitKey]?.questions?.length || 0;
-
-      const newTotalQuestions = Math.max(0, (subjectData.totalQuestions || 0) - unitQuestionsCount);
-
       const batch = writeBatch(db);
 
-      // 1. Update Subject (Clear questions and update total count)
-      batch.update(subjectRef, {
-        [`units.${unitKey}.questions`]: [],
-        [`units.${unitKey}.questionCount`]: 0,
-        totalQuestions: newTotalQuestions
-      });
+      for (const subject of matchingSubjects) {
+          const subjectRef = doc(db, "subjects", subject.id);
+          const subjectDoc = await getDoc(subjectRef);
+          
+          if (!subjectDoc.exists()) continue;
+
+          const subjectData = subjectDoc.data();
+          
+          let unitQuestionsCount = subjectData.units?.[unitKey]?.questions?.length || 0;
+          if (unitQuestionsCount === 0 && subjectData[unitKey]?.questions) {
+              unitQuestionsCount = subjectData[unitKey].questions.length;
+          }
+
+          if (unitQuestionsCount > 0 || subjectData.units?.[unitKey] || subjectData[unitKey]) {
+              const newTotalQuestions = Math.max(0, (subjectData.totalQuestions || 0) - unitQuestionsCount);
+
+              const updateData = {
+                  totalQuestions: newTotalQuestions
+              };
+
+              if (subjectData.units && subjectData.units[unitKey]) {
+                  updateData[`units.${unitKey}`] = deleteField();
+              }
+              
+              if (subjectData[unitKey]) {
+                  updateData[unitKey] = deleteField();
+              }
+
+              batch.update(subjectRef, updateData);
+          }
+      }
 
       // 2. Clear from Uploads History
       const uploadsQuery = query(
