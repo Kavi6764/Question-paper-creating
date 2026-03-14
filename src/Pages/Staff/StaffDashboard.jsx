@@ -432,9 +432,30 @@ export default function StaffDashboard() {
             let allRows = [];
             workbook.SheetNames.forEach(sheetName => {
                 const sheet = workbook.Sheets[sheetName];
-                const sheetRows = XLSX.utils.sheet_to_json(sheet);
-                allRows = [...allRows, ...sheetRows];
+                const sheetRows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                const nonEmptyRows = sheetRows.filter(row =>
+                    row && row.some(cell => cell && cell.toString().trim() !== "")
+                );
+                if (nonEmptyRows.length > 1) {
+                    const headers = nonEmptyRows[0];
+                    const dataRows = nonEmptyRows.slice(1);
+
+                    dataRows.forEach(row => {
+                        const rowObj = {};
+                        headers.forEach((header, index) => {
+                            if (header && header.toString().trim() !== "") {
+                                rowObj[header.toString().trim()] = row[index] || "";
+                            }
+                        });
+                        // Only add if object has at least one non-empty value
+                        if (Object.values(rowObj).some(val => val && val.toString().trim() !== "")) {
+                            allRows.push(rowObj);
+                        }
+                    });
+                }
             });
+
+
 
             if (allRows.length === 0) {
                 toast.error("The uploaded file is empty.");
@@ -445,23 +466,38 @@ export default function StaffDashboard() {
 
             allRows.forEach((row, index) => {
                 // If the entire row is empty, skip it
-                if (Object.keys(row).length === 0) return;
+                const hasData = Object.values(row).some(val =>
+                    val && val.toString().trim() !== ""
+                );
 
+                if (!hasData) return;
                 const missingFields = [];
-                if (!row.Question || row.Question.toString().trim() === "") missingFields.push("Question");
+                const question = row.Question ? String(row.Question).trim() : "";
+                if (!question) {
+                    missingFields.push("Question");
+                }
 
                 const marksVal = row.Marks !== undefined ? Number(row.Marks) : null;
                 if (marksVal === null || ![1, 2, 4, 6].includes(marksVal)) {
                     missingFields.push("Marks (must be 1, 2, 4, or 6)");
                 }
 
-                if (!row.Unit) missingFields.push("Unit");
+                const unit = row.Unit !== undefined && row.Unit !== "" ? String(row.Unit).trim() : "";
+                if (!unit) {
+                    missingFields.push("Unit");
+                }
 
                 const coVal = row.CO || row.co || row.C0 || row.c0;
-                if (!coVal) missingFields.push("CO");
+                const co = coVal && coVal.toString().trim() !== "" ? coVal.toString().trim() : "";
+                if (!co) {
+                    missingFields.push("CO");
+                }
 
                 const bloomVal = row.BloomLevel || row.bloomLevel;
-                if (!bloomVal) missingFields.push("BloomLevel");
+                const bloom = bloomVal && bloomVal.toString().trim() !== "" ? bloomVal.toString().trim() : "";
+                if (!bloom) {
+                    missingFields.push("BloomLevel");
+                }
 
                 previewRows.push({
                     id: previewRows.length + 1,
@@ -558,7 +594,7 @@ export default function StaffDashboard() {
 
     const handleConfirmUpload = async () => {
         if (loading) return; // Prevent double submission
-        
+
         try {
             setLoading(true);
             setUploadStatus("processing");
@@ -596,7 +632,7 @@ export default function StaffDashboard() {
             const validateUnitCompleteness = (uNum, existing, incoming) => {
                 const results = { ok: true, errors: [] };
                 const merged = [...existing, ...incoming];
-                
+
                 [1, 4, 6].forEach(m => {
                     const count = countMark(merged, m);
                     if (count !== REQ[m]) {
@@ -609,14 +645,14 @@ export default function StaffDashboard() {
                     results.ok = false;
                     results.errors.push(`Total: Have ${merged.length}, need exactly ${UNIT_TOTAL}`);
                 }
-                
+
                 // Fail-safe: Check for invalid marks that shouldn't be there
                 const invalidMarks = merged.filter(q => ![1, 4, 6].includes(Number(q.marks)));
                 if (invalidMarks.length > 0) {
                     results.ok = false;
                     results.errors.push(`${invalidMarks.length} questions have invalid marks (only 1, 4, 6 allowed)`);
                 }
-                
+
                 return results;
             };
 
@@ -634,7 +670,7 @@ export default function StaffDashboard() {
             const qSub = query(collection(db, "subjects"), where("subjectCode", "==", subjectCode));
             const querySnapshot = await getDocs(qSub);
             let existingData = { units: {}, totalQuestions: 0 };
-            
+
             if (!querySnapshot.empty) {
                 const myDocs = querySnapshot.docs.filter(d => d.data().staffId === staffData.id);
                 subjectRef = myDocs.length > 0 ? myDocs[0].ref : querySnapshot.docs[0].ref;
@@ -673,7 +709,7 @@ export default function StaffDashboard() {
                 const existingTexts = new Set(existingQs.map(q => (q.question || "").trim().toLowerCase()));
 
                 const mappedNew = newQuestionsByUnit[u].map((row, idx) => ({
-                    id: `${subjectCode}-U${u}-Q${idx}-${Date.now()}-${Math.random().toString(36).substr(2,4)}`,
+                    id: `${subjectCode}-U${u}-Q${idx}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
                     ...row,
                     uploadedAt: Date.now(),
                     staffId: staffData.id,
@@ -723,17 +759,17 @@ export default function StaffDashboard() {
 
             let totalAdded = 0;
             let finalSubjectTotalCount = 0;
-            
+
             // Temporary construction of the final units object to count total questions
             const finalUnits = existingData.units || {};
 
             Object.keys(finalState).forEach(u => {
                 const unitKey = `unit${u}`;
                 finalUnits[unitKey] = finalState[u].metadata;
-                
+
                 if (existingData.units) updates[`units.${unitKey}`] = finalState[u].metadata;
                 else updates[unitKey] = finalState[u].metadata;
-                
+
                 totalAdded += finalState[u].uniqueNewCount;
             });
 
