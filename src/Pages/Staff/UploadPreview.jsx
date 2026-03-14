@@ -285,7 +285,7 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
                                         </td>
                                         <td className="px-4 py-5 text-center">
                                             {isEditing ? (
-                                                <select 
+                                                <select
                                                     value={item.marks}
                                                     onChange={(e) => handleUpdateRow(item.id, 'marks', e.target.value)}
                                                     className={`w-full text-xs font-bold p-1 rounded border ${item.missingFields?.includes('Marks (must be 1, 4, or 6)') ? 'border-red-300' : 'border-slate-200'}`}
