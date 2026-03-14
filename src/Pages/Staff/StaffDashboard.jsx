@@ -222,39 +222,47 @@ export default function StaffDashboard() {
 
                                 const getStaffCount = (s) => {
                                     if (!s) return 0;
-                                    const allQuestions = [];
+                                    const unitMaps = new Map(); // Using Map to ensure each unit number is counted only once
 
-                                    // 1. Collect from nested units
+                                    // 1. Collect from top-level (unit1, unit2...)
+                                    Object.keys(s).forEach(key => {
+                                        if (key.startsWith('unit') && !key.startsWith('units') && s[key]) {
+                                            const num = parseInt(key.replace('unit', ''));
+                                            if (!isNaN(num)) unitMaps.set(num, s[key]);
+                                        }
+                                    });
+
+                                    // 2. Collect from flattened (units.unit1)
+                                    Object.keys(s).forEach(key => {
+                                        if (key.startsWith('units.') && s[key]) {
+                                            const num = parseInt(key.replace('units.unit', ''));
+                                            if (!isNaN(num)) unitMaps.set(num, s[key]);
+                                        }
+                                    });
+
+                                    // 3. Collect from nested (units: { unit1: ... })
                                     if (s.units) {
-                                        Object.values(s.units).forEach(u => {
-                                            if (u && Array.isArray(u.questions)) allQuestions.push(...u.questions);
+                                        Object.keys(s.units).forEach(key => {
+                                            const num = parseInt(key.replace('unit', ''));
+                                            if (!isNaN(num) && s.units[key]) unitMaps.set(num, s.units[key]);
                                         });
                                     }
-                                    // 2. Collect from flattened unit keys (units.unit1)
-                                    Object.keys(s).forEach(key => {
-                                        if (key.startsWith('units.') && s[key] && Array.isArray(s[key].questions)) {
-                                            allQuestions.push(...s[key].questions);
-                                        }
+
+                                    let totalForStaff = 0;
+                                    unitMaps.forEach((uData) => {
+                                        const questions = uData.questions || [];
+                                        totalForStaff += questions.filter(q => {
+                                            if (!q) return false;
+                                            const qId = String(q.staffId || q.userId || "").trim();
+                                            const qEmail = (q.staffEmail || q.email || "").toLowerCase().trim();
+                                            const qName = (q.staffName || q.name || "").toLowerCase().trim();
+
+                                            return (qId && qId === staffId) ||
+                                                (qEmail && qEmail === staffEmail) ||
+                                                (qName && staffName.length > 3 && qName.includes(staffName));
+                                        }).length;
                                     });
-
-                                    // 2.5. Collect from top-level unit keys (unit1, unit2...) which happens on first upload
-                                    Object.keys(s).forEach(key => {
-                                        if (key.startsWith('unit') && !key.startsWith('units') && s[key] && Array.isArray(s[key].questions)) {
-                                            allQuestions.push(...s[key].questions);
-                                        }
-                                    });
-
-                                    // 3. Robust filter (ID, Email, or Name)
-                                    return allQuestions.filter(q => {
-                                        if (!q) return false;
-                                        const qId = String(q.staffId || q.userId || "").trim();
-                                        const qEmail = (q.staffEmail || q.email || "").toLowerCase().trim();
-                                        const qName = (q.staffName || q.name || "").toLowerCase().trim();
-
-                                        return (qId && qId === staffId) ||
-                                            (qEmail && qEmail === staffEmail) ||
-                                            (qName && staffName.length > 3 && qName.includes(staffName));
-                                    }).length;
+                                    return totalForStaff;
                                 };
 
                                 // Group and Merge subjects by Code
@@ -303,15 +311,15 @@ export default function StaffDashboard() {
                                 const mergedSubjects = Array.from(groupedSubjects.values());
                                 setMySubjects(mergedSubjects);
 
-                                // Total questions is the sum of staff-specific questions across all merged docs
-                                const totalQuestions = assigned.reduce((sum, subject) => {
-                                    return sum + getStaffCount(subject);
+                                // Total questions is the sum of staff-specific questions across all merged subjects
+                                const totalQuestionsCount = mergedSubjects.reduce((sum, subject) => {
+                                    return sum + (subject.totalQuestions || 0);
                                 }, 0);
 
                                 setStats(prev => ({
                                     ...prev,
                                     totalSubjects: mergedSubjects.length,
-                                    totalQuestions: totalQuestions
+                                    totalQuestions: totalQuestionsCount
                                 }));
                             });
                         } else {
@@ -729,9 +737,22 @@ export default function StaffDashboard() {
                 totalAdded += finalState[u].uniqueNewCount;
             });
 
-            // Calculate total subject questions across ALL units
-            finalSubjectTotalCount = Object.values(finalUnits).reduce((acc, unit) => acc + (unit.questions?.length || 0), 0);
-            updates.totalQuestions = finalSubjectTotalCount;
+            // Calculate total subject questions across ALL structures accurately
+            const countAllQs = (data) => {
+                const uMap = new Map();
+                Object.keys(data).forEach(k => {
+                    if (k.startsWith('unit') && !k.startsWith('units')) uMap.set(parseInt(k.replace('unit', '')), data[k]);
+                    if (k.startsWith('units.')) uMap.set(parseInt(k.replace('units.unit', '')), data[k]);
+                });
+                if (data.units) {
+                    Object.keys(data.units).forEach(k => uMap.set(parseInt(k.replace('unit', '')), data.units[k]));
+                }
+                let total = 0;
+                uMap.forEach(u => total += (u.questions?.length || 0));
+                return total;
+            };
+
+            updates.totalQuestions = countAllQs({ ...existingData, units: finalUnits });
 
             if (querySnapshot.empty) {
                 updates.createdAt = serverTimestamp();

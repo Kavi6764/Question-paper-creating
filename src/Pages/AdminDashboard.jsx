@@ -30,7 +30,8 @@ import {
   deleteDoc,
   arrayRemove,
   addDoc,
-  writeBatch
+  writeBatch,
+  deleteField
 } from "firebase/firestore";
 import { db, auth, firebaseConfig } from "../../fireBaseConfig";
 import { initializeApp, getApps, getApp } from "firebase/app";
@@ -1057,32 +1058,53 @@ export default function AdminDashboard() {
 
       subjectsSnapshot.forEach((doc) => {
         const subjectData = doc.data();
+        const unitMaps = new Map(); // Deduplicate units by number
+
+        // 1. Legacy top-level units (unit1)
+        Object.keys(subjectData).forEach(key => {
+            if (key.startsWith('unit') && !key.startsWith('units') && subjectData[key]) {
+                const num = parseInt(key.replace('unit', ''));
+                if (!isNaN(num)) unitMaps.set(num, subjectData[key]);
+            }
+        });
+
+        // 2. Flattened units (units.unit1)
+        Object.keys(subjectData).forEach(key => {
+            if (key.startsWith('units.')) {
+                const num = parseInt(key.replace('units.unit', ''));
+                if (!isNaN(num) && subjectData[key]) unitMaps.set(num, subjectData[key]);
+            }
+        });
+
+        // 3. Nested units object (units: { unit1: ... })
         if (subjectData.units) {
           Object.keys(subjectData.units).forEach(unitKey => {
-            const unit = subjectData.units[unitKey];
-            const unitNumber = unit.unitNumber || unitKey.replace("unit-", "").replace("unit", "") || "1";
-
-            if (unit.questions && Array.isArray(unit.questions)) {
-              unit.questions.forEach((q, index) => {
-                const question = {
-                  ...q,
-                  id: `${doc.id}-${unitNumber}-${index}`,
-                  unit: unitNumber,
-                  subjectCode: subjectCode,
-                  subjectName: subjectData.subjectName,
-                  unitName: unit.unitName || `Unit ${unitNumber}`,
-                  dbId: doc.id
-                };
-
-                const marks = parseInt(q.marks) || 0;
-                if (marks === 1 || marks === 2) questions.oneMark.push({ ...question, marks: 1 });
-                else if (marks === 4) questions.fourMark.push(question);
-                else if (marks === 6) questions.sixMark.push(question);
-                else if (marks === 8) questions.eightMark.push(question);
-              });
-            }
+            const num = parseInt(unitKey.replace('unit', ''));
+            if (!isNaN(num) && subjectData.units[unitKey]) unitMaps.set(num, subjectData.units[unitKey]);
           });
         }
+
+        unitMaps.forEach((unit, unitNumber) => {
+          if (unit.questions && Array.isArray(unit.questions)) {
+            unit.questions.forEach((q, index) => {
+              const question = {
+                ...q,
+                id: `${doc.id}-${unitNumber}-${index}-${Math.random().toString(36).substr(2, 4)}`,
+                unit: unitNumber,
+                subjectCode: subjectCode,
+                subjectName: subjectData.subjectName,
+                unitName: unit.unitName || `Unit ${unitNumber}`,
+                dbId: doc.id
+              };
+
+              const marks = parseInt(q.marks) || 0;
+              if (marks === 1 || marks === 2) questions.oneMark.push({ ...question, marks: 1 });
+              else if (marks === 4) questions.fourMark.push(question);
+              else if (marks === 6) questions.sixMark.push(question);
+              else if (marks === 8) questions.eightMark.push(question);
+            });
+          }
+        });
       });
 
       setAvailableQuestions(questions);
@@ -1349,30 +1371,49 @@ export default function AdminDashboard() {
 
     try {
       setLoading(true);
-      const subject = allSubjects.find(s => s.subjectCode === subjectCode);
-      if (!subject) {
+      const matchingSubjects = allSubjects.filter(s => s.subjectCode === subjectCode);
+      if (matchingSubjects.length === 0) {
         toast.error("Subject not found");
         return;
       }
 
-      const subjectRef = doc(db, "subjects", subject.id);
       const unitKey = `unit${unitNumber}`;
-
-      // Get current questions in this unit to know how many to subtract
-      const subjectDoc = await getDoc(subjectRef);
-      const subjectData = subjectDoc.data();
-      const unitQuestionsCount = subjectData.units?.[unitKey]?.questions?.length || 0;
-
-      const newTotalQuestions = Math.max(0, (subjectData.totalQuestions || 0) - unitQuestionsCount);
-
       const batch = writeBatch(db);
 
-      // 1. Update Subject (Clear questions and update total count)
-      batch.update(subjectRef, {
-        [`units.${unitKey}.questions`]: [],
-        [`units.${unitKey}.questionCount`]: 0,
-        totalQuestions: newTotalQuestions
-      });
+      for (const subject of matchingSubjects) {
+          const subjectRef = doc(db, "subjects", subject.id);
+          const subjectDoc = await getDoc(subjectRef);
+          
+          if (!subjectDoc.exists()) continue;
+
+        const subjectData = subjectDoc.data();
+        let questionsInUnit = 0;
+        const updateData = {};
+
+        // 1. Check Legacy (unit1)
+        if (subjectData[unitKey]) {
+            questionsInUnit += (subjectData[unitKey].questions?.length || 0);
+            updateData[unitKey] = deleteField();
+        }
+
+        // 2. Check Flattened (units.unit1)
+        const flattenedKey = `units.${unitKey}`;
+        if (subjectData[flattenedKey]) {
+            questionsInUnit += (subjectData[flattenedKey].questions?.length || 0);
+            updateData[flattenedKey] = deleteField();
+        }
+
+        // 3. Check Nested (units: { unit1: ... })
+        if (subjectData.units && subjectData.units[unitKey]) {
+            questionsInUnit += (subjectData.units[unitKey].questions?.length || 0);
+            updateData[`units.${unitKey}`] = deleteField();
+        }
+
+        if (questionsInUnit > 0 || Object.keys(updateData).length > 0) {
+            updateData.totalQuestions = Math.max(0, (subjectData.totalQuestions || 0) - questionsInUnit);
+            batch.update(subjectRef, updateData);
+        }
+      }
 
       // 2. Clear from Uploads History
       const uploadsQuery = query(
