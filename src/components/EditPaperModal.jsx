@@ -31,7 +31,9 @@ export default function EditPaperModal({ paper, onClose, onSave }) {
         e.preventDefault();
         onSave(paper.id, formData);
     };
-
+    if (!paper) {
+        return null;
+    }
     return createPortal(
         <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-[10000] p-4">
             <div className="bg-white rounded-xl shadow-lg w-full max-w-md animate-scale-in">
