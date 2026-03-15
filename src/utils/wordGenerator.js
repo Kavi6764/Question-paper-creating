@@ -2,7 +2,7 @@ import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, Align
 import { saveAs } from 'file-saver';
 import toast from 'react-hot-toast';
 import logo from '../assets/logo.png';
-import { handleGoogleDriveUrl } from './imageHandler';
+import { handleGoogleDriveUrl } from './imageHandler.jsx';
 
 const sanitizeText = (text) => {
     if (!text) return "";

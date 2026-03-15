@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import logo from "../assets/logo.png";
-import { handleGoogleDriveUrl } from "./imageHandler";
+import { handleGoogleDriveUrl } from "./imageHandler.jsx";
 
 const sanitizeText = (text) => {
     if (!text) return "";

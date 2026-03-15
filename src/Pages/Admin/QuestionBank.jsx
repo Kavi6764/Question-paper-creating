@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
-import { handleGoogleDriveUrl, highlightUrls } from '../../utils/imageHandler';
+import { handleGoogleDriveUrl, highlightUrls } from '../../utils/imageHandler.jsx';
 
 export default function QuestionBank({ allSubjects, userData, onDeleteUnit }) {
     const [searchTerm, setSearchTerm] = useState('');

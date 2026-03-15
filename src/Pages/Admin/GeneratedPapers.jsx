@@ -8,7 +8,7 @@ import { db } from '../../../fireBaseConfig';
 import EditPaperModal from '../../components/EditPaperModal';
 import ReplaceQuestionModal from '../../components/ReplaceQuestionModal';
 import EditQuestionModal from '../../components/EditQuestionModal';
-import { handleGoogleDriveUrl, highlightUrls } from '../../utils/imageHandler';
+import { handleGoogleDriveUrl, highlightUrls } from '../../utils/imageHandler.jsx';
 
 
 export default function GeneratedPapers({

@@ -6,7 +6,7 @@ import { db } from '../../fireBaseConfig';
 import { FileText, FileDown, Loader2 } from 'lucide-react';
 import { downloadPaperAsWord } from '../utils/wordGenerator';
 import { downloadPaperAsPDF } from '../utils/pdfGenerator';
-import { handleGoogleDriveUrl } from '../utils/imageHandler';
+import { handleGoogleDriveUrl } from '../utils/imageHandler.jsx';
 
 export default function QuestionPaperView() {
   const { id } = useParams();
