@@ -1,4 +1,4 @@
-import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, AlignmentType, WidthType, BorderStyle, ImageRun } from 'docx';
+import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, AlignmentType, WidthType, BorderStyle, ImageRun, Header, HorizontalPositionRelativeFrom, HorizontalPositionAlign, VerticalPositionRelativeFrom, VerticalPositionAlign, TextWrappingType, TextWrappingSide } from 'docx';
 import { saveAs } from 'file-saver';
 import toast from 'react-hot-toast';
 import logo from '../assets/logo.png';
@@ -67,34 +67,40 @@ export const downloadPaperAsWord = async (paper) => {
         }
     };
 
+    const processWatermarkImage = async (buffer) => {
+        if (!buffer) return null;
+        return new Promise((resolve) => {
+            const blob = new Blob([buffer]);
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.globalAlpha = 0.06; // Match PDF opacity
+                ctx.drawImage(img, 0, 0);
+                canvas.toBlob((processedBlob) => {
+                    processedBlob.arrayBuffer().then(resolve);
+                    URL.revokeObjectURL(url);
+                }, 'image/png');
+            };
+            img.src = url;
+        });
+    };
+
     try {
         // Load logo with error handling
         let logoBuffer = null;
         try {
-            logoBuffer = await loadImageAsBase64(logo);
+            const rawLogo = await loadImageAsBase64(logo);
+            logoBuffer = await processWatermarkImage(rawLogo);
         } catch (logoError) {
             console.warn("Logo could not be loaded, continuing without logo:", logoError);
         }
 
         const sortedQuestions = [...paper.questions].sort((a, b) => a.marks - b.marks);
         const docChildren = [];
-
-        // 1. Logo and Header
-        if (logoBuffer) {
-            docChildren.push(
-                new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    children: [
-                        new ImageRun({
-                            data: logoBuffer,
-                            transformation: { width: 70, height: 70 },
-                            type: 'png',
-                        }),
-                    ],
-                    spacing: { after: 200 }
-                })
-            );
-        }
 
         docChildren.push(
             new Paragraph({
@@ -108,7 +114,16 @@ export const downloadPaperAsWord = async (paper) => {
             }),
             new Paragraph({
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: (paper.title || "Examination Paper").replace(/ - Set [A-Z]/gi, ""), bold: true, size: 26 })],
+                children: [new TextRun({
+                    text: (paper.title || "Examination Paper").replace(/ - Set [A-Z]/gi, "") || (paper.semester || "Semester"),
+                    bold: true,
+                    size: 26
+                })],
+                spacing: { after: 100 },
+            }),
+            new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({ text: (paper.department || "").toUpperCase(), bold: true, size: 24 })],
                 spacing: { after: 400 },
             })
         );
@@ -120,11 +135,11 @@ export const downloadPaperAsWord = async (paper) => {
                 new TableRow({
                     children: [
                         new TableCell({
-                            children: [new Paragraph({ children: [new TextRun({ text: "Programme: ", bold: true, italics: true }), new TextRun({ text: paper.department || "B. Tech (CSE)" })] })],
+                            children: [new Paragraph({ children: [new TextRun({ text: "Programme: ", bold: true, italics: true }), new TextRun({ text: paper.program || "B.Tech" })] })],
                             width: { size: 50, type: WidthType.PERCENTAGE },
                         }),
                         new TableCell({
-                            children: [new Paragraph({ children: [new TextRun({ text: "Semester: ", bold: true, italics: true }), new TextRun({ text: paper.semester || "5th" })] })],
+                            children: [new Paragraph({ children: [new TextRun({ text: "Course Code: ", bold: true, italics: true }), new TextRun({ text: (paper.subjectCode || "").toUpperCase() })] })],
                             width: { size: 50, type: WidthType.PERCENTAGE },
                         }),
                     ],
@@ -132,20 +147,18 @@ export const downloadPaperAsWord = async (paper) => {
                 new TableRow({
                     children: [
                         new TableCell({
-                            children: [new Paragraph({ children: [new TextRun({ text: "Course: ", bold: true, italics: true }), new TextRun({ text: (paper.subjectName || "FULL STACK DEVELOPMENT").toUpperCase() })] })],
+                            children: [new Paragraph({ children: [new TextRun({ text: "Course: ", bold: true, italics: true }), new TextRun({ text: (paper.subjectName || "").toUpperCase() })] })],
                         }),
-                        new TableCell({
-                            children: [new Paragraph({ children: [new TextRun({ text: "Course Code: ", bold: true, italics: true }), new TextRun({ text: (paper.subjectCode || "TCS 300").toUpperCase() })] })],
-                        }),
-                    ],
-                }),
-                new TableRow({
-                    children: [
                         new TableCell({
                             children: [new Paragraph({ children: [new TextRun({ text: "Section: ", bold: true, italics: true }), new TextRun({ text: (paper.section || "A/B/C").toUpperCase() })] })],
                         }),
+                    ],
+                }),
+                new TableRow({
+                    children: [
                         new TableCell({
-                            children: [new Paragraph({ children: [new TextRun({ text: "Roll No: ", bold: true, italics: true }), new TextRun({ text: ".............................." })] })],
+                            children: [new Paragraph({ children: [new TextRun({ text: "Roll No: ", bold: true, italics: true }), new TextRun({ text: "........................................................................" })] })],
+                            columnSpan: 2
                         }),
                     ],
                 }),
@@ -229,12 +242,12 @@ export const downloadPaperAsWord = async (paper) => {
                 new Paragraph({
                     alignment: AlignmentType.RIGHT,
                     children: [
-                        new TextRun({ 
-                            text: `[${q.co || ''}, ${q.bloomLevel || 'RE'}]`, 
-                            bold: true, 
-                            italics: true, 
-                            size: 16, 
-                            color: q.imageURL ? "3B82F6" : "555555" 
+                        new TextRun({
+                            text: `[${q.co || ''}, ${q.bloomLevel || 'RE'}]`,
+                            bold: true,
+                            italics: true,
+                            size: 16,
+                            color: q.imageURL ? "3B82F6" : "555555"
                         }),
                     ],
                     spacing: { after: 100 },
@@ -249,12 +262,12 @@ export const downloadPaperAsWord = async (paper) => {
                     new Paragraph({
                         alignment: AlignmentType.RIGHT,
                         children: [
-                            new TextRun({ 
-                                text: `[${q.orQuestion.co || ''}, ${q.orQuestion.bloomLevel || 'RE'}]`, 
-                                bold: true, 
-                                italics: true, 
-                                size: 16, 
-                                color: q.orQuestion.imageURL ? "3B82F6" : "555555" 
+                            new TextRun({
+                                text: `[${q.orQuestion.co || ''}, ${q.orQuestion.bloomLevel || 'RE'}]`,
+                                bold: true,
+                                italics: true,
+                                size: 16,
+                                color: q.orQuestion.imageURL ? "3B82F6" : "555555"
                             }),
                         ],
                         spacing: { after: 100 },
@@ -325,7 +338,38 @@ export const downloadPaperAsWord = async (paper) => {
         );
 
         const docObj = new Document({
-            sections: [{ children: docChildren }],
+            sections: [{
+                headers: {
+                    default: new Header({
+                        children: [
+                            new Paragraph({
+                                children: [
+                                    logoBuffer ? new ImageRun({
+                                        data: logoBuffer,
+                                        transformation: { width: 500, height: 300 },
+                                        type: 'png',
+                                        floating: {
+                                            horizontalPosition: {
+                                                relative: HorizontalPositionRelativeFrom.PAGE,
+                                                align: HorizontalPositionAlign.CENTER,
+                                            },
+                                            verticalPosition: {
+                                                relative: VerticalPositionRelativeFrom.PAGE,
+                                                align: VerticalPositionAlign.CENTER,
+                                            },
+                                            wrap: {
+                                                type: TextWrappingType.NONE,
+                                            },
+                                            behindText: true,
+                                        },
+                                    }) : new TextRun(""),
+                                ],
+                            }),
+                        ],
+                    }),
+                },
+                children: docChildren,
+            }],
         });
 
         const blob = await Packer.toBlob(docObj);

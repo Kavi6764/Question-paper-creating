@@ -23,6 +23,13 @@ export default function PaperGeneration({
     const [showSubjectDropdown, setShowSubjectDropdown] = React.useState(false);
     const dropdownRef = React.useRef(null);
 
+    // Initialize default program
+    React.useEffect(() => {
+        if (!paperForm.program) {
+            setPaperForm(prev => ({ ...prev, program: 'B.Tech' }));
+        }
+    }, [paperForm.program, setPaperForm]);
+
     // Filter subjects based on search
     const filteredSubjects = availableSubjects.filter(sub =>
         sub.name.toLowerCase().includes(subjectSearch.toLowerCase()) ||
@@ -59,11 +66,10 @@ export default function PaperGeneration({
             {/* Color Mapping to ensure Tailwind classes are generated */}
             <div className="hidden bg-blue-500 bg-green-500 bg-purple-500 bg-orange-500 bg-blue-50 bg-green-50 bg-purple-50 bg-orange-50 text-blue-700 text-green-700 text-purple-700 text-orange-700 border-blue-100 border-green-100 border-purple-100 border-orange-100 hover:border-blue-200 hover:border-green-200 hover:border-purple-200 hover:border-orange-200"></div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left Column: Configuration */}
-                <div className="lg:col-span-2 space-y-8">
-
-                    {/* 1. Paper Details Section */}
+            <div className="space-y-8">
+                {/* 1. Paper Configuration Section */}
+                <div className="space-y-8">
+                    {/* 1.1 Paper Details Section */}
                     <section className="bg-white/50 rounded-2xl p-6 border border-gray-100 shadow-sm transition-all hover:shadow-md">
                         <h3 className="text-lg font-semibold text-gray-800 mb-5 flex items-center gap-2">
                             <BookOpen className="w-5 h-5 text-blue-500" /> Paper Details
@@ -97,8 +103,8 @@ export default function PaperGeneration({
                                             }}
                                             onFocus={() => setShowSubjectDropdown(true)}
                                             className={`w-full border rounded-xl pl-10 pr-10 py-2.5 text-sm transition-all outline-none ${selectedSubject && !subjectSearch
-                                                    ? 'bg-blue-50 border-blue-200 text-blue-700 font-bold'
-                                                    : 'bg-white border-gray-200 text-gray-900 font-medium focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500'
+                                                ? 'bg-blue-50 border-blue-200 text-blue-700 font-bold'
+                                                : 'bg-white border-gray-200 text-gray-900 font-medium focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500'
                                                 }`}
                                         />
                                         <div className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none transition-colors ${selectedSubject && !subjectSearch ? 'text-blue-500' : 'text-gray-400 group-focus-within/search:text-blue-500'
@@ -138,8 +144,8 @@ export default function PaperGeneration({
                                                                 key={idx}
                                                                 type="button"
                                                                 onClick={() => {
-                                                                    setPaperForm({ 
-                                                                        ...paperForm, 
+                                                                    setPaperForm({
+                                                                        ...paperForm,
                                                                         subjectCode: subject.code,
                                                                         department: subject.department || ""
                                                                     });
@@ -174,13 +180,23 @@ export default function PaperGeneration({
 
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Department</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Program <span className="text-red-500">*</span></label>
                                     <input 
                                         type="text" 
-                                        value={paperForm.department} 
+                                        value={paperForm.program || "B.Tech"} 
+                                        onChange={(e) => setPaperForm({ ...paperForm, program: e.target.value })}
+                                        placeholder="e.g. B.Tech"
+                                        className="w-full border border-gray-200 bg-white rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all font-medium" 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Department</label>
+                                    <input
+                                        type="text"
+                                        value={paperForm.department}
                                         readOnly
                                         placeholder="Auto-filled"
-                                        className="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-2.5 text-gray-500 font-medium outline-none transition-all" 
+                                        className="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-2.5 text-gray-500 font-medium outline-none transition-all"
                                     />
                                 </div>
                                 <div>
@@ -191,7 +207,7 @@ export default function PaperGeneration({
                                             onChange={(e) => setPaperForm({ ...paperForm, semester: e.target.value })}
                                             className="w-full border border-gray-200 bg-white rounded-xl px-4 py-2.5 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all appearance-none cursor-pointer hover:border-blue-300"
                                         >
-                                            <option value="">Select Sem...</option>
+                                            <option value="">Select Semester...</option>
                                             {[1, 2, 3, 4, 5, 6, 7, 8].map(sem => {
                                                 const label = `${sem}${sem === 1 ? 'st' : sem === 2 ? 'nd' : sem === 3 ? 'rd' : 'th'} Semester`;
                                                 return <option key={sem} value={label}>{label}</option>;
@@ -204,12 +220,12 @@ export default function PaperGeneration({
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Section <span className="text-red-500">*</span></label>
-                                    <input 
-                                        type="text" 
-                                        value={paperForm.section} 
+                                    <input
+                                        type="text"
+                                        value={paperForm.section}
                                         onChange={(e) => setPaperForm({ ...paperForm, section: e.target.value })}
-                                        placeholder="e.g. A, B, C"
-                                        className="w-full border border-gray-200 bg-white rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" 
+                                        placeholder="Sec-1,2,3"
+                                        className="w-full border border-gray-200 bg-white rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                                     />
                                 </div>
                                 <div>
@@ -228,7 +244,7 @@ export default function PaperGeneration({
                         </div>
                     </section>
 
-                    {/* 2. Question Configuration Section */}
+                    {/* 1.2 Question Configuration Section */}
                     <section className="bg-white/50 rounded-2xl p-6 border border-gray-100 shadow-sm transition-all hover:shadow-md">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
@@ -239,150 +255,157 @@ export default function PaperGeneration({
                                     Total Available: {
                                         questionStats.oneMark.available +
                                         questionStats.fourMark.available +
-                                        questionStats.sixMark.available // + questionStats.eightMark.available
+                                        questionStats.sixMark.available
                                     }
                                 </span>
                             )}
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"> {/* lg:grid-cols-4 */}
-                            {[
-                                { label: "1-Mark", key: "oneMarkQuestions", statsKey: "oneMark", color: "blue", multiplier: 1 },
-                                { label: "4-Mark", key: "fourMarkQuestions", statsKey: "fourMark", color: "green", multiplier: 4 },
-                                { label: "6-Mark", key: "sixMarkQuestions", statsKey: "sixMark", color: "purple", multiplier: 6 },
-                                // { label: "8-Mark", key: "eightMarkQuestions", statsKey: "eightMark", color: "orange", multiplier: 8 }
-                            ].filter(item => item.key !== "eightMarkQuestions").map((item) => (
-                                <div key={item.key} className={`bg-white p-4 rounded-xl border border-gray-100 hover:border-${item.color}-200 transition-all shadow-sm group`}>
-                                    <div className="flex items-center justify-between mb-3">
-                                        <label className="block text-sm font-bold text-gray-700">{item.label}</label>
-                                        <span className={`text-[10px] px-2 py-0.5 rounded-full bg-${item.color}-50 text-${item.color}-700 font-medium border border-${item.color}-100`}>
-                                            {item.multiplier} mark{item.multiplier > 1 ? 's' : ''}
-                                        </span>
-                                    </div>
-
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        max="50"
-                                        value={paperForm[item.key]}
-                                        onChange={(e) => setPaperForm({ ...paperForm, [item.key]: parseInt(e.target.value) || 0 })}
-                                        className="w-full border border-gray-200 bg-gray-50/50 rounded-lg px-3 py-2 mb-3 text-center font-semibold text-gray-900 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
-                                    />
-
-                                    <div className="space-y-1.5">
-                                        <div className="flex justify-between text-xs text-gray-500">
-                                            <span>Available</span>
-                                            <span className="font-medium">{questionStats[item.statsKey].available}</span>
-                                        </div>
-                                        {/* Progress Bar */}
-                                        <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                                            <div
-                                                className={`h-full rounded-full transition-all duration-500 ${questionStats[item.statsKey].available < paperForm[item.key] ? 'bg-red-500' : `bg-${item.color}-500`
-                                                    }`}
-                                                style={{ width: `${Math.min(100, (questionStats[item.statsKey].available / (Math.max(1, questionStats[item.statsKey].total))) * 100)}%` }}
-                                            ></div>
-                                        </div>
-                                        {questionStats[item.statsKey].available < paperForm[item.key] && (
-                                            <p className="text-[10px] text-red-500 font-medium flex items-center gap-1">
-                                                <AlertCircle className="w-3 h-3" /> Insufficient questions
-                                            </p>
-                                        )}
-                                    </div>
+                        <div className="flex flex-col md:flex-row items-center justify-between gap-6 p-5 bg-gray-50/50 border border-gray-100 rounded-2xl mb-8">
+                            <div className="flex items-center gap-10">
+                                <div className="space-y-1">
+                                    <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Total Questions</p>
+                                    <p className="text-3xl font-black text-gray-900">{paperForm.totalQuestions}</p>
                                 </div>
-                            ))}
-                        </div>
-
-                        <div className="mt-6 flex flex-col md:flex-row items-center justify-between gap-4 p-4 bg-gray-50 border border-gray-200 rounded-xl">
-                            <div className="flex items-center gap-8">
-                                <div>
-                                    <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Total Questions</p>
-                                    <p className="text-2xl font-bold text-gray-900">{paperForm.totalQuestions}</p>
-                                </div>
-                                <div className="h-8 w-px bg-gray-300"></div>
-                                <div>
-                                    <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold">Total Marks</p>
-                                    <p className="text-2xl font-bold text-blue-600">{paperForm.totalMarks}</p>
+                                <div className="h-10 w-px bg-gray-200"></div>
+                                <div className="space-y-1">
+                                    <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Total Marks</p>
+                                    <p className="text-3xl font-black text-blue-600">{paperForm.totalMarks}</p>
                                 </div>
                             </div>
 
                             <button
                                 onClick={generateRandomQuestions}
                                 disabled={loading || !paperForm.subjectCode || paperForm.totalQuestions === 0}
-                                className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-2.5 px-6 rounded-xl font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
+                                className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 px-8 rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2 transform active:scale-[0.98]"
                             >
-                                <Shuffle className="w-4 h-4" /> Generate Random Selection
+                                <Shuffle className="w-5 h-5" /> Generate Random Selection
                             </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {[
+                                { label: "1-Mark", key: "oneMarkQuestions", statsKey: "oneMark", color: "blue", multiplier: 1 },
+                                { label: "4-Mark", key: "fourMarkQuestions", statsKey: "fourMark", color: "green", multiplier: 4 },
+                                { label: "6-Mark", key: "sixMarkQuestions", statsKey: "sixMark", color: "purple", multiplier: 6 },
+                            ].map((item) => (
+                                <div key={item.key} className={`bg-white p-6 rounded-2xl border border-gray-100 hover:border-${item.color}-300 transition-all shadow-sm hover:shadow-md group flex flex-col gap-5`}>
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <label className="block text-sm font-black text-gray-800">{item.label}</label>
+                                            <span className={`text-[10px] font-bold text-${item.color}-600 uppercase tracking-tight`}>
+                                                {item.multiplier} mark{item.multiplier > 1 ? 's' : ''} each
+                                            </span>
+                                        </div>
+                                        <div className={`p-2 bg-${item.color}-50 rounded-lg`}>
+                                            <Calculator className={`w-4 h-4 text-${item.color}-500`} />
+                                        </div>
+                                    </div>
+
+                                    <div className="relative">
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            max="50"
+                                            value={paperForm[item.key]}
+                                            onChange={(e) => setPaperForm({ ...paperForm, [item.key]: parseInt(e.target.value) || 0 })}
+                                            className="w-full border-2 border-gray-100 bg-gray-50/30 rounded-xl px-4 py-3 text-center font-black text-gray-900 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none text-xl"
+                                        />
+                                        <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-gray-400 text-[10px] font-black uppercase tracking-widest">
+                                            Qty
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between items-center text-[11px]">
+                                            <span className="text-gray-500 font-bold">Availability</span>
+                                            <span className="font-black text-gray-900">{questionStats[item.statsKey].available} / {questionStats[item.statsKey].total}</span>
+                                        </div>
+                                        <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                                            <div
+                                                className={`h-full rounded-full transition-all duration-1000 ease-out ${questionStats[item.statsKey].available < paperForm[item.key] ? 'bg-red-500' : `bg-${item.color}-500`
+                                                    }`}
+                                                style={{ width: `${Math.min(100, (questionStats[item.statsKey].available / (Math.max(1, questionStats[item.statsKey].total))) * 100)}%` }}
+                                            ></div>
+                                        </div>
+                                        {questionStats[item.statsKey].available < paperForm[item.key] && (
+                                            <div className="flex items-center gap-1.5 text-red-500">
+                                                <AlertCircle className="w-3.5 h-3.5" />
+                                                <span className="text-[10px] font-bold animate-pulse">Insufficient available questions</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </section>
                 </div>
+            </div>
 
-                {/* Right Column: Scheduling & Actions */}
-                <div className="lg:col-span-1 space-y-6">
-                    {/* Time-Based Scheduling */}
-                    <div className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl p-6 border border-indigo-100 shadow-sm">
-                        <div className="flex items-center gap-2 mb-4 text-indigo-900">
-                            <Timer className="w-5 h-5" />
-                            <h3 className="font-bold">Schedule Generation</h3>
+            {/* 2. Actions & Scheduling Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-8 border-t border-gray-100">
+                {/* 2.1 Time-Based Scheduling */}
+                <div className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl p-8 border border-indigo-100 shadow-sm">
+                    <div className="flex items-center gap-3 mb-6 text-indigo-900">
+                        <div className="p-2 bg-white rounded-lg shadow-sm">
+                            <Timer className="w-5 h-5 text-indigo-600" />
                         </div>
-
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-semibold text-indigo-800 uppercase tracking-wide mb-1.5">Date</label>
-                                <input type="date" value={paperForm.generationDate} onChange={(e) => setPaperForm({ ...paperForm, generationDate: e.target.value })} min={new Date().toISOString().split('T')[0]} className="w-full border border-indigo-200 bg-white/80 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500/30 outline-none" />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-semibold text-indigo-800 uppercase tracking-wide mb-1.5">Time</label>
-                                <input type="time" value={paperForm.generationTime} onChange={(e) => setPaperForm({ ...paperForm, generationTime: e.target.value })} className="w-full border border-indigo-200 bg-white/80 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500/30 outline-none" />
-                            </div>
-                        </div>
-
-                        <div className="mt-4 flex items-start gap-2 p-3 bg-white/60 rounded-lg border border-indigo-100 text-xs text-indigo-700">
-                            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                            <p>Paper will be auto-generated at this time with random questions.</p>
-                        </div>
-
-                        <button
-                            onClick={handleSchedulePaper}
-                            disabled={loading || !paperForm.title || !paperForm.subjectCode || !paperForm.generationDate || !paperForm.generationTime}
-                            className="mt-6 w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-medium disabled:opacity-50 transition-all shadow-md shadow-indigo-500/20 flex items-center justify-center gap-2"
-                        >
-                            <Timer className="w-4 h-4" /> Schedule Now
-                        </button>
+                        <h3 className="text-xl font-bold">Schedule Generation</h3>
                     </div>
 
-                    {/* Instant Generation */}
-                    <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
-                        <h3 className="font-semibold text-gray-900 mb-2">Instant Generation</h3>
-                        <p className="text-sm text-gray-500 mb-4">Generate and download the paper immediately based on current configuration.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-xs font-semibold text-indigo-800 uppercase tracking-wide mb-1.5">Date</label>
+                            <input type="date" value={paperForm.generationDate} onChange={(e) => setPaperForm({ ...paperForm, generationDate: e.target.value })} min={new Date().toISOString().split('T')[0]} className="w-full border border-indigo-200 bg-white rounded-xl px-4 py-2.5 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-indigo-800 uppercase tracking-wide mb-1.5">Time</label>
+                            <input type="time" value={paperForm.generationTime} onChange={(e) => setPaperForm({ ...paperForm, generationTime: e.target.value })} className="w-full border border-indigo-200 bg-white rounded-xl px-4 py-2.5 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all" />
+                        </div>
+                    </div>
 
+                    <div className="mt-6 flex items-start gap-3 p-4 bg-white/60 rounded-xl border border-indigo-100 text-sm text-indigo-700">
+                        <AlertCircle className="w-5 h-5 shrink-0 text-indigo-500" />
+                        <p>Paper will be auto-generated at the scheduled time using a random selection of questions meeting your criteria.</p>
+                    </div>
+
+                    <button
+                        onClick={handleSchedulePaper}
+                        disabled={loading || !paperForm.title || !paperForm.subjectCode || !paperForm.program || !paperForm.generationDate || !paperForm.generationTime}
+                        className="mt-8 w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold disabled:opacity-50 transition-all shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 transform active:scale-[0.98]"
+                    >
+                        <Timer className="w-5 h-5" /> Schedule Automatic Generation
+                    </button>
+                </div>
+
+                {/* 2.2 Instant Generation */}
+                <div className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm h-full flex flex-col">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2 bg-emerald-50 rounded-lg">
+                            <RefreshCw className="w-5 h-5 text-emerald-600" />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900">Instant Generation</h3>
+                    </div>
+                    <p className="text-gray-500 mb-8">Download your question paper immediately. Ensure you have selected or generated questions before proceeding.</p>
+
+                    <div className="mt-auto space-y-4">
+                        {selectedQuestions.length > 0 && (
+                            <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-xl border border-emerald-100 mb-4">
+                                <div className="flex items-center gap-2 text-emerald-700">
+                                    <CheckCircle2 className="w-5 h-5" />
+                                    <span className="font-medium">{selectedQuestions.length} Questions Ready</span>
+                                </div>
+                                <button onClick={clearAllQuestions} className="text-xs font-bold text-emerald-600 hover:text-emerald-800 uppercase tracking-wider">Clear All</button>
+                            </div>
+                        )}
                         <button
                             onClick={handleGeneratePaper}
-                            disabled={loading || !paperForm.title || !paperForm.subjectCode || selectedQuestions.length === 0}
-                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-medium disabled:opacity-50 transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2"
+                            disabled={loading || !paperForm.title || !paperForm.subjectCode || !paperForm.program || selectedQuestions.length === 0}
+                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-xl font-bold disabled:opacity-50 transition-all shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transform active:scale-[0.98]"
                         >
-                            <FileText className="w-4 h-4" /> Generate & Download
+                            <FileText className="w-5 h-5" /> Generate & Download PDF
                         </button>
                     </div>
-
-                    {/* Selected Summary */}
-                    {selectedQuestions.length > 0 && (
-                        <div className="bg-gray-50 rounded-2xl p-5 border border-gray-200">
-                            <div className="flex items-center justify-between mb-3">
-                                <h4 className="font-bold text-gray-800">Selected Questions</h4>
-                                <span className="bg-gray-200 text-gray-700 text-xs px-2 py-0.5 rounded-full font-medium">{selectedQuestions.length}</span>
-                            </div>
-                            <div className="space-y-2 text-xs text-gray-600 mb-4">
-                                <div className="flex justify-between"><span>1-Mark:</span> <span className="font-medium text-gray-900">{selectedQuestions.filter(q => q.marks === 1 || q.marks === 2).length}</span></div>
-                                <div className="flex justify-between"><span>4-Mark:</span> <span className="font-medium text-gray-900">{selectedQuestions.filter(q => q.marks === 4).length}</span></div>
-                                <div className="flex justify-between"><span>6-Mark:</span> <span className="font-medium text-gray-900">{selectedQuestions.filter(q => q.marks === 6).length}</span></div>
-                                {/* <div className="flex justify-between"><span>8-Mark:</span> <span className="font-medium text-gray-900">{selectedQuestions.filter(q => q.marks === 8).length}</span></div> */}
-                            </div>
-                            <div className="flex gap-2">
-                                <button onClick={generateRandomQuestions} className="flex-1 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-medium hover:bg-gray-50 text-gray-700">Regenerate</button>
-                                <button onClick={clearAllQuestions} className="flex-1 py-1.5 bg-red-50 border border-red-200 rounded-lg text-xs font-medium hover:bg-red-100 text-red-600">Clear</button>
-                            </div>
-                        </div>
-                    )}
                 </div>
             </div>
         </div>
