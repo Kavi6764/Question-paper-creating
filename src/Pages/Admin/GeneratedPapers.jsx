@@ -103,28 +103,61 @@ export default function GeneratedPapers({
         }
     };
 
+    // Fix IDs for older papers to make Replace/Edit work
+    React.useEffect(() => {
+        if (showPreview && generatedPaper && generatedPaper.questions) {
+            let needsUpdate = false;
+            const updatedQuestions = generatedPaper.questions.map((q, idx) => {
+                let currentQ = { ...q };
+                if (!currentQ.id) {
+                    currentQ.id = `prev-q-${idx}-${Date.now()}`;
+                    needsUpdate = true;
+                }
+                if (currentQ.orQuestion && !currentQ.orQuestion.id) {
+                    currentQ.orQuestion = {
+                        ...currentQ.orQuestion,
+                        id: `prev-or-q-${idx}-${Date.now()}`
+                    };
+                    needsUpdate = true;
+                }
+                return currentQ;
+            });
+
+            if (needsUpdate) {
+                setGeneratedPaper(prev => ({ ...prev, questions: updatedQuestions }));
+                const updateDb = async () => {
+                    try {
+                        await updateDoc(doc(db, "questionPapers", generatedPaper.id), { questions: updatedQuestions });
+                    } catch (e) { console.error("ID migration error:", e); }
+                };
+                updateDb();
+            }
+        }
+    }, [showPreview, generatedPaper?.id]);
+
     const handleReplaceQuestion = async (newQuestion) => {
+        console.log("Replace function called with:", newQuestion);
+        console.log("Current replacingQuestion:", replacingQuestion);
+        console.log("Current generatedPaper:", generatedPaper);
+
         if (!generatedPaper || !replacingQuestion) return;
 
         try {
-            const updatedQuestions = generatedPaper.questions.map(q =>
-                q.id === replacingQuestion.id ? { ...newQuestion } : q
-            );
-
-            const paperRef = doc(db, "questionPapers", generatedPaper.id);
-            await updateDoc(paperRef, {
-                questions: updatedQuestions,
-                updatedAt: serverTimestamp()
+            const updatedQuestions = generatedPaper.questions.map(q => {
+                if (q.id === replacingQuestion.id) {
+                    return { ...newQuestion, orQuestion: q.orQuestion, id: replacingQuestion.id };
+                }
+                if (q.orQuestion && q.orQuestion.id === replacingQuestion.id) {
+                    return { ...q, orQuestion: { ...newQuestion, id: replacingQuestion.id } };
+                }
+                return q;
             });
 
-            setGeneratedPaper(prev => ({
-                ...prev,
-                questions: updatedQuestions
-            }));
-
+            const paperRef = doc(db, "questionPapers", generatedPaper.id);
+            await updateDoc(paperRef, { questions: updatedQuestions, updatedAt: serverTimestamp() });
+            setGeneratedPaper(prev => ({ ...prev, questions: updatedQuestions }));
             toast.success("Question replaced successfully");
             setReplacingQuestion(null);
-
         } catch (error) {
             console.error("Error replacing question:", error);
             toast.error("Error replacing question");
@@ -132,27 +165,25 @@ export default function GeneratedPapers({
     };
 
     const handleEditQuestion = async (updatedQ) => {
+        console.log("Edit function called with:", updatedQ);
         if (!generatedPaper || !editingQuestion) return;
 
         try {
-            const updatedQuestions = generatedPaper.questions.map(q =>
-                q.id === editingQuestion.id ? updatedQ : q
-            );
-
-            const paperRef = doc(db, "questionPapers", generatedPaper.id);
-            await updateDoc(paperRef, {
-                questions: updatedQuestions,
-                updatedAt: serverTimestamp()
+            const updatedQuestions = generatedPaper.questions.map(q => {
+                if (q.id === editingQuestion.id) {
+                    return { ...updatedQ, orQuestion: q.orQuestion, id: q.id };
+                }
+                if (q.orQuestion && q.orQuestion.id === editingQuestion.id) {
+                    return { ...q, orQuestion: { ...updatedQ, id: q.orQuestion.id } };
+                }
+                return q;
             });
 
-            setGeneratedPaper(prev => ({
-                ...prev,
-                questions: updatedQuestions
-            }));
-
+            const paperRef = doc(db, "questionPapers", generatedPaper.id);
+            await updateDoc(paperRef, { questions: updatedQuestions, updatedAt: serverTimestamp() });
+            setGeneratedPaper(prev => ({ ...prev, questions: updatedQuestions }));
             toast.success("Question updated successfully");
             setEditingQuestion(null);
-
         } catch (error) {
             console.error("Error updating question:", error);
             toast.error("Error updating question");
@@ -474,7 +505,7 @@ export default function GeneratedPapers({
                                         <>
                                             <div className="text-center mb-6">
                                                 <div className="border border-gray-900 rounded p-4 mb-4 font-serif text-[15px] font-bold">
-                                                    <h1 className="text-xl uppercase tracking-wider mb-1"> Uttaranchal  University</h1>
+                                                    <h1 className="text-xl uppercase tracking-wider mb-1"> Uttaranchal University</h1>
                                                     <h2 className="text-lg font-normal mb-1">Uttaranchal Institute of Technology</h2>
                                                     <h3 className="text-base font-bold mb-1">
                                                         {(generatedPaper.title || "Examination Paper").replace(/ - Set [A-Z]/gi, "") || (generatedPaper.semester || "Semester")}
@@ -596,8 +627,8 @@ export default function GeneratedPapers({
 
                                                     {/* Action Buttons */}
                                                     <div className="absolute right-2 top-2 flex gap-2 print:hidden z-10">
-                                                        <button onClick={() => setEditingQuestion(question)} className="flex items-center gap-1 px-2 py-1 bg-white text-blue-600 border border-blue-200 rounded shadow-sm hover:bg-blue-50 text-xs font-medium"><PenTool className="w-3 h-3" /> Edit</button>
-                                                        <button onClick={() => setReplacingQuestion(question)} className="flex items-center gap-1 px-2 py-1 bg-white text-orange-600 border border-orange-200 rounded shadow-sm hover:bg-orange-50 text-xs font-medium"><RefreshCw className="w-3 h-3" /> Replace</button>
+                                                        <button onClick={() => setEditingQuestion(question)} title="Edit Question" className="flex items-center gap-1 px-2 py-1 bg-white text-blue-600 border border-blue-200 rounded shadow-sm hover:bg-blue-50 text-[10px] font-medium"><PenTool className="w-3 h-3" /> Edit</button>
+                                                        <button onClick={() => setReplacingQuestion(question)} title="Replace Question" className="flex items-center gap-1 px-2 py-1 bg-white text-orange-600 border border-orange-200 rounded shadow-sm hover:bg-orange-50 text-[10px] font-medium"><RefreshCw className="w-3 h-3" /> Replace</button>
                                                     </div>
 
                                                     <div className="flex justify-between items-start gap-4">
@@ -608,12 +639,50 @@ export default function GeneratedPapers({
                                                                     <div className="flex-1">
                                                                         <p className="font-serif text-gray-900 text-[15px] leading-relaxed text-justify relative z-0 whitespace-pre-line">{highlightUrls(question.question)}</p>
                                                                         {question.orQuestion && (
-                                                                            <div className="my-3 text-center font-bold text-gray-800 uppercase tracking-widest text-sm relative before:content-[''] before:absolute before:left-0 before:top-1/2 before:w-[calc(50%-20px)] before:h-px before:bg-gray-300 after:content-[''] after:absolute after:right-0 after:top-1/2 after:w-[calc(50%-20px)] after:h-px after:bg-gray-300">
-                                                                                OR
+                                                                            <div className="relative group/or mt-2">
+                                                                                <div className="my-3 text-center font-bold text-gray-800 uppercase tracking-widest text-sm relative before:content-[''] before:absolute before:left-0 before:top-1/2 before:w-[calc(50%-20px)] before:h-px before:bg-gray-300 after:content-[''] after:absolute after:right-0 after:top-1/2 after:w-[calc(50%-20px)] after:h-px after:bg-gray-300">
+                                                                                    OR
+                                                                                </div>
+                                                                                {/* Action Buttons */}
+                                                                                <div className="absolute right-2 top-2 flex gap-2 print:hidden z-10">
+                                                                                    {/* Edit button for main question */}
+                                                                                    <button
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            setEditingQuestion({
+                                                                                                ...question.orQuestion,
+                                                                                              
+                                                                                                id: question.orQuestion.id || `or-${Date.now()}`,
+                                                                                            
+                                                                                                parentId: question.id,
+                                                                                                isOrQuestion: true
+                                                                                            });
+                                                                                        }}
+                                                                                        title="Edit OR Question"
+                                                                                        className="flex items-center gap-1 px-2 py-1 bg-white text-blue-600 border border-blue-200 rounded-md shadow-sm hover:bg-blue-50 text-[10px] font-medium transition-all hover:scale-105"
+                                                                                    >
+                                                                                        <PenTool className="w-3 h-3" /> Edit OR
+                                                                                    </button>
+
+                                                                                    {/* Replace button for main question */}
+                                                                                    <button
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            setReplacingQuestion({
+                                                                                                ...question.orQuestion,
+                                                                                                id: question.orQuestion.id || `or-${Date.now()}`,
+                                                                                                parentId: question.id,
+                                                                                                isOrQuestion: true
+                                                                                            });
+                                                                                        }}
+                                                                                        title="Replace Question"
+                                                                                        className="flex items-center gap-1 px-2 py-1 bg-white text-orange-600 border border-orange-200 rounded shadow-sm hover:bg-orange-50 text-[10px] font-medium"
+                                                                                    >
+                                                                                        <RefreshCw className="w-3 h-3" /> Replace
+                                                                                    </button>
+                                                                                </div>
+                                                                                <p className="font-serif text-gray-900 text-[15px] leading-relaxed text-justify relative z-0 whitespace-pre-line">{highlightUrls(question.orQuestion.question)}</p>
                                                                             </div>
-                                                                        )}
-                                                                        {question.orQuestion && (
-                                                                            <p className="font-serif text-gray-900 text-[15px] leading-relaxed text-justify relative z-0 whitespace-pre-line">{highlightUrls(question.orQuestion.question)}</p>
                                                                         )}
                                                                     </div>
                                                                     <span className="shrink-0 px-2 py-0.5 rounded text-[9px] font-bold bg-gray-100 text-gray-600 border border-gray-200 uppercase tracking-tighter">
@@ -700,8 +769,12 @@ export default function GeneratedPapers({
                         unit={replacingQuestion.unit}
                         marks={replacingQuestion.marks}
                         currentQuestionId={replacingQuestion.id}
-                        existingQuestionIds={generatedPaper.questions.map(q => q.id)}
-                        onReplace={handleReplaceQuestion}
+                        existingQuestionIds={generatedPaper.questions.reduce((ids, q) => {
+                            if (q.id) ids.push(q.id);
+                            if (q.orQuestion && q.orQuestion.id) ids.push(q.orQuestion.id);
+                            return ids;
+                        }, [])}
+                       onReplace={handleReplaceQuestion}
                         onClose={() => setReplacingQuestion(null)}
                     />
                 )
