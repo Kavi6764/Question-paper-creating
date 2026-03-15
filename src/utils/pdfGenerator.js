@@ -183,13 +183,12 @@ export const downloadPaperAsPDF = async (paper) => {
     const setMatch = (paper.title || "").match(/Set ([A-Z])/i);
     if (setMatch) {
         const setLetter = setMatch[1].toUpperCase();
-        doc.setLineWidth(0.5);
+        doc.setLineWidth(0.4);
         doc.setDrawColor(0, 0, 0);
-        doc.circle(185, 15, 7, 'S'); // 'S' for stroke
-        doc.setFontSize(10);
+        doc.circle(188, 12, 2, 'S'); // Tiny circle
+        doc.setFontSize(5);
         doc.setFont("times", 'bold');
-        doc.text(setLetter, 185, 15.5, { align: 'center' }); // Centered in circle
-        doc.text("SET", 185, 25, { align: 'center' }); // label below circle
+        doc.text(setLetter, 188, 12.5, { align: 'center' }); // Centered A/B
     }
 
     // Draw lines for border

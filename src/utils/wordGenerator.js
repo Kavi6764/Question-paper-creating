@@ -172,23 +172,41 @@ export const downloadPaperAsWord = async (paper) => {
         const setMatch = (paper.title || "").match(/Set ([A-Z])/i);
         if (setMatch) {
             const setLetter = setMatch[1].toUpperCase();
+
             docChildren.push(
-                new Paragraph({
+                new Table({
                     alignment: AlignmentType.RIGHT,
-                    children: [
-                        new TextRun({
-                            text: `SET ${setLetter}`,
-                            bold: true,
-                            size: 24,
-                        })
-                    ],
-                    border: {
-                        top: { style: BorderStyle.SINGLE, size: 6, space: 1, color: "000000" },
-                        bottom: { style: BorderStyle.SINGLE, size: 6, space: 1, color: "000000" },
-                        left: { style: BorderStyle.SINGLE, size: 6, space: 1, color: "000000" },
-                        right: { style: BorderStyle.SINGLE, size: 6, space: 1, color: "000000" },
+                    width: {
+                        size: 400, // Small square size (~0.25 inch)
+                        type: WidthType.DXA,
                     },
-                    spacing: { after: 200 }
+                    borders: {
+                        top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                        bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                        left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                        right: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                    },
+                    rows: [
+                        new TableRow({
+                            children: [
+                                new TableCell({
+                                    children: [
+                                        new Paragraph({
+                                            alignment: AlignmentType.CENTER,
+                                            children: [
+                                                new TextRun({
+                                                    text: setLetter,
+                                                    bold: true,
+                                                    size: 16
+                                                })
+                                            ]
+                                        })
+                                    ],
+                                    verticalAlign: AlignmentType.CENTER,
+                                })
+                            ]
+                        })
+                    ]
                 })
             );
         }
