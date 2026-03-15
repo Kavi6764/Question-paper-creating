@@ -16,57 +16,69 @@ export default function ReplaceQuestionModal({
     const [loading, setLoading] = useState(true);
     const [questions, setQuestions] = useState([]);
     const [selectedQuestion, setSelectedQuestion] = useState(null);
+    const [error, setError] = useState(null);
 
     useEffect(() => {
         const fetchQuestions = async () => {
             try {
                 setLoading(true);
+                setError(null);
+
+                // Query the subjects collection
                 const q = query(
                     collection(db, "subjects"),
                     where("subjectCode", "==", subjectCode)
                 );
 
                 const querySnapshot = await getDocs(q);
+
                 let availableQuestions = [];
 
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
-                    if (data.units) {
-                        // Check all units if unit is not strictly enforced, but usually we want same unit
-                        // For now, let's enforce same unit
-                        Object.values(data.units).forEach(u => {
-                            if (Number(u.unitNumber) === Number(unit) && u.questions) {
-                                u.questions.forEach((question, index) => {
-                                    // Generate a unique ID if not present (simulated based on logic in AdminDashboard)
-                                    const qId = question.id || `${doc.id}-${u.unitNumber}-${index}`;
 
-                                    // Filter by marks
-                                    if (Number(question.marks) === Number(marks)) {
-                                        // Exclude current question and already present questions
-                                        if (qId !== currentQuestionId && !existingQuestionIds.includes(qId)) {
-                                            availableQuestions.push({
-                                                ...question,
-                                                id: qId,
-                                                unit: u.unitNumber
-                                            });
-                                        }
-                                    }
-                                });
+                    // Look for the specific unit (unit1, unit2, unit3, etc.)
+                    const unitKey = `unit${unit}`;
+                    const unitData = data[unitKey];
+
+                    if (unitData && unitData.questions) {
+
+
+                        unitData.questions.forEach((question, index) => {
+                            // Generate a unique ID if not present
+                            const qId = question.id || `${doc.id}-${unit}-${index}`;
+                            // Filter by marks
+                            if (Number(question.marks) === Number(marks)) {
+                                // Exclude current question and already present questions
+                                if (qId !== currentQuestionId && !existingQuestionIds.includes(qId)) {
+                                    availableQuestions.push({
+                                        ...question,
+                                        id: qId,
+                                        unit: unit
+                                    });
+                                }
                             }
                         });
                     }
                 });
 
                 setQuestions(availableQuestions);
+
+                if (availableQuestions.length === 0) {
+                    setError(`No alternative ${marks}-mark questions found in Unit ${unit}`);
+                }
             } catch (error) {
-                console.error("Error fetching questions:", error);
+                setError(error.message);
             } finally {
                 setLoading(false);
             }
         };
 
-        if (subjectCode) {
+        if (subjectCode && unit) {
             fetchQuestions();
+        } else {
+            setLoading(false);
+            setError("Missing subject code or unit");
         }
     }, [subjectCode, unit, marks, currentQuestionId, existingQuestionIds]);
 
@@ -86,6 +98,9 @@ export default function ReplaceQuestionModal({
                         <p className="text-sm text-gray-500">
                             Select a new {marks}-mark question from Unit {unit}
                         </p>
+                        {error && (
+                            <p className="text-xs text-red-500 mt-1">{error}</p>
+                        )}
                     </div>
                     <button
                         onClick={onClose}
@@ -105,7 +120,12 @@ export default function ReplaceQuestionModal({
                         <div className="text-center py-12 text-gray-500">
                             <RefreshCw className="w-12 h-12 mx-auto text-gray-300 mb-3" />
                             <p className="font-medium">No alternative questions found</p>
-                            <p className="text-sm mt-1">Try adding more questions to the question bank</p>
+                            <p className="text-sm mt-1">
+                                {error || `No ${marks}-mark questions available in Unit ${unit}`}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-2">
+                                Subject: {subjectCode} | Unit: {unit} | Marks: {marks}
+                            </p>
                         </div>
                     ) : (
                         <div className="space-y-3">
@@ -114,22 +134,44 @@ export default function ReplaceQuestionModal({
                                     key={q.id}
                                     onClick={() => setSelectedQuestion(q)}
                                     className={`p-4 rounded-lg border cursor-pointer transition-all ${selectedQuestion?.id === q.id
-                                        ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
-                                        : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                                            ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500'
+                                            : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
                                         }`}
                                 >
                                     <div className="flex justify-between items-start gap-3">
                                         <div className="flex-1">
-                                            <p className="text-gray-900 font-medium text-sm">{q.question}</p>
-                                            <div className="flex gap-2 mt-2">
-                                                <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">
-                                                    {q.difficulty || 'Medium'}
-                                                </span>
-                                                {q.type && (
+                                            <p className="text-gray-900 font-medium text-sm whitespace-pre-line">
+                                                {q.question}
+                                            </p>
+                                            {q.imageURL && (
+                                                <div className="mt-2">
+                                                    <img
+                                                        src={q.imageURL}
+                                                        alt="Question"
+                                                        className="max-h-32 rounded border border-gray-200"
+                                                        onError={(e) => e.target.style.display = 'none'}
+                                                    />
+                                                </div>
+                                            )}
+                                            <div className="flex gap-2 mt-2 flex-wrap">
+                                                {q.bloomLevel && (
                                                     <span className="text-xs px-2 py-0.5 rounded bg-purple-50 text-purple-700">
+                                                        {q.bloomLevel}
+                                                    </span>
+                                                )}
+                                                {q.difficulty && (
+                                                    <span className="text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-600">
+                                                        {q.difficulty}
+                                                    </span>
+                                                )}
+                                                {q.type && (
+                                                    <span className="text-xs px-2 py-0.5 rounded bg-green-50 text-green-700">
                                                         {q.type}
                                                     </span>
                                                 )}
+                                                <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700">
+                                                    Marks: {q.marks}
+                                                </span>
                                             </div>
                                         </div>
                                         {selectedQuestion?.id === q.id && (
