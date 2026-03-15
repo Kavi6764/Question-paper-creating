@@ -18,6 +18,24 @@ const sanitizeText = (text) => {
         .replace(/→/g, "->");
 };
 
+const addWatermark = (doc, logoData) => {
+    if (!logoData) return;
+
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.saveGraphicsState();
+        doc.setGState(new doc.GState({ opacity: 0.06 }));
+
+        const imgWidth = 100;
+        const imgHeight = (logoData.height * imgWidth) / logoData.width;
+        const x = (doc.internal.pageSize.width - imgWidth) / 2;
+        const y = (doc.internal.pageSize.height - imgHeight) / 2;
+
+        doc.addImage(logoData.data, 'JPEG', x, y, imgWidth, imgHeight);
+        doc.restoreGraphicsState();
+    }
+};
 
 export const downloadPaperAsPDF = async (paper) => {
     if (!paper) return;
@@ -75,17 +93,8 @@ export const downloadPaperAsPDF = async (paper) => {
     };
 
     const doc = new jsPDF();
-
-    // Load Logo
+    let yPos = 15;
     const logoData = await loadImage(logo);
-    let yPos = 12;
-
-    if (logoData) {
-        const imgWidth = 25;
-        const imgHeight = (logoData.height * imgWidth) / logoData.width;
-        doc.addImage(logoData.data, 'JPEG', 105 - (imgWidth / 2), 10, imgWidth, imgHeight);
-        yPos = 10 + imgHeight + 10;
-    }
 
     // Header - University Name
     doc.setFontSize(11);
@@ -96,13 +105,21 @@ export const downloadPaperAsPDF = async (paper) => {
     doc.setFontSize(10);
     doc.setFont("times", 'normal');
     doc.text("Uttaranchal Institute of Technology", 105, yPos, { align: 'center' });
-    yPos += 4;
+    yPos += 5;
 
+    // Semester Title (paper.title or paper.semester)
     doc.setFontSize(10);
     doc.setFont("times", 'bold');
-    const displayTitle = paper.title ? paper.title.replace(/ - Set [A-Z]/gi, "") : "";
+    const displayTitle = String(paper.title ? paper.title.replace(/ - Set [A-Z]/gi, "") : (paper.semester || "Semester"));
     doc.text(displayTitle, 105, yPos, { align: 'center' });
     yPos += 5;
+
+    // Department Title
+    doc.setFontSize(10);
+    doc.setFont("times", 'bold');
+    const deptTitle = (paper.department || "").toUpperCase();
+    doc.text(deptTitle, 105, yPos, { align: 'center' });
+    yPos += 6;
 
     // Draw lines for border
     doc.setLineWidth(0.3);
@@ -116,37 +133,32 @@ export const downloadPaperAsPDF = async (paper) => {
     doc.setFont("times", "bolditalic");
     doc.text("Programme:", 20, metaY);
     doc.setFont("times", 'normal');
-    doc.text(paper.department || "B. Tech (CSE)", 45, metaY);
+    doc.text(String(paper.program || "B.Tech"), 45, metaY);
 
     doc.setFont("times", "bolditalic");
-    doc.text("Semester:", 120, metaY);
+    doc.text("Course Code:", 120, metaY);
     doc.setFont("times", 'normal');
-    doc.text(paper.semester || "5th", 145, metaY);
+    const courseCode = (paper.subjectCode || "").toUpperCase();
+    doc.text(courseCode, 145, metaY);
 
     // Line 2
     doc.setFont("times", "bolditalic");
     doc.text("Course:", 20, metaY + 4);
     doc.setFont("times", 'normal');
-    const courseName = (paper.subjectName || "FULL STACK DEVELOPMENT").toUpperCase();
+    const courseName = (paper.subjectName || "").toUpperCase();
     doc.text(courseName, 45, metaY + 4);
 
     doc.setFont("times", "bolditalic");
-    doc.text("Course Code:", 120, metaY + 4);
+    doc.text("Section:", 120, metaY + 4);
     doc.setFont("times", 'normal');
-    const courseCode = (paper.subjectCode || "TCS 300").toUpperCase();
-    doc.text(courseCode, 145, metaY + 4);
+    const paperSection = (paper.section || "A/B/C").toUpperCase();
+    doc.text(paperSection, 145, metaY + 4);
 
     // Line 3
     doc.setFont("times", "bolditalic");
-    doc.text("Section:", 20, metaY + 8);
+    doc.text("Roll No:", 20, metaY + 8);
     doc.setFont("times", 'normal');
-    const paperSection = (paper.section || "A/B/C").toUpperCase();
-    doc.text(paperSection, 45, metaY + 8);
-
-    doc.setFont("times", "bolditalic");
-    doc.text("Roll No:", 120, metaY + 8);
-    doc.setFont("times", 'normal');
-    doc.text("..............................", 145, metaY + 8);
+    doc.text("................................................................................", 45, metaY + 8);
 
     // Line bottom of header
     doc.line(15, metaY + 11, 195, metaY + 11);
@@ -260,10 +272,10 @@ export const downloadPaperAsPDF = async (paper) => {
 
         // Print CO and BT columns
         if (q.imageURL) doc.setTextColor(59, 130, 246);
-        doc.text(q.co || "", 150, contentY, { align: 'center' });
-        doc.text(q.bloomLevel ? q.bloomLevel.toUpperCase() : 'RE', 185, contentY, { align: 'center' });
+        doc.text(String(q.co || ""), 150, contentY, { align: 'center' });
+        doc.text(String(q.bloomLevel || 'RE').toUpperCase(), 185, contentY, { align: 'center' });
         if (q.imageURL) doc.setTextColor(0, 0, 0);
-        
+
 
         if (q.orQuestion && q.orQuestion.question) {
             let currentBaseY = contentY + (questionLines.length * lineHeight) + 1;
@@ -275,10 +287,10 @@ export const downloadPaperAsPDF = async (paper) => {
 
             // Print OR question CO and BT columns
             if (q.orQuestion.imageURL) doc.setTextColor(59, 130, 246);
-            doc.text(q.orQuestion.co || "", 150, currentBaseY, { align: 'center' });
-            doc.text(q.orQuestion.bloomLevel ? q.orQuestion.bloomLevel.toUpperCase() : 'RE', 185, currentBaseY, { align: 'center' });
+            doc.text(String(q.orQuestion.co || ""), 150, currentBaseY, { align: 'center' });
+            doc.text(String(q.orQuestion.bloomLevel || 'RE').toUpperCase(), 185, currentBaseY, { align: 'center' });
             if (q.orQuestion.imageURL) doc.setTextColor(0, 0, 0);
-            
+
         }
 
         contentY += textHeight + 1;
@@ -327,5 +339,8 @@ export const downloadPaperAsPDF = async (paper) => {
         contentY += 2; // Spacing between questions
     }
 
-    doc.save(`${paper.title.replace(/\s+/g, '_')}.pdf`);
+    // Finalize: Add watermark to all pages before saving
+    addWatermark(doc, logoData);
+
+    doc.save(`${String(paper.title || 'Question_Paper').replace(/\s+/g, '_')}.pdf`);
 };

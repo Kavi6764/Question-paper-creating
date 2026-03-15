@@ -476,37 +476,36 @@ export default function GeneratedPapers({
                                                 <div className="border border-gray-900 rounded p-4 mb-4 font-serif text-[15px] font-bold">
                                                     <h1 className="text-xl uppercase tracking-wider mb-1"> Uttaranchal  University</h1>
                                                     <h2 className="text-lg font-normal mb-1">Uttaranchal Institute of Technology</h2>
-                                                    <h3 className="text-base mb-3">{generatedPaper.title ? generatedPaper.title.replace(/ - Set [A-Z]/gi, "") : ""}</h3>
+                                                    <h3 className="text-base font-bold mb-1">
+                                                        {(generatedPaper.title || "Examination Paper").replace(/ - Set [A-Z]/gi, "") || (generatedPaper.semester || "Semester")}
+                                                    </h3>
+                                                    <h3 className="text-base font-bold uppercase mb-3">{generatedPaper.department || ""}</h3>
 
                                                     <div className="text-left w-full mt-2 font-normal">
                                                         <div className="flex justify-between mb-1">
                                                             <div className="flex gap-2 w-1/2">
                                                                 <span className="italic font-bold">Programme:</span>
-                                                                <span>{generatedPaper.department || "B. Tech (CSE)"}</span>
+                                                                <span>{generatedPaper.program || "B.Tech"}</span>
                                                             </div>
                                                             <div className="flex gap-2 w-1/2">
-                                                                <span className="italic font-bold">Semester:</span>
-                                                                <span>{generatedPaper.semester || "5th"}</span>
+                                                                <span className="italic font-bold">Course Code:</span>
+                                                                <span className="uppercase">{generatedPaper.subjectCode || ""}</span>
                                                             </div>
                                                         </div>
                                                         <div className="flex justify-between mb-1">
                                                             <div className="flex gap-2 w-1/2">
                                                                 <span className="italic font-bold">Course:</span>
-                                                                <span className="uppercase">{generatedPaper.subjectName || "FULL STACK DEVELOPMENT"}</span>
+                                                                <span className="uppercase">{generatedPaper.subjectName || ""}</span>
                                                             </div>
-                                                            <div className="flex gap-2 w-1/2">
-                                                                <span className="italic font-bold">Course Code:</span>
-                                                                <span className="uppercase">{generatedPaper.subjectCode || "TCS 300"}</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex justify-between mb-1">
                                                             <div className="flex gap-2 w-1/2">
                                                                 <span className="italic font-bold">Section:</span>
                                                                 <span className="uppercase">{generatedPaper.section || "A/B/C"}</span>
                                                             </div>
+                                                        </div>
+                                                        <div className="flex justify-between mb-1">
                                                             <div className="flex gap-2 w-1/2">
                                                                 <span className="italic font-bold">Roll No:</span>
-                                                                <span>..............................</span>
+                                                                <span>........................................................................</span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -661,8 +660,17 @@ export default function GeneratedPapers({
                                     )}
 
                                     {/* Page Number */}
-                                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-gray-400 font-serif">
+                                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-gray-400 font-serif z-10">
                                         Page {pageIndex + 1} of {pages.length}
+                                    </div>
+
+                                    {/* Watermark Logo */}
+                                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.05] select-none">
+                                        <img 
+                                            src={logo} 
+                                            alt="" 
+                                            className="w-1/2 h-auto grayscale" 
+                                        />
                                     </div>
                                 </div>
                             ));

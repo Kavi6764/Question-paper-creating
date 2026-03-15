@@ -120,24 +120,25 @@ export default function AdminDashboard() {
 
   // Question Paper Generation State
   const [questionPapers, setQuestionPapers] = useState([]);
-  const [paperForm, setPaperForm] = useState({
-    title: "",
-    subjectCode: "",
-    semester: "",
-    examDate: "",
-    examTime: "09:30",
-    duration: 3,
-    oneMarkQuestions: 5,
-    fourMarkQuestions: 5,
-    sixMarkQuestions: 3,
-    eightMarkQuestions: 0, // Temporarily 0 (Prev: 2)
-    totalQuestions: 13, // Prev: 15
-    totalMarks: 43, // Prev: 64
-    generationTime: "",
-    generationDate: "",
-    department: "",
-    section: ""
-  });
+    const [paperForm, setPaperForm] = useState({
+      title: "",
+      subjectCode: "",
+      program: "B.Tech",
+      semester: "",
+      examDate: "",
+      examTime: "09:30",
+      duration: 3,
+      oneMarkQuestions: 5,
+      fourMarkQuestions: 5,
+      sixMarkQuestions: 3,
+      eightMarkQuestions: 0,
+      totalQuestions: 13,
+      totalMarks: 43,
+      generationTime: "",
+      generationDate: "",
+      department: "",
+      section: ""
+    });
 
   const [selectedQuestions, setSelectedQuestions] = useState([]);
   const [availableQuestions, setAvailableQuestions] = useState({
@@ -1255,6 +1256,7 @@ export default function AdminDashboard() {
             sixMark: { count: sixMarkCount, totalMarks: sixMarkCount * 6 },
             eightMark: { count: eightMarkCount, totalMarks: eightMarkCount * 8 }
           },
+          program: paperForm.program || "B.Tech",
           department: paperForm.department || "",
           section: paperForm.section || ""
         };
@@ -1277,6 +1279,7 @@ export default function AdminDashboard() {
       setPaperForm({
         title: "",
         subjectCode: "",
+        program: "B.Tech",
         semester: "",
         examDate: "",
         examTime: "09:30",
@@ -1284,9 +1287,9 @@ export default function AdminDashboard() {
         oneMarkQuestions: 5,
         fourMarkQuestions: 5,
         sixMarkQuestions: 3,
-        eightMarkQuestions: 0, // Prev: 2
-        totalQuestions: 13, // Prev: 15
-        totalMarks: 43, // 5*1 + 5*4 + 3*6 + 0*8 = 43 (Prev: 59)
+        eightMarkQuestions: 0,
+        totalQuestions: 13,
+        totalMarks: 43,
         generationTime: "",
         generationDate: "",
         department: "",
@@ -1346,6 +1349,7 @@ export default function AdminDashboard() {
         visible: false,
         createdBy: userData.uid || "admin",
         createdAt: serverTimestamp(),
+        program: paperForm.program || "B.Tech",
         department: paperForm.department || "",
         section: paperForm.section || ""
       };
