@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Save, Check } from 'lucide-react';
-import { handleGoogleDriveUrl } from '../utils/imageHandler';
+import { handleGoogleDriveUrl } from '../utils/imageHandler.jsx';
 
 export default function EditQuestionModal({
     question,

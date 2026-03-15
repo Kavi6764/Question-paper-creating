@@ -2,13 +2,13 @@ import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, Align
 import { saveAs } from 'file-saver';
 import toast from 'react-hot-toast';
 import logo from '../assets/logo.png';
-import { handleGoogleDriveUrl } from './imageHandler';
+import { handleGoogleDriveUrl } from './imageHandler.jsx';
 
 const sanitizeText = (text) => {
     if (!text) return "";
     
-    // Normalize to handle decomposed characters
-    let sanitized = text.normalize('NFKD')
+    // Convert to string and Normalize to handle decomposed characters
+    let sanitized = String(text).normalize('NFKD')
         // Strip non-printing/control characters
         .replace(/[\u0000-\u0008\u000B-\u000C\u000E-\u001F\u007F-\u009F\u200B-\u200D\uFEFF]/g, "")
         // Handle non-breaking spaces
