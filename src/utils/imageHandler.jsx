@@ -1,3 +1,4 @@
+import React from 'react';
 export const handleGoogleDriveUrl = (url) => {
     if (!url || typeof url !== 'string') return url;
     if (url.includes('drive.google.com')) {
