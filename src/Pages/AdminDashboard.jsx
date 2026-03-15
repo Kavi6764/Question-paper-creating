@@ -130,25 +130,25 @@ export default function AdminDashboard() {
 
   // Question Paper Generation State
   const [questionPapers, setQuestionPapers] = useState([]);
-    const [paperForm, setPaperForm] = useState({
-      title: "",
-      subjectCode: "",
-      program: "B.Tech",
-      semester: "",
-      examDate: "",
-      examTime: "09:30",
-      duration: 3,
-      oneMarkQuestions: 5,
-      fourMarkQuestions: 5,
-      sixMarkQuestions: 3,
-      eightMarkQuestions: 0,
-      totalQuestions: 13,
-      totalMarks: 43,
-      generationTime: "",
-      generationDate: "",
-      department: "",
-      section: ""
-    });
+  const [paperForm, setPaperForm] = useState({
+    title: "",
+    subjectCode: "",
+    program: "B.Tech",
+    semester: "",
+    examDate: "",
+    examTime: "09:30",
+    duration: 3,
+    oneMarkQuestions: 5,
+    fourMarkQuestions: 5,
+    sixMarkQuestions: 3,
+    eightMarkQuestions: 0,
+    totalQuestions: 13,
+    totalMarks: 43,
+    generationTime: "",
+    generationDate: "",
+    department: "",
+    section: ""
+  });
 
   const [selectedQuestions, setSelectedQuestions] = useState([]);
   const [availableQuestions, setAvailableQuestions] = useState({
@@ -386,10 +386,10 @@ export default function AdminDashboard() {
     // Support legacy top-level (unit1), flattened (units.unit1), and nested (units: {unit1})
     Object.keys(subjectData).forEach(key => {
       if (key.startsWith('unit') && key !== 'units') {
-          // Robust regex to extract number from unit1, units.unit1, unit-1, etc.
-          const match = key.match(/\d+/);
-          const num = match ? parseInt(match[0]) : null;
-          if (num && subjectData[key]) unitMaps.set(num, subjectData[key]);
+        // Robust regex to extract number from unit1, units.unit1, unit-1, etc.
+        const match = key.match(/\d+/);
+        const num = match ? parseInt(match[0]) : null;
+        if (num && subjectData[key]) unitMaps.set(num, subjectData[key]);
       }
     });
 
@@ -404,15 +404,15 @@ export default function AdminDashboard() {
 
     unitMaps.forEach((unitData, unitNumber) => {
       const qList = unitData?.questions || (Array.isArray(unitData) ? unitData : []);
-      
+
       if (Array.isArray(qList)) {
         qList.forEach((q, index) => {
           if (!q) return;
-          
+
           // Support multiple field variants (marks vs Marks)
           const m = q.marks !== undefined ? q.marks : q.Marks;
           const cleanMarks = parseInt(m) || 0;
-          
+
           // Support multiple field variants (question vs Question)
           const text = q.question || q.Question || "";
           if (!text) return;
@@ -442,7 +442,7 @@ export default function AdminDashboard() {
     try {
       const questions = { oneMark: [], fourMark: [], sixMark: [], eightMark: [] };
       const sCode = subjectCode ? subjectCode.trim().toUpperCase() : "";
-      
+
       const subjectsQuery = query(
         collection(db, "subjects"),
         where("subjectCode", "==", sCode)
@@ -456,7 +456,7 @@ export default function AdminDashboard() {
         questions.sixMark.push(...result.sixMark);
         questions.eightMark.push(...result.eightMark);
       });
-      
+
       return questions;
     } catch (error) {
       console.error("Error loading question pool:", error);
@@ -467,7 +467,7 @@ export default function AdminDashboard() {
   const autoGeneratePaper = useCallback(async (scheduledPaper) => {
     try {
       toast.loading(`Processing scheduled paper: ${scheduledPaper.title}...`, { id: `auto-${scheduledPaper.id}` });
-      
+
       const requirements = {
         oneMarkQuestions: scheduledPaper.oneMarkQuestions || scheduledPaper.twoMarkQuestions || 0,
         fourMarkQuestions: scheduledPaper.fourMarkQuestions || 0,
@@ -511,7 +511,13 @@ export default function AdminDashboard() {
       };
 
       // 3. Generate Set A (Update the existing scheduled doc)
-      const questionsA = selectRandomQuestions(requirements, questionPool);
+      const resultA = selectRandomQuestions(requirements, questionPool);
+      if (resultA.error) {
+        toast.error(`Auto-gen failed: ${resultA.error}`, { id: `auto-${scheduledPaper.id}` });
+        processingSchedules.delete(scheduledPaper.id);
+        return;
+      }
+      const questionsA = resultA;
       const dataA = createPaperData(questionsA);
 
       const paperRefA = doc(db, "questionPapers", scheduledPaper.id);
@@ -524,15 +530,16 @@ export default function AdminDashboard() {
       });
 
       // 4. Generate Set B (Create a NEW doc)
-      const questionsB = selectRandomQuestions(requirements, questionPool);
+      const resultB = selectRandomQuestions(requirements, questionPool);
+      const questionsB = resultB.error ? [] : resultB;
       const dataB = createPaperData(questionsB);
 
       const paperB = {
         ...scheduledPaper,
         ...dataB,
         title: scheduledPaper.title.includes("Set A") ? scheduledPaper.title.replace("Set A", "Set B") : `${scheduledPaper.title} - Set B`,
-        status: "generated",
-        createdAt: serverTimestamp() // Set B is created now
+        status: questionsB.length > 0 ? "generated" : "failed",
+        createdAt: serverTimestamp() 
       };
       // Remove id from spread if it exists, addDoc will generate new one
       delete paperB.id;
@@ -1144,83 +1151,123 @@ export default function AdminDashboard() {
   };
 
   const getBalancedRandomSelection = (form, source) => {
-    const bloomLevels = ['RE', 'UN', 'AP', 'AN', 'EV'];
-    const units = [1, 2, 3, 4, 5];
+    const bloomLevels = ['RE', 'UN', 'AP', 'AN', 'EV', 'CR']; // Expanded to include CR
     const selected = [];
-    const levelCounts = { RE: 0, UN: 0, AP: 0, AN: 0, EV: 0 };
+    const usedIds = new Set();
+    const coCounts = {}; // { 'CO1': 0, 'CO2': 0, ... }
+    const blRepeatTracker = { last: null };
 
-    const pool = { 1: {}, 4: {}, 6: {}, 8: {} };
+    // Get units that actually have questions in the pool
+    const allAvailableQuestions = [
+      ...(source.oneMark || []),
+      ...(source.fourMark || []),
+      ...(source.sixMark || []),
+      ...(source.eightMark || [])
+    ];
     
-    // Shuffle source questions to ensure randomness across multiple generations (Set A/B)
-    const shuffledOneMark = shuffleArray(source.oneMark || []);
-    const shuffledFourMark = shuffleArray(source.fourMark || []);
-    const shuffledSixMark = shuffleArray(source.sixMark || []);
-    const shuffledEightMark = shuffleArray(source.eightMark || []);
+    if (allAvailableQuestions.length === 0) return { error: "Question bank is empty for this subject" };
 
-    [...shuffledOneMark, ...shuffledFourMark, ...shuffledSixMark, ...shuffledEightMark].forEach(q => {
-      const marks = q.marks === 2 ? 1 : q.marks;
-      const unit = q.unit || 1;
-      const bl = (q.bloomLevel || 'RE').toUpperCase().replace('BL-', '');
-      const cleanBL = bloomLevels.includes(bl) ? bl : 'RE';
-      if (!pool[marks][unit]) pool[marks][unit] = {};
-      if (!pool[marks][unit][cleanBL]) pool[marks][unit][cleanBL] = [];
-      pool[marks][unit][cleanBL].push({ ...q });
-    });
+    const availableUnits = Array.from(new Set(allAvailableQuestions.map(q => q.unit))).sort((a,b) => a-b);
+    if (availableUnits.length === 0) return { error: "No questions found in any unit" };
 
-    const getOptimalQuestion = (m, preferredUnit, preferredBL) => {
-      // Priority 1: Exact Match (Unit + BL)
-      if (pool[m][preferredUnit]?.[preferredBL]?.length > 0) {
-        return pool[m][preferredUnit][preferredBL].pop();
-      }
-      // Priority 2: Bloom Level Match (Any Unit)
-      for (const u of units) {
-        if (pool[m][u]?.[preferredBL]?.length > 0) return pool[m][u][preferredBL].pop();
-      }
-      // Priority 3: Unit Match (Least used BL)
-      const sortedLevels = [...bloomLevels].sort((a, b) => levelCounts[a] - levelCounts[b]);
-      for (const bl of sortedLevels) {
-        if (pool[m][preferredUnit]?.[bl]?.length > 0) return pool[m][preferredUnit][bl].pop();
-      }
-      // Priority 4: Any Match
-      for (const u of units) {
-        for (const bl of bloomLevels) {
-          if (pool[m][u]?.[bl]?.length > 0) return pool[m][u][bl].pop();
-        }
-      }
-      return null;
+    // Group source questions by Marks for easier pooling
+    const pools = {
+      1: shuffleArray(source.oneMark || []),
+      4: shuffleArray(source.fourMark || []),
+      6: shuffleArray(source.sixMark || []),
+      8: shuffleArray(source.eightMark || [])
     };
 
-    // 1-Mark
-    for (let i = 0; i < form.oneMarkQuestions; i++) {
-      const q = getOptimalQuestion(1, units[i % units.length], bloomLevels[i % bloomLevels.length]);
-      if (q) {
-        selected.push(q);
-        levelCounts[(q.bloomLevel || 'RE').toUpperCase().replace('BL-', '')]++;
+    const getOptimalQuestion = (m, targetUnit, targetBL, excludeIds = new Set()) => {
+      // Filter candidates from the pool for specified marks
+      const candidates = pools[m].filter(q => 
+        !usedIds.has(q.id) && 
+        !excludeIds.has(q.id)
+      );
+
+      // Function to check CO constraint
+      const checkCO = (q) => {
+        const co = String(q.co || "CO1").toUpperCase().replace(/[^A-Z0-9]/g, "");
+        return (coCounts[co] || 0) < 2;
+      };
+
+      // Priority Match Search
+      // 1. Exact: Unit + BL + CO constraint
+      let match = candidates.find(q => q.unit === targetUnit && (q.bloomLevel || 'RE').toUpperCase().includes(targetBL) && checkCO(q));
+      if (match) return match;
+
+      // 2. Unit + CO constraint (any BL)
+      match = candidates.find(q => q.unit === targetUnit && checkCO(q));
+      if (match) return match;
+
+      // 3. BL + CO constraint (any Unit)
+      match = candidates.find(q => (q.bloomLevel || 'RE').toUpperCase().includes(targetBL) && checkCO(q));
+      if (match) return match;
+
+      // 4. Any question meeting CO constraint
+      match = candidates.find(q => checkCO(q));
+      if (match) return match;
+
+      // 5. Hard Fallback: Any available question for these marks (ignoring CO constraint if absolutely desperate)
+      // But user said "Max 2 per CO level", so we should ideally fail if we can't meet it.
+      // However, for the sake of functionality, if candidates exist but fail CO, we check for candidates again
+      match = candidates[0]; 
+
+      return match || null;
+    };
+
+    const markConfigs = [
+      { m: 1, count: form.oneMarkQuestions, hasOr: false },
+      { m: 4, count: form.fourMarkQuestions, hasOr: true },
+      { m: 6, count: form.sixMarkQuestions, hasOr: true },
+      { m: 8, count: form.eightMarkQuestions || 0, hasOr: true }
+    ];
+
+    for (const config of markConfigs) {
+      for (let i = 0; i < config.count; i++) {
+        // Distribute units: cycle through available units
+        const unit = availableUnits[i % availableUnits.length];
+        const bl = bloomLevels[i % bloomLevels.length];
+
+        const q1 = getOptimalQuestion(config.m, unit, bl);
+        if (!q1) continue;
+
+        usedIds.add(q1.id);
+        const co1 = String(q1.co || "CO1").toUpperCase().replace(/[^A-Z0-9]/g, "");
+        coCounts[co1] = (coCounts[co1] || 0) + 1;
+
+        if (config.hasOr) {
+          // Find a diverse OR question (different unit preference if possible, but user said "split equally" for total slots)
+          // We'll use the same unit for the OR pair but different BL
+          const nextBL = bloomLevels[(i + 1) % bloomLevels.length];
+          const q2 = getOptimalQuestion(config.m, unit, nextBL, new Set([q1.id]));
+          
+          if (q2) {
+            usedIds.add(q2.id);
+            const co2 = String(q2.co || "CO1").toUpperCase().replace(/[^A-Z0-9]/g, "");
+            coCounts[co2] = (coCounts[co2] || 0) + 1;
+            selected.push({ ...q1, orQuestion: q2 });
+          } else {
+            selected.push(q1);
+          }
+        } else {
+          selected.push(q1);
+        }
       }
     }
 
-    // 4, 6, 8 Mark Paired
-    [4, 6, 8].forEach(m => {
-      let count = 0;
-      if (m === 4) count = form.fourMarkQuestions;
-      else if (m === 6) count = form.sixMarkQuestions;
-      else if (m === 8) count = form.eightMarkQuestions || 0;
+    // Strict count validation
+    const targetCount = Number(form.oneMarkQuestions) + 
+                        Number(form.fourMarkQuestions) + 
+                        Number(form.sixMarkQuestions) + 
+                        Number(form.eightMarkQuestions || 0);
 
-      for (let i = 0; i < count; i++) {
-        const u = units[i % units.length];
-        const q1 = getOptimalQuestion(m, u, bloomLevels[(i * 2) % bloomLevels.length]);
-        const q2 = getOptimalQuestion(m, u, bloomLevels[(i * 2 + 1) % bloomLevels.length]);
-        if (q1 && q2) {
-          selected.push({ ...q1, orQuestion: q2 });
-          levelCounts[(q1.bloomLevel || 'RE').toUpperCase().replace('BL-', '')]++;
-          levelCounts[(q2.bloomLevel || 'RE').toUpperCase().replace('BL-', '')]++;
-        } else if (q1 || q2) {
-          selected.push(q1 || q2);
-        }
-      }
-    });
+    if (selected.length < targetCount) {
+      return { error: "Insufficient unique questions in the question bank to meet distribution rules" };
+    }
 
-    return selected;
+    // Final shuffle as requested
+    return shuffleArray(selected);
   };
 
   const generateRandomQuestions = () => {
@@ -1228,13 +1275,13 @@ export default function AdminDashboard() {
       toast.error("Please select a subject first");
       return;
     }
-    const selected = getBalancedRandomSelection(paperForm, availableQuestions);
-    if (selected.length === 0) {
-      toast.error("Not enough suitable questions found in question bank");
+    const result = getBalancedRandomSelection(paperForm, availableQuestions);
+    if (result.error) {
+      toast.error(result.error);
       return;
     }
-    setSelectedQuestions(selected);
-    toast.success("Random selection complete (Balanced Units & Bloom Levels)");
+    setSelectedQuestions(result);
+    toast.success("Random selection complete (Balanced Units, Bloom Levels & CO Diversity)");
   };
 
   const selectRandomQuestions = (form, source) => {
@@ -1251,16 +1298,16 @@ export default function AdminDashboard() {
       setLoading(true);
 
       let questionsToUse = [...selectedQuestions];
-      
+
       // If no questions are selected, but pattern is fulfilled, auto-select them now
       if (questionsToUse.length === 0) {
-        const autoSelected = getBalancedRandomSelection(paperForm, availableQuestions);
-        if (autoSelected.length === 0) {
-          toast.error("Not enough suitable questions found in question bank to auto-generate");
+        const result = getBalancedRandomSelection(paperForm, availableQuestions);
+        if (result.error) {
+          toast.error(result.error);
           setLoading(false);
           return;
         }
-        questionsToUse = autoSelected;
+        questionsToUse = result;
       }
 
       // Helper to create paper object
@@ -1304,7 +1351,13 @@ export default function AdminDashboard() {
       const paperA = createPaperObject("Set A", questionsToUse);
 
       // Set B (Always generate a fresh new random set)
-      const questionsB = selectRandomQuestions(paperForm, availableQuestions);
+      const resultB = selectRandomQuestions(paperForm, availableQuestions);
+      if (resultB.error) {
+        toast.error(`Set B could not be generated: ${resultB.error}`);
+        setLoading(false);
+        return;
+      }
+      const questionsB = resultB;
       const paperB = createPaperObject("Set B", questionsB);
 
       // Save both
@@ -1395,7 +1448,7 @@ export default function AdminDashboard() {
       await addDoc(collection(db, "questionPapers"), scheduledPaper);
 
       toast.success("Paper generation scheduled successfully!");
-      setActiveTab("scheduled");
+      setActiveTab("schedule");
 
     } catch (error) {
       console.error("Error scheduling paper:", error);
@@ -1423,10 +1476,10 @@ export default function AdminDashboard() {
       const batch = writeBatch(db);
 
       for (const subject of matchingSubjects) {
-          const subjectRef = doc(db, "subjects", subject.id);
-          const subjectDoc = await getDoc(subjectRef);
-          
-          if (!subjectDoc.exists()) continue;
+        const subjectRef = doc(db, "subjects", subject.id);
+        const subjectDoc = await getDoc(subjectRef);
+
+        if (!subjectDoc.exists()) continue;
 
         const subjectData = subjectDoc.data();
         let questionsInUnit = 0;
@@ -1434,26 +1487,26 @@ export default function AdminDashboard() {
 
         // 1. Check Legacy (unit1)
         if (subjectData[unitKey]) {
-            questionsInUnit += (subjectData[unitKey].questions?.length || 0);
-            updateData[unitKey] = deleteField();
+          questionsInUnit += (subjectData[unitKey].questions?.length || 0);
+          updateData[unitKey] = deleteField();
         }
 
         // 2. Check Flattened (units.unit1)
         const flattenedKey = `units.${unitKey}`;
         if (subjectData[flattenedKey]) {
-            questionsInUnit += (subjectData[flattenedKey].questions?.length || 0);
-            updateData[flattenedKey] = deleteField();
+          questionsInUnit += (subjectData[flattenedKey].questions?.length || 0);
+          updateData[flattenedKey] = deleteField();
         }
 
         // 3. Check Nested (units: { unit1: ... })
         if (subjectData.units && subjectData.units[unitKey]) {
-            questionsInUnit += (subjectData.units[unitKey].questions?.length || 0);
-            updateData[`units.${unitKey}`] = deleteField();
+          questionsInUnit += (subjectData.units[unitKey].questions?.length || 0);
+          updateData[`units.${unitKey}`] = deleteField();
         }
 
         if (questionsInUnit > 0 || Object.keys(updateData).length > 0) {
-            updateData.totalQuestions = Math.max(0, (subjectData.totalQuestions || 0) - questionsInUnit);
-            batch.update(subjectRef, updateData);
+          updateData.totalQuestions = Math.max(0, (subjectData.totalQuestions || 0) - questionsInUnit);
+          batch.update(subjectRef, updateData);
         }
       }
 
