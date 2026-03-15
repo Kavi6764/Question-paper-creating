@@ -16,7 +16,27 @@ const sanitizeText = (text) => {
         .replace(/⊆/g, "subset of")
         .replace(/∀/g, "for all")
         .replace(/∃/g, "exists")
-        .replace(/→/g, "->");
+        .replace(/→/g, "->")
+        .replace(/α/g, "alpha")
+        .replace(/β/g, "beta")
+        .replace(/γ/g, "gamma")
+        .replace(/δ/g, "delta")
+        .replace(/θ/g, "theta")
+        .replace(/λ/g, "lambda")
+        .replace(/μ/g, "mu")
+        .replace(/π/g, "pi")
+        .replace(/ρ/g, "rho")
+        .replace(/σ/g, "sigma")
+        .replace(/τ/g, "tau")
+        .replace(/ω/g, "omega")
+        .replace(/Δ/g, "Delta")
+        .replace(/Φ/g, "Phi")
+        .replace(/Ω/g, "Omega")
+        .replace(/≈/g, "~")
+        .replace(/±/g, "+/-")
+        .replace(/°/g, " degrees")
+        .replace(/²/g, "^2")
+        .replace(/³/g, "^3");
 };
 
 
@@ -81,7 +101,11 @@ export const downloadPaperAsWord = async (paper) => {
                 ctx.globalAlpha = 0.06; // Match PDF opacity
                 ctx.drawImage(img, 0, 0);
                 canvas.toBlob((processedBlob) => {
-                    processedBlob.arrayBuffer().then(resolve);
+                    processedBlob.arrayBuffer().then(buf => resolve({
+                        data: buf,
+                        width: img.width,
+                        height: img.height
+                    }));
                     URL.revokeObjectURL(url);
                 }, 'image/png');
             };
@@ -91,10 +115,10 @@ export const downloadPaperAsWord = async (paper) => {
 
     try {
         // Load logo with error handling
-        let logoBuffer = null;
+        let logoData = null;
         try {
             const rawLogo = await loadImageAsBase64(logo);
-            logoBuffer = await processWatermarkImage(rawLogo);
+            logoData = await processWatermarkImage(rawLogo);
         } catch (logoError) {
             console.warn("Logo could not be loaded, continuing without logo:", logoError);
         }
@@ -344,9 +368,12 @@ export const downloadPaperAsWord = async (paper) => {
                         children: [
                             new Paragraph({
                                 children: [
-                                    logoBuffer ? new ImageRun({
-                                        data: logoBuffer,
-                                        transformation: { width: 500, height: 300 },
+                                    logoData ? new ImageRun({
+                                        data: logoData.data,
+                                        transformation: { 
+                                            width: 380, 
+                                            height: (logoData.height * 380) / logoData.width 
+                                        },
                                         type: 'png',
                                         floating: {
                                             horizontalPosition: {

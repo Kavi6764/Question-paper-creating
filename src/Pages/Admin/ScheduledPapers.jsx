@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Plus, CheckCircle, Clock, ChevronLeft, ChevronRight, Edit2, Calendar, Timer, FileText, Search } from 'lucide-react';
+import { Plus, CheckCircle, Clock, ChevronLeft, ChevronRight, Edit2, Calendar, Timer, FileText, Search, Trash2 } from 'lucide-react';
 import EditPaperModal from '../../components/EditPaperModal';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../fireBaseConfig';
 import toast from 'react-hot-toast';
 
@@ -57,7 +57,19 @@ export default function ScheduledPapers({
             setEditingPaper(null);
         } catch (error) {
             console.error("Error updating paper:", error);
-            toast.error("Error updating paper details");
+        }
+    };
+
+    const handleDeletePaper = async (paperId) => {
+        if (!window.confirm("Are you sure you want to delete this scheduled paper?")) return;
+        
+        try {
+            const paperRef = doc(db, "questionPapers", paperId);
+            await deleteDoc(paperRef);
+            toast.success("Schedule deleted successfully");
+        } catch (error) {
+            console.error("Error deleting paper:", error);
+            toast.error("Error deleting schedule");
         }
     };
 
@@ -145,13 +157,22 @@ export default function ScheduledPapers({
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 text-right">
-                                    <button
-                                        onClick={() => setEditingPaper(paper)}
-                                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                        title="Edit Parameters"
-                                    >
-                                        <Edit2 className="w-4 h-4" />
-                                    </button>
+                                    <div className="flex items-center justify-end gap-2">
+                                        <button
+                                            onClick={() => setEditingPaper(paper)}
+                                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                            title="Edit Parameters"
+                                        >
+                                            <Edit2 className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDeletePaper(paper.id)}
+                                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                            title="Delete Schedule"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}
