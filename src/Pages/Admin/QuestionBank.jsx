@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import toast from 'react-hot-toast';
+import { handleGoogleDriveUrl, highlightUrls } from '../../utils/imageHandler';
 
 export default function QuestionBank({ allSubjects, userData, onDeleteUnit }) {
     const [searchTerm, setSearchTerm] = useState('');
@@ -231,7 +232,7 @@ export default function QuestionBank({ allSubjects, userData, onDeleteUnit }) {
                                         <div className="text-[10px] text-blue-600 font-bold bg-blue-50 px-1.5 py-0.5 rounded inline-block mt-1">UNIT {q.unit}</div>
                                     </td>
                                     <td className="px-6 py-4 max-w-xl">
-                                        <div className="text-xs text-gray-700 leading-relaxed font-medium">{q.question}</div>
+                                        <div className="text-xs text-gray-700 leading-relaxed font-medium">{highlightUrls(q.question)}</div>
                                         {q.orQuestion && (
                                             <div className="mt-2 p-2 bg-gray-50/50 rounded border border-dashed border-gray-200">
                                                 <span className="text-[9px] font-bold text-amber-600 block mb-1 uppercase tracking-wider">Alt Question (OR):</span>

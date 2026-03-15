@@ -5,7 +5,14 @@ import { handleGoogleDriveUrl } from "./imageHandler";
 
 const sanitizeText = (text) => {
     if (!text) return "";
-    return text
+    
+    // Normalize to handle decomposed characters (like combining accents)
+    let sanitized = text.normalize('NFKD')
+        // Strip non-printing/control characters and zero-width artifacts
+        .replace(/[\u0000-\u0008\u000B-\u000C\u000E-\u001F\u007F-\u009F\u200B-\u200D\uFEFF]/g, "")
+        // Handle non-breaking spaces
+        .replace(/\u00A0/g, " ")
+        // Math & Greek symbols
         .replace(/∑|Σ/g, "Sigma")
         .replace(/∈/g, "in")
         .replace(/≥/g, ">=")
@@ -34,8 +41,39 @@ const sanitizeText = (text) => {
         .replace(/≈/g, "~")
         .replace(/±/g, "+/-")
         .replace(/°/g, " degrees")
+        .replace(/∝/g, "prop.to")
+        .replace(/′/g, "'")
+        .replace(/•|\\bullet/g, "*") // Standard bullet
+        // Superscripts
+        .replace(/¹/g, "^1")
         .replace(/²/g, "^2")
-        .replace(/³/g, "^3");
+        .replace(/³/g, "^3")
+        .replace(/⁴/g, "^4")
+        .replace(/⁵/g, "^5")
+        // Subscripts
+        .replace(/₀|⁰/g, "0")
+        .replace(/₁|¹/g, "1")
+        .replace(/₂|²/g, "2")
+        .replace(/₃|³/g, "3")
+        .replace(/₄|⁴/g, "4")
+        .replace(/₅|⁵/g, "5")
+        .replace(/₆|⁶/g, "6")
+        .replace(/₇|⁷/g, "7")
+        .replace(/₈|⁸/g, "8")
+        .replace(/₉|⁹/g, "9")
+        // Clean up common leftovers from Word/Math editors
+        .replace(/\\approx/g, "~")
+        .replace(/\\times/g, "x")
+        .replace(/\\div/g, "/")
+        .trim();
+
+    // Final pass for specific corruption: if & density is high (>25%), it's noise
+    const ampersandCount = (sanitized.match(/&/g) || []).length;
+    if (ampersandCount > sanitized.length * 0.25) {
+        sanitized = sanitized.replace(/&/g, "");
+    }
+
+    return sanitized;
 };
 
 const addWatermark = (doc, logoData) => {
@@ -140,6 +178,19 @@ export const downloadPaperAsPDF = async (paper) => {
     const deptTitle = (paper.department || "").toUpperCase();
     doc.text(deptTitle, 105, yPos, { align: 'center' });
     yPos += 6;
+
+    // Draw Set A/B Indicator in Circle at top right
+    const setMatch = (paper.title || "").match(/Set ([A-Z])/i);
+    if (setMatch) {
+        const setLetter = setMatch[1].toUpperCase();
+        doc.setLineWidth(0.5);
+        doc.setDrawColor(0, 0, 0);
+        doc.circle(185, 15, 7, 'S'); // 'S' for stroke
+        doc.setFontSize(10);
+        doc.setFont("times", 'bold');
+        doc.text(setLetter, 185, 15.5, { align: 'center' }); // Centered in circle
+        doc.text("SET", 185, 25, { align: 'center' }); // label below circle
+    }
 
     // Draw lines for border
     doc.setLineWidth(0.3);
@@ -288,29 +339,58 @@ export const downloadPaperAsPDF = async (paper) => {
         questionIndex++;
 
         doc.setFont("times", 'normal');
-        doc.text(questionLines, 28, contentY);
+        
+        // Use a non-global regex for the test to avoid lastIndex issues in loops
+        const hasUrl = /(https?:\/\/[^\s]+)/.test(q.question || "");
+        
+        if (hasUrl) {
+            doc.setTextColor(37, 99, 235); // Blue-600
+        }
+        
+        // Render each line of the question
+        questionLines.forEach((line, idx) => {
+            doc.text(line, 28, contentY + (idx * 3.6));
+        });
 
-        // Print CO and BT columns
-        if (q.imageURL) doc.setTextColor(59, 130, 246);
+        // Reset color for identifiers
+        doc.setTextColor(0, 0, 0);
+
+        // Print CO and BT columns - align with the first line
+        const tagColor = hasUrl ? [59, 130, 246] : [85, 85, 85];
+        doc.setTextColor(tagColor[0], tagColor[1], tagColor[2]);
+        doc.setFontSize(8);
         doc.text(String(q.co || ""), 150, contentY, { align: 'center' });
         doc.text(String(q.bloomLevel || 'RE').toUpperCase(), 185, contentY, { align: 'center' });
-        if (q.imageURL) doc.setTextColor(0, 0, 0);
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(9);
 
 
         if (q.orQuestion && q.orQuestion.question) {
-            let currentBaseY = contentY + (questionLines.length * lineHeight) + 1;
+            let currentBaseY = contentY + (questionLines.length * 3.6) + 1;
             doc.setFont("times", 'bold');
             doc.text("OR", 105, currentBaseY, { align: 'center' });
             currentBaseY += 4;
             doc.setFont("times", 'normal');
-            doc.text(orQuestionLines, 28, currentBaseY);
+            
+            const orHasUrl = /(https?:\/\/[^\s]+)/.test(q.orQuestion.question || "");
+            if (orHasUrl) {
+                doc.setTextColor(37, 99, 235);
+            }
+            
+            orQuestionLines.forEach((line, idx) => {
+                doc.text(line, 28, currentBaseY + (idx * 3.6));
+            });
+            
+            doc.setTextColor(0, 0, 0);
 
             // Print OR question CO and BT columns
-            if (q.orQuestion.imageURL) doc.setTextColor(59, 130, 246);
+            const orTagColor = orHasUrl ? [59, 130, 246] : [85, 85, 85];
+            doc.setTextColor(orTagColor[0], orTagColor[1], orTagColor[2]);
+            doc.setFontSize(8);
             doc.text(String(q.orQuestion.co || ""), 150, currentBaseY, { align: 'center' });
             doc.text(String(q.orQuestion.bloomLevel || 'RE').toUpperCase(), 185, currentBaseY, { align: 'center' });
-            if (q.orQuestion.imageURL) doc.setTextColor(0, 0, 0);
-
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(9);
         }
 
         contentY += textHeight + 1;

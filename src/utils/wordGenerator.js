@@ -6,7 +6,14 @@ import { handleGoogleDriveUrl } from './imageHandler';
 
 const sanitizeText = (text) => {
     if (!text) return "";
-    return text
+    
+    // Normalize to handle decomposed characters
+    let sanitized = text.normalize('NFKD')
+        // Strip non-printing/control characters
+        .replace(/[\u0000-\u0008\u000B-\u000C\u000E-\u001F\u007F-\u009F\u200B-\u200D\uFEFF]/g, "")
+        // Handle non-breaking spaces
+        .replace(/\u00A0/g, " ")
+        // Math & Greek symbols
         .replace(/∑|Σ/g, "Sigma")
         .replace(/∈/g, "in")
         .replace(/≥/g, ">=")
@@ -35,8 +42,43 @@ const sanitizeText = (text) => {
         .replace(/≈/g, "~")
         .replace(/±/g, "+/-")
         .replace(/°/g, " degrees")
+        .replace(/∝/g, "prop.to")
+        .replace(/′/g, "'")
+        .replace(/•|\\bullet/g, "*")
+        // Superscripts
+        .replace(/¹/g, "^1")
         .replace(/²/g, "^2")
-        .replace(/³/g, "^3");
+        .replace(/³/g, "^3")
+        .replace(/⁴/g, "^4")
+        .replace(/⁵/g, "^5")
+        // Subscripts
+        .replace(/₀|⁰/g, "0")
+        .replace(/₁|¹/g, "1")
+        .replace(/₂|²/g, "2")
+        .replace(/₃|³/g, "3")
+        .replace(/₄|⁴/g, "4")
+        .replace(/₅|⁵/g, "5")
+        .replace(/₆|⁶/g, "6")
+        .replace(/₇|⁷/g, "7")
+        .replace(/₈|⁸/g, "8")
+        .replace(/₉|⁹/g, "9")
+        // Clean up common leftovers from editors
+        .replace(/\\approx/g, "~")
+        .replace(/\\times/g, "x")
+        .replace(/\\div/g, "/")
+        .trim();
+
+    // Final pass for specific corruption (e.g., &C&l&a&s&s)
+    // 1. Density check
+    const ampersandCount = (sanitized.match(/&/g) || []).length;
+    if (ampersandCount > sanitized.length * 0.25) {
+        sanitized = sanitized.replace(/&/g, "");
+    } else {
+        // 2. Pattern check: remove ampersands that are followed by a single character and then either another ampersand or the end of the string
+        sanitized = sanitized.replace(/&([a-zA-Z0-9])(?=&|$|\s)/g, "$1");
+    }
+
+    return sanitized;
 };
 
 
@@ -126,6 +168,32 @@ export const downloadPaperAsWord = async (paper) => {
         const sortedQuestions = [...paper.questions].sort((a, b) => a.marks - b.marks);
         const docChildren = [];
 
+        // 1. ADD SET INDICATOR IF APPLICABLE
+        const setMatch = (paper.title || "").match(/Set ([A-Z])/i);
+        if (setMatch) {
+            const setLetter = setMatch[1].toUpperCase();
+            docChildren.push(
+                new Paragraph({
+                    alignment: AlignmentType.RIGHT,
+                    children: [
+                        new TextRun({
+                            text: `SET ${setLetter}`,
+                            bold: true,
+                            size: 24,
+                        })
+                    ],
+                    border: {
+                        top: { style: BorderStyle.SINGLE, size: 6, space: 1, color: "000000" },
+                        bottom: { style: BorderStyle.SINGLE, size: 6, space: 1, color: "000000" },
+                        left: { style: BorderStyle.SINGLE, size: 6, space: 1, color: "000000" },
+                        right: { style: BorderStyle.SINGLE, size: 6, space: 1, color: "000000" },
+                    },
+                    spacing: { after: 200 }
+                })
+            );
+        }
+
+        // 2. UNIVERSITY HEADER
         docChildren.push(
             new Paragraph({
                 alignment: AlignmentType.CENTER,
@@ -159,11 +227,11 @@ export const downloadPaperAsWord = async (paper) => {
                 new TableRow({
                     children: [
                         new TableCell({
-                            children: [new Paragraph({ children: [new TextRun({ text: "Programme: ", bold: true, italics: true }), new TextRun({ text: paper.program || "B.Tech" })] })],
+                            children: [new Paragraph({ children: [new TextRun({ text: "Programme: ", bold: true, italics: true }), new TextRun({ text: sanitizeText(paper.program || "B.Tech") })] })],
                             width: { size: 50, type: WidthType.PERCENTAGE },
                         }),
                         new TableCell({
-                            children: [new Paragraph({ children: [new TextRun({ text: "Course Code: ", bold: true, italics: true }), new TextRun({ text: (paper.subjectCode || "").toUpperCase() })] })],
+                            children: [new Paragraph({ children: [new TextRun({ text: "Course Code: ", bold: true, italics: true }), new TextRun({ text: sanitizeText(paper.subjectCode || "").toUpperCase() })] })],
                             width: { size: 50, type: WidthType.PERCENTAGE },
                         }),
                     ],
@@ -171,10 +239,10 @@ export const downloadPaperAsWord = async (paper) => {
                 new TableRow({
                     children: [
                         new TableCell({
-                            children: [new Paragraph({ children: [new TextRun({ text: "Course: ", bold: true, italics: true }), new TextRun({ text: (paper.subjectName || "").toUpperCase() })] })],
+                            children: [new Paragraph({ children: [new TextRun({ text: "Course: ", bold: true, italics: true }), new TextRun({ text: sanitizeText(paper.subjectName || "").toUpperCase() })] })],
                         }),
                         new TableCell({
-                            children: [new Paragraph({ children: [new TextRun({ text: "Section: ", bold: true, italics: true }), new TextRun({ text: (paper.section || "A/B/C").toUpperCase() })] })],
+                            children: [new Paragraph({ children: [new TextRun({ text: "Section: ", bold: true, italics: true }), new TextRun({ text: sanitizeText(paper.section || "A/B/C").toUpperCase() })] })],
                         }),
                     ],
                 }),
@@ -255,11 +323,17 @@ export const downloadPaperAsWord = async (paper) => {
                 questionCounter = 0;
             }
 
+            const hasUrl = /https?:\/\//.test(q.question || "");
+
             docChildren.push(
                 new Paragraph({
                     children: [
                         new TextRun({ text: `${String.fromCharCode(97 + questionCounter)}. `, bold: true, size: 20 }),
-                        new TextRun({ text: sanitizeText(q.question || ""), size: 20 }),
+                        new TextRun({ 
+                            text: sanitizeText(q.question || ""), 
+                            size: 20,
+                            color: hasUrl ? "2563EB" : undefined
+                        }),
                     ],
                     spacing: { before: 100 },
                 }),
@@ -267,7 +341,7 @@ export const downloadPaperAsWord = async (paper) => {
                     alignment: AlignmentType.RIGHT,
                     children: [
                         new TextRun({
-                            text: `[${q.co || ''}, ${q.bloomLevel || 'RE'}]`,
+                            text: `[${sanitizeText(q.co || '')}, ${sanitizeText(q.bloomLevel || 'RE')}]`,
                             bold: true,
                             italics: true,
                             size: 16,
@@ -280,14 +354,22 @@ export const downloadPaperAsWord = async (paper) => {
             questionCounter++;
 
             if (q.orQuestion?.question) {
+                const orHasUrl = /https?:\/\//.test(q.orQuestion.question || "");
+                
                 docChildren.push(
                     new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "OR", bold: true, size: 24 })], spacing: { before: 200, after: 200 } }),
-                    new Paragraph({ children: [new TextRun({ text: sanitizeText(q.orQuestion.question), size: 20 })] }),
+                    new Paragraph({ 
+                        children: [new TextRun({ 
+                            text: sanitizeText(q.orQuestion.question), 
+                            size: 20,
+                            color: orHasUrl ? "2563EB" : undefined
+                        })] 
+                    }),
                     new Paragraph({
                         alignment: AlignmentType.RIGHT,
                         children: [
                             new TextRun({
-                                text: `[${q.orQuestion.co || ''}, ${q.orQuestion.bloomLevel || 'RE'}]`,
+                                text: `[${sanitizeText(q.orQuestion.co || '')}, ${sanitizeText(q.orQuestion.bloomLevel || 'RE')}]`,
                                 bold: true,
                                 italics: true,
                                 size: 16,

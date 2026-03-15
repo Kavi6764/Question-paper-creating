@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CheckCircle2, XCircle, FileText, AlertCircle, Trash2, Edit3, Save, Info } from 'lucide-react';
-import { handleGoogleDriveUrl } from '../../utils/imageHandler';
+import { handleGoogleDriveUrl, highlightUrls } from '../../utils/imageHandler';
 import toast from 'react-hot-toast';
 
 export default function UploadPreview({ previewData, setPreviewData, unit, subjectName, onConfirm, onCancel, loading }) {
@@ -212,7 +212,7 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
                                                 ) : (
                                                     <div className="space-y-2">
                                                         <p className={`text-sm leading-relaxed ${item.missingFields?.includes('Question') ? 'text-red-500 italic' : 'text-slate-700'}`}>
-                                                            {item.question || '(No question text provided)'}
+                                                            {highlightUrls(item.question) || '(No question text provided)'}
                                                         </p>
                                                         {item.imageURL && (
                                                             <div className="pt-2">

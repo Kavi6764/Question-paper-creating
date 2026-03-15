@@ -8,7 +8,7 @@ import { db } from '../../../fireBaseConfig';
 import EditPaperModal from '../../components/EditPaperModal';
 import ReplaceQuestionModal from '../../components/ReplaceQuestionModal';
 import EditQuestionModal from '../../components/EditQuestionModal';
-import { handleGoogleDriveUrl } from '../../utils/imageHandler';
+import { handleGoogleDriveUrl, highlightUrls } from '../../utils/imageHandler';
 
 
 export default function GeneratedPapers({
@@ -606,14 +606,14 @@ export default function GeneratedPapers({
                                                             <div className="flex-1">
                                                                 <div className="flex justify-between items-start gap-4 mb-1">
                                                                     <div className="flex-1">
-                                                                        <p className="font-serif text-gray-900 text-[15px] leading-relaxed text-justify relative z-0 whitespace-pre-line">{question.question}</p>
+                                                                        <p className="font-serif text-gray-900 text-[15px] leading-relaxed text-justify relative z-0 whitespace-pre-line">{highlightUrls(question.question)}</p>
                                                                         {question.orQuestion && (
                                                                             <div className="my-3 text-center font-bold text-gray-800 uppercase tracking-widest text-sm relative before:content-[''] before:absolute before:left-0 before:top-1/2 before:w-[calc(50%-20px)] before:h-px before:bg-gray-300 after:content-[''] after:absolute after:right-0 after:top-1/2 after:w-[calc(50%-20px)] after:h-px after:bg-gray-300">
                                                                                 OR
                                                                             </div>
                                                                         )}
                                                                         {question.orQuestion && (
-                                                                            <p className="font-serif text-gray-900 text-[15px] leading-relaxed text-justify relative z-0 whitespace-pre-line">{question.orQuestion.question}</p>
+                                                                            <p className="font-serif text-gray-900 text-[15px] leading-relaxed text-justify relative z-0 whitespace-pre-line">{highlightUrls(question.orQuestion.question)}</p>
                                                                         )}
                                                                     </div>
                                                                     <span className="shrink-0 px-2 py-0.5 rounded text-[9px] font-bold bg-gray-100 text-gray-600 border border-gray-200 uppercase tracking-tighter">
@@ -666,10 +666,10 @@ export default function GeneratedPapers({
 
                                     {/* Watermark Logo */}
                                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.05] select-none">
-                                        <img 
-                                            src={logo} 
-                                            alt="" 
-                                            className="w-1/2 h-auto grayscale" 
+                                        <img
+                                            src={logo}
+                                            alt=""
+                                            className="w-1/2 h-auto grayscale"
                                         />
                                     </div>
                                 </div>

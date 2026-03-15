@@ -1,3 +1,4 @@
+import React from 'react';
 export const handleGoogleDriveUrl = (url) => {
     if (!url || typeof url !== 'string') return url;
     if (url.includes('drive.google.com')) {
@@ -19,4 +20,22 @@ export const handleGoogleDriveUrl = (url) => {
         }
     }
     return url;
+};
+
+export const highlightUrls = (text) => {
+    if (!text || typeof text !== 'string') return text;
+    
+    const urlPattern = /(https?:\/\/[^\s]+)/g;
+    const parts = text.split(urlPattern);
+    
+    return parts.map((part, i) => {
+        if (part.match(urlPattern)) {
+            return (
+                <span key={i} className="text-blue-600 font-medium break-all underline decoration-blue-200 underline-offset-2">
+                    {part}
+                </span>
+            );
+        }
+        return part;
+    });
 };
