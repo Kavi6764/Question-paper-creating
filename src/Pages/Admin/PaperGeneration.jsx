@@ -19,9 +19,30 @@ export default function PaperGeneration({
     clearAllQuestions,
     loading
 }) {
+    const isPatternFulfilled = React.useMemo(() => {
+        if (!paperForm.subjectCode) return false;
+        const reqOne = paperForm.oneMarkQuestions;
+        const reqFour = paperForm.fourMarkQuestions * 2; // Need 2 for OR
+        const reqSix = paperForm.sixMarkQuestions * 2;   // Need 2 for OR
+        const reqEight = (paperForm.eightMarkQuestions || 0) * 2;
+
+        return questionStats.oneMark.available >= reqOne &&
+               questionStats.fourMark.available >= reqFour &&
+               questionStats.sixMark.available >= reqSix &&
+               questionStats.eightMark.available >= reqEight;
+    }, [paperForm, questionStats]);
+
     const [subjectSearch, setSubjectSearch] = React.useState('');
     const [showSubjectDropdown, setShowSubjectDropdown] = React.useState(false);
     const dropdownRef = React.useRef(null);
+    
+    // Refs for smooth scrolling
+    const configSectionRef = React.useRef(null);
+    const generationSectionRef = React.useRef(null);
+
+    const isPaperDetailsFilled = React.useMemo(() => {
+        return !!(paperForm.title && paperForm.subjectCode && paperForm.section && paperForm.program);
+    }, [paperForm.title, paperForm.subjectCode, paperForm.section, paperForm.program]);
 
     // Initialize default program
     React.useEffect(() => {
@@ -47,6 +68,20 @@ export default function PaperGeneration({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    // Auto-scroll to configuration when details are filled
+    React.useEffect(() => {
+        if (isPaperDetailsFilled && configSectionRef.current) {
+            configSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, [isPaperDetailsFilled]);
+
+    // Auto-scroll to generation when pattern is fulfilled
+    React.useEffect(() => {
+        if (isPatternFulfilled && generationSectionRef.current) {
+            generationSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, [isPatternFulfilled]);
+
     const selectedSubject = availableSubjects.find(s => s.code === paperForm.subjectCode);
 
     return (
@@ -71,9 +106,16 @@ export default function PaperGeneration({
                 <div className="space-y-8">
                     {/* 1.1 Paper Details Section */}
                     <section className="bg-white/50 rounded-2xl p-6 border border-gray-100 shadow-sm transition-all hover:shadow-md">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-5 flex items-center gap-2">
-                            <BookOpen className="w-5 h-5 text-blue-500" /> Paper Details
-                        </h3>
+                        <div className="flex items-center justify-between mb-5">
+                            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                                <BookOpen className="w-5 h-5 text-blue-500" /> Paper Details
+                            </h3>
+                            {isPaperDetailsFilled && (
+                                <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100 uppercase tracking-tighter animate-bounce-short">
+                                    <CheckCircle2 className="w-3 h-3" /> Details Ready
+                                </span>
+                            )}
+                        </div>
 
                         <div className="space-y-5">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -82,6 +124,7 @@ export default function PaperGeneration({
                                     <input
                                         type="text"
                                         value={paperForm.title}
+                                        required
                                         onChange={(e) => setPaperForm({ ...paperForm, title: e.target.value })}
                                         placeholder="e.g., Mid-Term Examination - CS101"
                                         className="w-full border border-gray-200 bg-white rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
@@ -181,12 +224,13 @@ export default function PaperGeneration({
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Program <span className="text-red-500">*</span></label>
-                                    <input 
-                                        type="text" 
-                                        value={paperForm.program || "B.Tech"} 
+                                    <input
+                                        type="text"
+                                        value={paperForm.program || "B.Tech"}
+                                        required
                                         onChange={(e) => setPaperForm({ ...paperForm, program: e.target.value })}
                                         placeholder="e.g. B.Tech"
-                                        className="w-full border border-gray-200 bg-white rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all font-medium" 
+                                        className="w-full border border-gray-200 bg-white rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all font-medium"
                                     />
                                 </div>
                                 <div>
@@ -194,6 +238,7 @@ export default function PaperGeneration({
                                     <input
                                         type="text"
                                         value={paperForm.department}
+                                        required
                                         readOnly
                                         placeholder="Auto-filled"
                                         className="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-2.5 text-gray-500 font-medium outline-none transition-all"
@@ -223,6 +268,7 @@ export default function PaperGeneration({
                                     <input
                                         type="text"
                                         value={paperForm.section}
+                                        required
                                         onChange={(e) => setPaperForm({ ...paperForm, section: e.target.value })}
                                         placeholder="Sec-1,2,3"
                                         className="w-full border border-gray-200 bg-white rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
@@ -243,23 +289,50 @@ export default function PaperGeneration({
                             </div>
                         </div>
                     </section>
+                </div>
 
-                    {/* 1.2 Question Configuration Section */}
+                {/* 1.2 Question Configuration Section */}
+                <div 
+                    ref={configSectionRef}
+                    className={`transition-all duration-700 ${!isPaperDetailsFilled ? 'opacity-40 grayscale pointer-events-none scale-[0.98]' : 'opacity-100 scale-100'}`}
+                >
                     <section className="bg-white/50 rounded-2xl p-6 border border-gray-100 shadow-sm transition-all hover:shadow-md">
                         <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                                <Calculator className="w-5 h-5 text-purple-500" /> Question Configuration
-                            </h3>
+                            <div className="flex items-center gap-3">
+                                <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                                    <Calculator className="w-5 h-5 text-purple-500" /> Question Configuration
+                                </h3>
+                                {isPatternFulfilled && (
+                                    <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100 uppercase tracking-tighter animate-bounce-short">
+                                        <CheckCircle2 className="w-3 h-3" /> Pattern Ready
+                                    </span>
+                                )}
+                            </div>
                             {paperForm.subjectCode && (
-                                <span className="text-xs bg-purple-50 text-purple-700 px-3 py-1 rounded-full border border-purple-100 font-medium">
-                                    Total Available: {
-                                        questionStats.oneMark.available +
-                                        questionStats.fourMark.available +
-                                        questionStats.sixMark.available
-                                    }
-                                </span>
+                                <div className="flex flex-col items-end gap-1">
+                                    <span className="text-xs bg-purple-50 text-purple-700 px-3 py-1 rounded-full border border-purple-100 font-medium tracking-tight">
+                                        Pool: {
+                                            questionStats.oneMark.available +
+                                            questionStats.fourMark.available +
+                                            questionStats.sixMark.available
+                                        } Questions
+                                    </span>
+                                </div>
                             )}
                         </div>
+
+                        {!isPatternFulfilled && paperForm.subjectCode && (
+                            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 animate-pulse">
+                                <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="text-sm font-bold text-red-800">Pattern Not Fulfilled</p>
+                                    <p className="text-xs text-red-600 mt-0.5 leading-relaxed">
+                                        Question paper cannot be scheduled because required questions are not added yet. 
+                                        Note: 4, 6, and 8-mark slots require 2 available questions each for OR pairing.
+                                    </p>
+                                </div>
+                            </div>
+                        )}
 
                         <div className="flex flex-col md:flex-row items-center justify-between gap-6 p-5 bg-gray-50/50 border border-gray-100 rounded-2xl mb-8">
                             <div className="flex items-center gap-10">
@@ -276,7 +349,7 @@ export default function PaperGeneration({
 
                             <button
                                 onClick={generateRandomQuestions}
-                                disabled={loading || !paperForm.subjectCode || paperForm.totalQuestions === 0}
+                                disabled={loading || !paperForm.subjectCode || paperForm.totalQuestions === 0 || !isPatternFulfilled}
                                 className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 px-8 rounded-xl font-bold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/25 transition-all flex items-center justify-center gap-2 transform active:scale-[0.98]"
                             >
                                 <Shuffle className="w-5 h-5" /> Generate Random Selection
@@ -319,19 +392,19 @@ export default function PaperGeneration({
                                     <div className="space-y-3">
                                         <div className="flex justify-between items-center text-[11px]">
                                             <span className="text-gray-500 font-bold">Availability</span>
-                                            <span className="font-black text-gray-900">{questionStats[item.statsKey].available} / {questionStats[item.statsKey].total}</span>
+                                            <span className="font-black text-gray-900">{questionStats[item.statsKey].available} / {(paperForm[item.key] * (item.statsKey === 'oneMark' ? 1 : 2))}</span>
                                         </div>
                                         <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
                                             <div
-                                                className={`h-full rounded-full transition-all duration-1000 ease-out ${questionStats[item.statsKey].available < paperForm[item.key] ? 'bg-red-500' : `bg-${item.color}-500`
+                                                className={`h-full rounded-full transition-all duration-1000 ease-out ${questionStats[item.statsKey].available < (paperForm[item.key] * (item.statsKey === 'oneMark' ? 1 : 2)) ? 'bg-red-500' : `bg-${item.color}-500`
                                                     }`}
-                                                style={{ width: `${Math.min(100, (questionStats[item.statsKey].available / (Math.max(1, questionStats[item.statsKey].total))) * 100)}%` }}
+                                                style={{ width: `${Math.min(100, (questionStats[item.statsKey].available / (Math.max(1, paperForm[item.key] * (item.statsKey === 'oneMark' ? 1 : 2)))) * 100)}%` }}
                                             ></div>
                                         </div>
-                                        {questionStats[item.statsKey].available < paperForm[item.key] && (
+                                        {questionStats[item.statsKey].available < (paperForm[item.key] * (item.statsKey === 'oneMark' ? 1 : 2)) && (
                                             <div className="flex items-center gap-1.5 text-red-500">
                                                 <AlertCircle className="w-3.5 h-3.5" />
-                                                <span className="text-[10px] font-bold animate-pulse">Insufficient available questions</span>
+                                                <span className="text-[10px] font-bold animate-pulse">Insufficient available for pattern</span>
                                             </div>
                                         )}
                                     </div>
@@ -343,7 +416,10 @@ export default function PaperGeneration({
             </div>
 
             {/* 2. Actions & Scheduling Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-8 border-t border-gray-100">
+            <div 
+                ref={generationSectionRef}
+                className={`grid grid-cols-1 lg:grid-cols-2 gap-8 pt-8 border-t border-gray-100 transition-all duration-700 ${!isPatternFulfilled ? 'opacity-40 grayscale pointer-events-none scale-[0.98]' : 'opacity-100 scale-100'}`}
+            >
                 {/* 2.1 Time-Based Scheduling */}
                 <div className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl p-8 border border-indigo-100 shadow-sm">
                     <div className="flex items-center gap-3 mb-6 text-indigo-900">
@@ -371,7 +447,7 @@ export default function PaperGeneration({
 
                     <button
                         onClick={handleSchedulePaper}
-                        disabled={loading || !paperForm.title || !paperForm.subjectCode || !paperForm.program || !paperForm.generationDate || !paperForm.generationTime}
+                        disabled={loading || !paperForm.title || !paperForm.subjectCode || !paperForm.program || !paperForm.generationDate || !paperForm.generationTime || !isPatternFulfilled}
                         className="mt-8 w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold disabled:opacity-50 transition-all shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 transform active:scale-[0.98]"
                     >
                         <Timer className="w-5 h-5" /> Schedule Automatic Generation
@@ -400,10 +476,10 @@ export default function PaperGeneration({
                         )}
                         <button
                             onClick={handleGeneratePaper}
-                            disabled={loading || !paperForm.title || !paperForm.subjectCode || !paperForm.program || selectedQuestions.length === 0}
+                            disabled={loading || !paperForm.title || !paperForm.subjectCode || !paperForm.program || (!isPatternFulfilled && selectedQuestions.length === 0)}
                             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-xl font-bold disabled:opacity-50 transition-all shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transform active:scale-[0.98]"
                         >
-                            <FileText className="w-5 h-5" /> Generate & Download PDF
+                            <FileText className="w-5 h-5" /> {selectedQuestions.length === 0 ? "Instant Automatic Generation" : "Generate & Download PDF"}
                         </button>
                     </div>
                 </div>

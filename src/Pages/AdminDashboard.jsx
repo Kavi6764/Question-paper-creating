@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import logo from "../assets/logo.png";
 import {
   User,
@@ -58,6 +58,16 @@ import ScheduledPapers from "./Admin/ScheduledPapers";
 import GeneratedPapers from "./Admin/GeneratedPapers";
 import HodDeanAssignment from "./Admin/HodDeanAssignment";
 import CollegeSettings from "./Admin/CollegeSettings";
+
+const shuffleArray = (array) => {
+  if (!array || !Array.isArray(array)) return [];
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
+};
 import ConfirmationModal from "../components/ConfirmationModal";
 import BackupRestore from "./Admin/BackupRestore";
 import StaffActivities from "./Admin/StaffActivities";
@@ -163,6 +173,7 @@ export default function AdminDashboard() {
 
   // Department Management State
   const [departments, setDepartments] = useState([]);
+  const processingSchedules = useMemo(() => new Set(), []);
 
 
   // Check authentication and role
@@ -367,68 +378,85 @@ export default function AdminDashboard() {
     }));
   }, [paperForm.oneMarkQuestions, paperForm.fourMarkQuestions, paperForm.sixMarkQuestions, paperForm.eightMarkQuestions]);
 
-  // Check scheduled papers
-  const checkScheduledPapers = (scheduledPapers) => {
-    const now = new Date();
+  // Helper to extract questions from subject documents (handles all formats)
+  const extractQuestionsFromSubject = (subjectData, subjectCode, docId) => {
+    const questions = { oneMark: [], fourMark: [], sixMark: [], eightMark: [] };
+    const unitMaps = new Map();
 
-    scheduledPapers.forEach(paper => {
-      if (paper.generationDate && paper.generationTime) {
-        const [hours, minutes] = paper.generationTime.split(':').map(Number);
-        const generationDate = new Date(paper.generationDate);
-        generationDate.setHours(hours, minutes, 0, 0);
-
-        if (now >= generationDate && paper.status === "scheduled") {
-          autoGeneratePaper(paper);
-        }
+    // Support legacy top-level (unit1), flattened (units.unit1), and nested (units: {unit1})
+    Object.keys(subjectData).forEach(key => {
+      if (key.startsWith('unit') && key !== 'units') {
+          // Robust regex to extract number from unit1, units.unit1, unit-1, etc.
+          const match = key.match(/\d+/);
+          const num = match ? parseInt(match[0]) : null;
+          if (num && subjectData[key]) unitMaps.set(num, subjectData[key]);
       }
     });
+
+    // Nested object priority
+    if (subjectData.units) {
+      Object.keys(subjectData.units).forEach(key => {
+        const match = key.match(/\d+/);
+        const num = match ? parseInt(match[0]) : null;
+        if (num && subjectData.units[key]) unitMaps.set(num, subjectData.units[key]);
+      });
+    }
+
+    unitMaps.forEach((unitData, unitNumber) => {
+      const qList = unitData?.questions || (Array.isArray(unitData) ? unitData : []);
+      
+      if (Array.isArray(qList)) {
+        qList.forEach((q, index) => {
+          if (!q) return;
+          
+          // Support multiple field variants (marks vs Marks)
+          const m = q.marks !== undefined ? q.marks : q.Marks;
+          const cleanMarks = parseInt(m) || 0;
+          
+          // Support multiple field variants (question vs Question)
+          const text = q.question || q.Question || "";
+          if (!text) return;
+
+          const question = {
+            ...q,
+            id: `${docId}-${unitNumber}-${index}-${Math.random().toString(36).substr(2, 4)}`,
+            question: text,
+            unit: unitNumber,
+            subjectCode,
+            subjectName: subjectData.subjectName,
+            unitName: unitData.unitName || `Unit ${unitNumber}`,
+            dbId: docId
+          };
+
+          if (cleanMarks === 1 || cleanMarks === 2) questions.oneMark.push({ ...question, marks: 1 });
+          else if (cleanMarks === 4) questions.fourMark.push(question);
+          else if (cleanMarks === 6) questions.sixMark.push(question);
+          else if (cleanMarks === 8) questions.eightMark.push(question);
+        });
+      }
+    });
+    return questions;
   };
 
   const getQuestionPoolForAutoGeneration = async (subjectCode) => {
     try {
-      const questions = {
-        oneMark: [],
-        fourMark: [],
-        sixMark: [],
-        eightMark: []
-      };
-
+      const questions = { oneMark: [], fourMark: [], sixMark: [], eightMark: [] };
+      const sCode = subjectCode ? subjectCode.trim().toUpperCase() : "";
+      
       const subjectsQuery = query(
         collection(db, "subjects"),
-        where("subjectCode", "==", subjectCode)
+        where("subjectCode", "==", sCode)
       );
       const subjectsSnapshot = await getDocs(subjectsQuery);
 
       subjectsSnapshot.forEach((doc) => {
-        const subjectData = doc.data();
-        if (subjectData.units) {
-          Object.keys(subjectData.units).forEach(unitKey => {
-            const unit = subjectData.units[unitKey];
-            const unitNumber = unit.unitNumber || unitKey.replace("unit-", "").replace("unit", "") || "1";
-
-            if (unit.questions && Array.isArray(unit.questions)) {
-              unit.questions.forEach((q, index) => {
-                const question = {
-                  ...q,
-                  id: `${doc.id}-${unitNumber}-${index}`,
-                  unit: unitNumber,
-                  subjectCode: subjectCode,
-                  subjectName: subjectData.subjectName,
-                  unitName: unit.unitName || `Unit ${unitNumber}`,
-                  bloomLevel: q.bloomLevel || "RE",
-                  dbId: doc.id
-                };
-
-                const marks = parseInt(q.marks) || 0;
-                if (marks === 1 || marks === 2) questions.oneMark.push({ ...question, marks: 1 });
-                else if (marks === 4) questions.fourMark.push(question);
-                else if (marks === 6) questions.sixMark.push(question);
-                else if (marks === 8) questions.eightMark.push(question);
-              });
-            }
-          });
-        }
+        const result = extractQuestionsFromSubject(doc.data(), sCode, doc.id);
+        questions.oneMark.push(...result.oneMark);
+        questions.fourMark.push(...result.fourMark);
+        questions.sixMark.push(...result.sixMark);
+        questions.eightMark.push(...result.eightMark);
       });
+      
       return questions;
     } catch (error) {
       console.error("Error loading question pool:", error);
@@ -436,8 +464,10 @@ export default function AdminDashboard() {
     }
   };
 
-  const autoGeneratePaper = async (scheduledPaper) => {
+  const autoGeneratePaper = useCallback(async (scheduledPaper) => {
     try {
+      toast.loading(`Processing scheduled paper: ${scheduledPaper.title}...`, { id: `auto-${scheduledPaper.id}` });
+      
       const requirements = {
         oneMarkQuestions: scheduledPaper.oneMarkQuestions || scheduledPaper.twoMarkQuestions || 0,
         fourMarkQuestions: scheduledPaper.fourMarkQuestions || 0,
@@ -449,7 +479,8 @@ export default function AdminDashboard() {
       const questionPool = await getQuestionPoolForAutoGeneration(scheduledPaper.subjectCode);
 
       if (questionPool.oneMark.length === 0 && questionPool.fourMark.length === 0 && questionPool.sixMark.length === 0 && questionPool.eightMark.length === 0) {
-        console.error(`No questions found for subject ${scheduledPaper.subjectCode}`);
+        toast.error(`Auto-generation failed: No questions found in bank for ${scheduledPaper.subjectCode}`, { id: `auto-${scheduledPaper.id}` });
+        processingSchedules.delete(scheduledPaper.id); // Allow retry later if questions added
         return;
       }
 
@@ -508,13 +539,47 @@ export default function AdminDashboard() {
 
       await addDoc(collection(db, "questionPapers"), paperB);
 
-      console.log(`Auto-generated paper: ${scheduledPaper.title} (Set A & Set B)`);
-      toast.success(`Auto-generated paper: ${scheduledPaper.title} (Set A & Set B)`);
+      toast.success(`Automatically generated Set A & Set B for: ${scheduledPaper.title}`, { id: `auto-${scheduledPaper.id}` });
 
     } catch (error) {
       console.error("Error auto-generating paper:", error);
+      toast.error(`Auto-generation failed for ${scheduledPaper.title}`, { id: `auto-${scheduledPaper.id}` });
+      processingSchedules.delete(scheduledPaper.id); // Allow retry
     }
-  };
+  }, [processingSchedules]);
+
+  // Check scheduled papers
+  const checkScheduledPapers = useCallback((papersToCheck) => {
+    if (!papersToCheck || papersToCheck.length === 0) return;
+    const now = new Date();
+
+    papersToCheck.forEach(paper => {
+      if (paper.status === "scheduled" && paper.generationDate && paper.generationTime && !processingSchedules.has(paper.id)) {
+        try {
+          const [year, month, day] = paper.generationDate.split('-').map(Number);
+          const [hours, minutes] = paper.generationTime.split(':').map(Number);
+          const scheduledTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
+
+          if (now >= scheduledTime) {
+            processingSchedules.add(paper.id);
+            autoGeneratePaper(paper);
+          }
+        } catch (e) {
+          console.error("Error parsing schedule:", e);
+        }
+      }
+    });
+  }, [autoGeneratePaper, processingSchedules]);
+
+  // Polling effect
+  useEffect(() => {
+    const pollInterval = setInterval(() => {
+      const scheduled = questionPapers.filter(p => p.status === "scheduled");
+      if (scheduled.length > 0) checkScheduledPapers(scheduled);
+    }, 10000);
+    return () => clearInterval(pollInterval);
+  }, [questionPapers, checkScheduledPapers]);
+
 
   // STAFF MANAGEMENT FUNCTIONS
   const handleAddStaff = async () => {
@@ -1044,73 +1109,26 @@ export default function AdminDashboard() {
   const loadQuestionsForSubject = async (subjectCode) => {
     try {
       setLoading(true);
-      const questions = {
-        oneMark: [],
-        fourMark: [],
-        sixMark: [],
-        eightMark: []
-      };
+      const sCode = subjectCode ? subjectCode.trim().toUpperCase() : "";
+      const questions = { oneMark: [], fourMark: [], sixMark: [], eightMark: [] };
 
       const subjectsQuery = query(
         collection(db, "subjects"),
-        where("subjectCode", "==", subjectCode)
+        where("subjectCode", "==", sCode)
       );
       const subjectsSnapshot = await getDocs(subjectsQuery);
 
       subjectsSnapshot.forEach((doc) => {
-        const subjectData = doc.data();
-        const unitMaps = new Map(); // Deduplicate units by number
-
-        // 1. Legacy top-level units (unit1)
-        Object.keys(subjectData).forEach(key => {
-            if (key.startsWith('unit') && !key.startsWith('units') && subjectData[key]) {
-                const num = parseInt(key.replace('unit', ''));
-                if (!isNaN(num)) unitMaps.set(num, subjectData[key]);
-            }
-        });
-
-        // 2. Flattened units (units.unit1)
-        Object.keys(subjectData).forEach(key => {
-            if (key.startsWith('units.')) {
-                const num = parseInt(key.replace('units.unit', ''));
-                if (!isNaN(num) && subjectData[key]) unitMaps.set(num, subjectData[key]);
-            }
-        });
-
-        // 3. Nested units object (units: { unit1: ... })
-        if (subjectData.units) {
-          Object.keys(subjectData.units).forEach(unitKey => {
-            const num = parseInt(unitKey.replace('unit', ''));
-            if (!isNaN(num) && subjectData.units[unitKey]) unitMaps.set(num, subjectData.units[unitKey]);
-          });
-        }
-
-        unitMaps.forEach((unit, unitNumber) => {
-          if (unit.questions && Array.isArray(unit.questions)) {
-            unit.questions.forEach((q, index) => {
-              const question = {
-                ...q,
-                id: `${doc.id}-${unitNumber}-${index}-${Math.random().toString(36).substr(2, 4)}`,
-                unit: unitNumber,
-                subjectCode: subjectCode,
-                subjectName: subjectData.subjectName,
-                unitName: unit.unitName || `Unit ${unitNumber}`,
-                dbId: doc.id
-              };
-
-              const marks = parseInt(q.marks) || 0;
-              if (marks === 1 || marks === 2) questions.oneMark.push({ ...question, marks: 1 });
-              else if (marks === 4) questions.fourMark.push(question);
-              else if (marks === 6) questions.sixMark.push(question);
-              else if (marks === 8) questions.eightMark.push(question);
-            });
-          }
-        });
+        const result = extractQuestionsFromSubject(doc.data(), sCode, doc.id);
+        questions.oneMark.push(...result.oneMark);
+        questions.fourMark.push(...result.fourMark);
+        questions.sixMark.push(...result.sixMark);
+        questions.eightMark.push(...result.eightMark);
       });
 
       setAvailableQuestions(questions);
       prepareQuestionStats(questions);
-      toast.success(`Loaded questions for ${subjectCode}`);
+      toast.success(`Loaded questions for ${sCode}`);
 
     } catch (error) {
       console.error("Error loading questions:", error);
@@ -1132,7 +1150,14 @@ export default function AdminDashboard() {
     const levelCounts = { RE: 0, UN: 0, AP: 0, AN: 0, EV: 0 };
 
     const pool = { 1: {}, 4: {}, 6: {}, 8: {} };
-    [...source.oneMark, ...source.fourMark, ...source.sixMark, ...source.eightMark].forEach(q => {
+    
+    // Shuffle source questions to ensure randomness across multiple generations (Set A/B)
+    const shuffledOneMark = shuffleArray(source.oneMark || []);
+    const shuffledFourMark = shuffleArray(source.fourMark || []);
+    const shuffledSixMark = shuffleArray(source.sixMark || []);
+    const shuffledEightMark = shuffleArray(source.eightMark || []);
+
+    [...shuffledOneMark, ...shuffledFourMark, ...shuffledSixMark, ...shuffledEightMark].forEach(q => {
       const marks = q.marks === 2 ? 1 : q.marks;
       const unit = q.unit || 1;
       const bl = (q.bloomLevel || 'RE').toUpperCase().replace('BL-', '');
@@ -1217,13 +1242,26 @@ export default function AdminDashboard() {
   };
 
   const handleGeneratePaper = async () => {
-    if (!paperForm.title || !paperForm.subjectCode || selectedQuestions.length === 0) {
-      toast.error("Please fill all fields and select questions");
+    if (!paperForm.title || !paperForm.subjectCode) {
+      toast.error("Please fill paper details (Title and Subject)");
       return;
     }
 
     try {
       setLoading(true);
+
+      let questionsToUse = [...selectedQuestions];
+      
+      // If no questions are selected, but pattern is fulfilled, auto-select them now
+      if (questionsToUse.length === 0) {
+        const autoSelected = getBalancedRandomSelection(paperForm, availableQuestions);
+        if (autoSelected.length === 0) {
+          toast.error("Not enough suitable questions found in question bank to auto-generate");
+          setLoading(false);
+          return;
+        }
+        questionsToUse = autoSelected;
+      }
 
       // Helper to create paper object
       const createPaperObject = (titleSuffix, questions) => {
@@ -1262,15 +1300,15 @@ export default function AdminDashboard() {
         };
       };
 
-      // Set A (Using currently selected questions)
-      const paperA = createPaperObject("Set A", selectedQuestions);
+      // Set A (Using currently selected questions or newly auto-selected ones)
+      const paperA = createPaperObject("Set A", questionsToUse);
 
-      // Set B (Generate new random set)
+      // Set B (Always generate a fresh new random set)
       const questionsB = selectRandomQuestions(paperForm, availableQuestions);
       const paperB = createPaperObject("Set B", questionsB);
 
       // Save both
-      await addDoc(collection(db, "questionPapers"), paperA);
+      const docRefA = await addDoc(collection(db, "questionPapers"), paperA);
       const docRefB = await addDoc(collection(db, "questionPapers"), paperB);
 
       toast.success("Question papers (Set A & Set B) generated successfully!");
@@ -1310,7 +1348,7 @@ export default function AdminDashboard() {
       });
 
       setActiveTab("papers");
-      setGeneratedPaper({ ...paperB, id: docRefB.id });
+      setGeneratedPaper({ ...paperA, id: docRefA.id });
 
     } catch (error) {
       console.error("Error generating paper:", error);

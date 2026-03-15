@@ -15,7 +15,27 @@ const sanitizeText = (text) => {
         .replace(/⊆/g, "subset of")
         .replace(/∀/g, "for all")
         .replace(/∃/g, "exists")
-        .replace(/→/g, "->");
+        .replace(/→/g, "->")
+        .replace(/α/g, "alpha")
+        .replace(/β/g, "beta")
+        .replace(/γ/g, "gamma")
+        .replace(/δ/g, "delta")
+        .replace(/θ/g, "theta")
+        .replace(/λ/g, "lambda")
+        .replace(/μ/g, "mu")
+        .replace(/π/g, "pi")
+        .replace(/ρ/g, "rho")
+        .replace(/σ/g, "sigma")
+        .replace(/τ/g, "tau")
+        .replace(/ω/g, "omega")
+        .replace(/Δ/g, "Delta")
+        .replace(/Φ/g, "Phi")
+        .replace(/Ω/g, "Omega")
+        .replace(/≈/g, "~")
+        .replace(/±/g, "+/-")
+        .replace(/°/g, " degrees")
+        .replace(/²/g, "^2")
+        .replace(/³/g, "^3");
 };
 
 const addWatermark = (doc, logoData) => {
