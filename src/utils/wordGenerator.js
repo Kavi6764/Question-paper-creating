@@ -278,8 +278,8 @@ export const downloadPaperAsWord = async (paper) => {
 
         // 3. Exam Details
         const formatDuration = (d) => {
-            const val = parseFloat(d) || 3;
-            return (val * 60).toString();
+            const val = parseFloat(d) || 0;
+            return Math.round(val * 60).toString();
         };
 
         const uniqueMarks = new Set(paper.questions.map(q => q.marks)).size;
@@ -329,11 +329,14 @@ export const downloadPaperAsWord = async (paper) => {
                 docChildren.push(
                     new Paragraph({
                         alignment: AlignmentType.CENTER,
-                        children: [new TextRun({ text: `SECTION - ${sectionChar} (${sectionType} Questions)`, bold: true, size: 26, underline: {} })],
+                        children: [new TextRun({ text: `Section- ${sectionChar} (${sectionType} Type Questions)`, bold: true, size: 26 })],
                         spacing: { before: 400, after: 200 },
                     }),
                     new Paragraph({
-                        children: [new TextRun({ text: `Q. ${groupIndex + 1}: Attempt all questions. Each question carries ${q.marks} marks.`, bold: true, size: 20 })],
+                        children: [
+                            new TextRun({ text: `Q. ${groupIndex + 1}: Attempt all questions (${q.marks} marks each)`, bold: true, size: 20 }),
+                            new TextRun({ text: "\t\t\t\t\t\tCourse Outcome\tBT", bold: true, size: 18 })
+                        ],
                         spacing: { after: 200 },
                     })
                 );
@@ -359,11 +362,10 @@ export const downloadPaperAsWord = async (paper) => {
                     alignment: AlignmentType.RIGHT,
                     children: [
                         new TextRun({
-                            text: `[${sanitizeText(q.co || '')}, ${sanitizeText(q.bloomLevel || 'RE')}]`,
+                            text: `${String(q.co || "CO1")}\t\t${String(q.bloomLevel || "RE").toUpperCase()}`,
                             bold: true,
-                            italics: true,
-                            size: 16,
-                            color: q.imageURL ? "3B82F6" : "555555"
+                            size: 18,
+                            color: "000000"
                         }),
                     ],
                     spacing: { after: 100 },
@@ -373,9 +375,12 @@ export const downloadPaperAsWord = async (paper) => {
 
             if (q.orQuestion?.question) {
                 const orHasUrl = /https?:\/\//.test(q.orQuestion.question || "");
-                
                 docChildren.push(
-                    new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "OR", bold: true, size: 24 })], spacing: { before: 200, after: 200 } }),
+                    new Paragraph({ 
+                        alignment: AlignmentType.CENTER, 
+                        children: [new TextRun({ text: "OR", bold: true, size: 24 })], 
+                        spacing: { before: 200, after: 200 }
+                    }),
                     new Paragraph({ 
                         children: [new TextRun({ 
                             text: sanitizeText(q.orQuestion.question), 
@@ -387,11 +392,10 @@ export const downloadPaperAsWord = async (paper) => {
                         alignment: AlignmentType.RIGHT,
                         children: [
                             new TextRun({
-                                text: `[${sanitizeText(q.orQuestion.co || '')}, ${sanitizeText(q.orQuestion.bloomLevel || 'RE')}]`,
+                                text: `${String(q.orQuestion.co || "CO1")}\t\t${String(q.orQuestion.bloomLevel || "RE").toUpperCase()}`,
                                 bold: true,
-                                italics: true,
-                                size: 16,
-                                color: q.orQuestion.imageURL ? "3B82F6" : "555555"
+                                size: 18,
+                                color:q.orQuestion.imageURL ? "3B82F6" : "555555"
                             }),
                         ],
                         spacing: { after: 100 },

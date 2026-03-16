@@ -1191,42 +1191,51 @@ export default function AdminDashboard() {
       8: shuffleArray(source.eightMark || [])
     };
 
-    const getOptimalQuestion = (m, targetUnit, targetBL, excludeIds = new Set()) => {
+    const getOptimalQuestion = (m, targetUnit, targetBL, excludeIds = new Set(), strictUnit = null, strictCO = null) => {
       // Filter candidates from the pool for specified marks
-      const candidates = pools[m].filter(q => 
+      let candidates = pools[m].filter(q => 
         !usedIds.has(q.id) && 
         !excludeIds.has(q.id)
       );
 
-      // Function to check CO constraint
-      const checkCO = (q) => {
+      // Apply strict filters if provided (for OR pairs)
+      if (strictUnit !== null) {
+        candidates = candidates.filter(q => q.unit === strictUnit);
+      }
+      if (strictCO !== null) {
+        const sco = String(strictCO).toUpperCase().replace(/[^A-Z0-9]/g, "");
+        candidates = candidates.filter(q => String(q.co || "CO1").toUpperCase().replace(/[^A-Z0-9]/g, "") === sco);
+      }
+
+      if (candidates.length === 0) return null;
+
+      // Function to check CO constraint budget
+      const checkCOBudget = (q) => {
         const co = String(q.co || "CO1").toUpperCase().replace(/[^A-Z0-9]/g, "");
         return (coCounts[co] || 0) < 2;
       };
 
-      // Priority Match Search
+      // Priority Match Search within filtered candidates
       // 1. Exact: Unit + BL + CO constraint
-      let match = candidates.find(q => q.unit === targetUnit && (q.bloomLevel || 'RE').toUpperCase().includes(targetBL) && checkCO(q));
+      let match = candidates.find(q => q.unit === targetUnit && (q.bloomLevel || 'RE').toUpperCase().includes(targetBL) && checkCOBudget(q));
       if (match) return match;
 
       // 2. Unit + CO constraint (any BL)
-      match = candidates.find(q => q.unit === targetUnit && checkCO(q));
+      match = candidates.find(q => q.unit === targetUnit && checkCOBudget(q));
       if (match) return match;
 
-      // 3. BL + CO constraint (any Unit)
-      match = candidates.find(q => (q.bloomLevel || 'RE').toUpperCase().includes(targetBL) && checkCO(q));
-      if (match) return match;
+      // 3. BL + CO constraint (any Unit) - ONLY if not strictly bound to a unit
+      if (strictUnit === null) {
+        match = candidates.find(q => (q.bloomLevel || 'RE').toUpperCase().includes(targetBL) && checkCOBudget(q));
+        if (match) return match;
+      }
 
       // 4. Any question meeting CO constraint
-      match = candidates.find(q => checkCO(q));
+      match = candidates.find(q => checkCOBudget(q));
       if (match) return match;
 
-      // 5. Hard Fallback: Any available question for these marks (ignoring CO constraint if absolutely desperate)
-      // But user said "Max 2 per CO level", so we should ideally fail if we can't meet it.
-      // However, for the sake of functionality, if candidates exist but fail CO, we check for candidates again
-      match = candidates[0]; 
-
-      return match || null;
+      // 5. Fallback: Any candidate that passed the initial Mark/Unit/CO filters
+      return candidates[0] || null;
     };
 
     const markConfigs = [
@@ -1250,10 +1259,9 @@ export default function AdminDashboard() {
         coCounts[co1] = (coCounts[co1] || 0) + 1;
 
         if (config.hasOr) {
-          // Find a diverse OR question (different unit preference if possible, but user said "split equally" for total slots)
-          // We'll use the same unit for the OR pair but different BL
+          // Rule: Same Unit and Same CO for OR pair
           const nextBL = bloomLevels[(i + 1) % bloomLevels.length];
-          const q2 = getOptimalQuestion(config.m, unit, nextBL, new Set([q1.id]));
+          const q2 = getOptimalQuestion(config.m, unit, nextBL, new Set([q1.id]), q1.unit, q1.co);
           
           if (q2) {
             usedIds.add(q2.id);

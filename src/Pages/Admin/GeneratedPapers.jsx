@@ -457,8 +457,14 @@ export default function GeneratedPapers({
                                     currentSectionMarks = q.marks;
                                     const groupCount = sortedQuestions.filter(sq => sq.marks === q.marks).length;
                                     const groupTotal = groupCount * q.marks;
-                                    const label = `Group-${String.fromCharCode(65 + partIndex)}`;
-                                    const calculation = `[ ${q.marks} x ${groupCount} = ${groupTotal} ]`;
+                                    const groupChar = String.fromCharCode(65 + partIndex);
+                                    let typeDesc = "Questions";
+                                    if (q.marks <= 2) typeDesc = "Very Short Answer Type Questions";
+                                    else if (q.marks <= 5) typeDesc = "Short Answer Type Questions";
+                                    else typeDesc = "Long Answer Type Questions";
+
+                                    const label = `Section- ${groupChar} (${typeDesc})`;
+                                    const calculation = `(${q.marks} marks each)`;
                                     partIndex++;
                                     questionIndex = 0;
 
@@ -549,21 +555,8 @@ export default function GeneratedPapers({
                                                 {/* Formatting Function */}
                                                 {(() => {
                                                     const formatDurationInMinutes = (duration) => {
-                                                        if (!duration) return "180";
-                                                        let str = duration.toString();
-                                                        if (str.includes('.') || str.includes(':')) {
-                                                            let parts = str.split(/[.:]/);
-                                                            let hours = parseInt(parts[0]) || 0;
-                                                            let minsPart = parts[1] || "0";
-                                                            if (minsPart === '5' || minsPart === '50') {
-                                                                return (hours * 60 + 30).toString();
-                                                            } else {
-                                                                let mins = parseInt(minsPart.padEnd(2, '0').slice(0, 2)) || 0;
-                                                                return (hours * 60 + mins).toString();
-                                                            }
-                                                        } else {
-                                                            return (parseInt(str) * 60).toString();
-                                                        }
+                                                        const val = parseFloat(duration) || 0;
+                                                        return Math.round(val * 60).toString();
                                                     };
                                                     return (
                                                         <div className="flex justify-between font-serif text-[15px] font-bold mb-4">
@@ -611,11 +604,16 @@ export default function GeneratedPapers({
                                             if (item.type === 'header') {
                                                 return (
                                                     <div key={item.id}>
-                                                        <h3 className="flex justify-between items-center font-bold text-lg mb-2 uppercase border-t border-b border-gray-200 py-2 mt-4 print:mt-4">
-                                                            <span>{item.label}</span>
-                                                            <span>{item.calculation}</span>
+                                                        <h3 className="flex justify-between items-center font-bold text-lg mb-1 uppercase pt-6">
+                                                            <span className="w-full text-center">{item.label}</span>
                                                         </h3>
-                                                        <p className="font-bold text-sm mb-6 uppercase">Answer the Following Questions</p>
+                                                        <div className="flex justify-between items-center font-bold text-sm mb-4">
+                                                            <span>Q. {item.id.split('-')[1]}: Attempt all Questions {item.calculation}</span>
+                                                            <div className="flex gap-12 mr-4">
+                                                                <span>Course Outcome</span>
+                                                                <span>BT</span>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 );
                                             }
@@ -633,84 +631,62 @@ export default function GeneratedPapers({
 
                                                     <div className="flex justify-between items-start gap-4">
                                                         <div className="flex gap-3 flex-1">
-                                                            <span className="font-bold font-serif text-gray-900 min-w-[20px]">{String.fromCharCode(97 + question.sectionIndex)}.</span>
+                                                            <span className="font-bold font-serif text-gray-900 min-w-[20px] pt-0.5">{String.fromCharCode(97 + question.sectionIndex)}.</span>
                                                             <div className="flex-1">
-                                                                <div className="flex justify-between items-start gap-4 mb-1">
-                                                                    <div className="flex-1">
-                                                                        <p className="font-serif text-gray-900 text-[15px] leading-relaxed text-justify relative z-0 whitespace-pre-line">{highlightUrls(question.question)}</p>
-                                                                        {question.orQuestion && (
-                                                                            <div className="relative group/or mt-2">
-                                                                                <div className="my-3 text-center font-bold text-gray-800 uppercase tracking-widest text-sm relative before:content-[''] before:absolute before:left-0 before:top-1/2 before:w-[calc(50%-20px)] before:h-px before:bg-gray-300 after:content-[''] after:absolute after:right-0 after:top-1/2 after:w-[calc(50%-20px)] after:h-px after:bg-gray-300">
-                                                                                    OR
-                                                                                </div>
-                                                                                {/* Action Buttons */}
-                                                                                <div className="absolute right-2 top-2 flex gap-2 print:hidden z-10">
-                                                                                    {/* Edit button for main question */}
-                                                                                    <button
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            setEditingQuestion({
-                                                                                                ...question.orQuestion,
-                                                                                              
-                                                                                                id: question.orQuestion.id || `or-${Date.now()}`,
-                                                                                            
-                                                                                                parentId: question.id,
-                                                                                                isOrQuestion: true
-                                                                                            });
-                                                                                        }}
-                                                                                        title="Edit OR Question"
-                                                                                        className="flex items-center gap-1 px-2 py-1 bg-white text-blue-600 border border-blue-200 rounded-md shadow-sm hover:bg-blue-50 text-[10px] font-medium transition-all hover:scale-105"
-                                                                                    >
-                                                                                        <PenTool className="w-3 h-3" /> Edit OR
-                                                                                    </button>
-
-                                                                                    {/* Replace button for main question */}
-                                                                                    <button
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            setReplacingQuestion({
-                                                                                                ...question.orQuestion,
-                                                                                                id: question.orQuestion.id || `or-${Date.now()}`,
-                                                                                                parentId: question.id,
-                                                                                                isOrQuestion: true
-                                                                                            });
-                                                                                        }}
-                                                                                        title="Replace Question"
-                                                                                        className="flex items-center gap-1 px-2 py-1 bg-white text-orange-600 border border-orange-200 rounded shadow-sm hover:bg-orange-50 text-[10px] font-medium"
-                                                                                    >
-                                                                                        <RefreshCw className="w-3 h-3" /> Replace
-                                                                                    </button>
-                                                                                </div>
-                                                                                <p className="font-serif text-gray-900 text-[15px] leading-relaxed text-justify relative z-0 whitespace-pre-line">{highlightUrls(question.orQuestion.question)}</p>
-                                                                            </div>
-                                                                        )}
+                                                                {/* Main Question Row */}
+                                                                <div className="flex items-end gap-2 mb-2">
+                                                                    <p className="font-serif text-gray-900 text-[15px] leading-relaxed text-justify relative z-0 whitespace-pre-line flex-1">
+                                                                        {highlightUrls(question.question)}
+                                                                    </p>
+                                                                    <div className="flex gap-16 min-w-[120px] justify-end font-serif text-[14px] text-gray-800 font-bold">
+                                                                        <span>{question.co || 'CO1'}</span>
+                                                                        <span className="uppercase">{question.bloomLevel || 'RE'}</span>
                                                                     </div>
-                                                                    <span className="shrink-0 px-2 py-0.5 rounded text-[9px] font-bold bg-gray-100 text-gray-600 border border-gray-200 uppercase tracking-tighter">
-                                                                        [{question.bloomLevel || 'RE'}]
-                                                                    </span>
                                                                 </div>
+
+                                                                {question.orQuestion && (
+                                                                    <div className="relative group/or my-4">
+                                                                        <div className="my-6 text-center font-bold text-gray-800 uppercase tracking-widest text-sm relative flex items-center justify-center gap-4">
+                                                                            <span>OR</span>
+                                                                        </div>
+
+                                                                        {/* Action Buttons for OR */}
+                                                                        <div className="absolute right-0 -top-12 flex gap-2 print:hidden z-10">
+                                                                            <button onClick={(e) => { e.stopPropagation(); setEditingQuestion({ ...question.orQuestion, parentId: question.id, isOrQuestion: true }); }} className="flex items-center gap-1 px-2 py-1 bg-white text-blue-600 border border-blue-200 rounded text-[10px] hover:bg-blue-50 shadow-sm"><PenTool className="w-3 h-3" /> Edit</button>
+                                                                            <button onClick={(e) => { e.stopPropagation(); setReplacingQuestion({ ...question.orQuestion, parentId: question.id, isOrQuestion: true }); }} className="flex items-center gap-1 px-2 py-1 bg-white text-orange-600 border border-orange-200 rounded text-[10px] hover:bg-orange-50 shadow-sm"><RefreshCw className="w-3 h-3" /> Replace</button>
+                                                                        </div>
+
+                                                                        <div className="flex items-end gap-2">
+                                                                            <p className="font-serif text-gray-900 text-[15px] leading-relaxed text-justify relative z-0 whitespace-pre-line flex-1">
+                                                                                {highlightUrls(question.orQuestion.question)}
+                                                                            </p>
+                                                                            <div className="flex gap-16 min-w-[120px] justify-end font-serif text-[14px] text-gray-800 font-bold">
+                                                                                <span>{question.orQuestion.co || 'CO1'}</span>
+                                                                                <span className="uppercase">{question.orQuestion.bloomLevel || 'RE'}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
                                                                 {question.options && question.options.length > 0 && (
-                                                                    <div className="grid grid-cols-2 gap-x-8 gap-y-2 mt-2 ml-2">
+                                                                    <div className="grid grid-cols-2 gap-x-12 gap-y-2 mt-3 ml-2">
                                                                         {question.options.map((opt, i) => (
-                                                                            <div key={i} className="font-serif text-sm">
-                                                                                <span className="font-semibold mr-1">{String.fromCharCode(65 + i)})</span> {opt}
+                                                                            <div key={i} className="font-serif text-[14px]">
+                                                                                <span className="font-bold mr-2">{String.fromCharCode(65 + i)}.</span> {opt}
                                                                             </div>
                                                                         ))}
                                                                     </div>
                                                                 )}
+
                                                                 {question.imageURL && (
-                                                                    <div className="mt-3 relative group/img">
+                                                                    <div className="mt-4 relative group/img max-w-lg">
                                                                         <img
                                                                             src={handleGoogleDriveUrl(question.imageURL)}
                                                                             alt="Question diagram"
                                                                             className="max-h-64 rounded-lg border border-gray-200 shadow-sm object-contain"
-                                                                            onError={(e) => {
-                                                                                e.target.style.display = 'none';
-                                                                            }}
+                                                                            onError={(e) => { e.target.style.display = 'none'; }}
                                                                         />
-                                                                        <div className="absolute top-2 left-2 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded opacity-0 group-hover/img:opacity-100 transition-opacity">
-                                                                            Diagram
-                                                                        </div>
+                                                                        <div className="absolute top-2 left-2 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded opacity-0 group-hover/img:opacity-100 transition-all">Diagram</div>
                                                                     </div>
                                                                 )}
                                                             </div>

@@ -31,7 +31,7 @@ export const highlightUrls = (text) => {
     return parts.map((part, i) => {
         if (part.match(urlPattern)) {
             return (
-                <span key={i} className="text-blue-600 font-medium break-all underline decoration-blue-200 underline-offset-2">
+                <span key={i} className="text-blue-600 font-medium break-all">
                     {part}
                 </span>
             );

@@ -153,7 +153,14 @@ export default function ScheduledPapers({
                                 <td className="px-6 py-4">
                                     <div className="text-xs text-gray-500 space-y-1">
                                         <span className="block">Date: <span className="font-medium text-gray-700">{paper.examDate}</span></span>
-                                        <span className="block">Duration: <span className="font-medium text-gray-700">{paper.duration} Hrs</span></span>
+                                        <span className="block">Duration: <span className="font-medium text-gray-700">
+                                            {(() => {
+                                                const val = parseFloat(paper.duration);
+                                                const h = Math.floor(val);
+                                                const m = Math.round((val - h) * 60);
+                                                return `${h > 0 ? `${h}h ` : ''}${m > 0 ? `${m}m` : h === 0 ? '0m' : ''}`.trim();
+                                            })()}
+                                        </span></span>
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 text-right">

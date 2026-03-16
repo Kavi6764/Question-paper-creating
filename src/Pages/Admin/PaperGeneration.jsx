@@ -282,9 +282,37 @@ export default function PaperGeneration({
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Exam Time</label>
                                     <input type="time" value={paperForm.examTime} onChange={(e) => setPaperForm({ ...paperForm, examTime: e.target.value })} className="w-full border border-gray-200 bg-white rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Duration (Hours)</label>
-                                    <input type="number" step="any" min="0" max="10" value={paperForm.duration} onChange={(e) => setPaperForm({ ...paperForm, duration: e.target.value })} className="w-full border border-gray-200 bg-white rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Duration (Hrs)</label>
+                                        <input 
+                                            type="number" 
+                                            min="0" 
+                                            max="10" 
+                                            value={Math.floor(paperForm.duration || 0)} 
+                                            onChange={(e) => {
+                                                const h = parseInt(e.target.value) || 0;
+                                                const m = Math.round((parseFloat(paperForm.duration) - Math.floor(paperForm.duration)) * 60) || 0;
+                                                setPaperForm({ ...paperForm, duration: h + (m / 60) });
+                                            }}
+                                            className="w-full border border-gray-200 bg-white rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" 
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Minutes</label>
+                                        <input 
+                                            type="number" 
+                                            min="0" 
+                                            max="59" 
+                                            value={Math.round((parseFloat(paperForm.duration) - Math.floor(paperForm.duration)) * 60) || 0} 
+                                            onChange={(e) => {
+                                                const h = Math.floor(paperForm.duration || 0);
+                                                const m = parseInt(e.target.value) || 0;
+                                                setPaperForm({ ...paperForm, duration: h + (m / 60) });
+                                            }}
+                                            className="w-full border border-gray-200 bg-white rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" 
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
