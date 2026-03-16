@@ -239,9 +239,9 @@ export const downloadPaperAsPDF = async (paper) => {
     doc.setFont("times", 'bold');
 
     // Add Time and Max Marks
-    const formatDurationInMinutes = (durationInHours) => {
-        if (typeof durationInHours !== 'number') return 'N/A';
-        return durationInHours * 60;
+    const formatDurationInMinutes = (duration) => {
+        const val = parseFloat(duration) || 0;
+        return Math.round(val * 60);
     };
     doc.setFont("times", 'normal');
     doc.text(`Time: ${formatDurationInMinutes(paper.duration)} Minutes`, 20, afterBoxY + 5);
@@ -355,10 +355,10 @@ export const downloadPaperAsPDF = async (paper) => {
         doc.setTextColor(0, 0, 0);
 
         // Print CO and BT columns - align with the first line
-        const tagColor = hasUrl ? [59, 130, 246] : [85, 85, 85];
+        const tagColor = hasUrl ? [59, 130, 246] : [0, 0, 0];
         doc.setTextColor(tagColor[0], tagColor[1], tagColor[2]);
-        doc.setFontSize(8);
-        doc.text(String(q.co || ""), 150, contentY, { align: 'center' });
+        doc.setFontSize(9);
+        doc.text(String(q.co || "CO1"), 150, contentY, { align: 'center' });
         doc.text(String(q.bloomLevel || 'RE').toUpperCase(), 185, contentY, { align: 'center' });
         doc.setTextColor(0, 0, 0);
         doc.setFontSize(9);
@@ -383,10 +383,10 @@ export const downloadPaperAsPDF = async (paper) => {
             doc.setTextColor(0, 0, 0);
 
             // Print OR question CO and BT columns
-            const orTagColor = orHasUrl ? [59, 130, 246] : [85, 85, 85];
+            const orTagColor = orHasUrl ? [59, 130, 246] : [0, 0, 0];
             doc.setTextColor(orTagColor[0], orTagColor[1], orTagColor[2]);
-            doc.setFontSize(8);
-            doc.text(String(q.orQuestion.co || ""), 150, currentBaseY, { align: 'center' });
+            doc.setFontSize(9);
+            doc.text(String(q.orQuestion.co || "CO1"), 150, currentBaseY, { align: 'center' });
             doc.text(String(q.orQuestion.bloomLevel || 'RE').toUpperCase(), 185, currentBaseY, { align: 'center' });
             doc.setTextColor(0, 0, 0);
             doc.setFontSize(9);

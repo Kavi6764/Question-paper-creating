@@ -151,22 +151,44 @@ export default function EditPaperModal({ paper, onClose, onSave }) {
                             </div>
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1 text-wrap">
-                                Duration (Hours)
+                        <div className="space-y-1">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Duration
                             </label>
-                            <div className="relative">
-                                <Timer className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max="5"
-                                    step="0.5"
-                                    value={formData.duration}
-                                    onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
-                                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                                    required
-                                />
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="relative">
+                                    <Timer className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="10"
+                                        value={Math.floor(parseFloat(formData.duration) || 0)}
+                                        onChange={(e) => {
+                                            const h = parseInt(e.target.value) || 0;
+                                            const m = Math.round((parseFloat(formData.duration || 0) - Math.floor(parseFloat(formData.duration || 0))) * 60);
+                                            setFormData({ ...formData, duration: h + (m / 60) });
+                                        }}
+                                        className="w-full pl-8 pr-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs"
+                                        placeholder="Hrs"
+                                        required
+                                    />
+                                </div>
+                                <div className="relative">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="59"
+                                        value={Math.round((parseFloat(formData.duration || 0) - Math.floor(parseFloat(formData.duration || 0))) * 60)}
+                                        onChange={(e) => {
+                                            const h = Math.floor(parseFloat(formData.duration || 0));
+                                            const m = parseInt(e.target.value) || 0;
+                                            setFormData({ ...formData, duration: h + (m / 60) });
+                                        }}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-xs"
+                                        placeholder="Mins"
+                                        required
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>

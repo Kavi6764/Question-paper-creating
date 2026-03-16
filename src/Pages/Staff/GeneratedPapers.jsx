@@ -144,7 +144,15 @@ export default function GeneratedPapers({ questionPapers, loading }) {
                                                             <Clock className="w-3.5 h-3.5" />
                                                             <span>Duration</span>
                                                         </div>
-                                                        <p className="font-medium text-slate-700 text-sm">{paper.duration || '3 Hours'}</p>
+                                                        <p className="font-medium text-slate-700 text-sm">
+                                                            {(() => {
+                                                                if (!paper.duration) return '3 Hours';
+                                                                const val = parseFloat(paper.duration);
+                                                                const h = Math.floor(val);
+                                                                const m = Math.round((val - h) * 60);
+                                                                return `${h > 0 ? `${h} Hr${h > 1 ? 's' : ''} ` : ''}${m > 0 ? `${m} Min${m > 1 ? 's' : ''}` : h === 0 ? '0 Mins' : ''}`.trim();
+                                                            })()}
+                                                        </p>
                                                     </div>
                                                 </div>
 
