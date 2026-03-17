@@ -126,7 +126,7 @@ export default function PaperGeneration({
                                         value={paperForm.title}
                                         required
                                         onChange={(e) => setPaperForm({ ...paperForm, title: e.target.value })}
-                                        placeholder="e.g., Mid-Term Examination - CS101"
+                                        placeholder="e.g., Mid Term Examination Even Semester 2025-26"
                                         className="w-full border border-gray-200 bg-white rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                                     />
                                 </div>

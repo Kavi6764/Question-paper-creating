@@ -131,7 +131,7 @@ export default function AdminDashboard() {
   // Question Paper Generation State
   const [questionPapers, setQuestionPapers] = useState([]);
   const [paperForm, setPaperForm] = useState({
-    title: "",
+    title: "Mid Term Examination Even Semester 2025-26 - Set A",
     subjectCode: "",
     program: "B.Tech",
     semester: "",
@@ -1402,7 +1402,7 @@ export default function AdminDashboard() {
 
       // Reset form
       setPaperForm({
-        title: "",
+        title: "Mid Term Examination Even Semester 2025-26 - Set A",
         subjectCode: "",
         program: "B.Tech",
         semester: "",

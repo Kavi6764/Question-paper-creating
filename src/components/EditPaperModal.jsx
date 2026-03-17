@@ -4,7 +4,7 @@ import { X, Save, Calendar, Clock, Timer, Captions } from 'lucide-react';
 
 export default function EditPaperModal({ paper, onClose, onSave }) {
     const [formData, setFormData] = useState({
-        title: '',
+        title: 'Mid Term Examination Even Semester 2025-26 - Set A',
         examDate: '',
         examTime: '',
         duration: '',
