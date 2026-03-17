@@ -260,15 +260,17 @@ export const downloadPaperAsWord = async (paper) => {
                             children: [new Paragraph({ children: [new TextRun({ text: "Course: ", bold: true, italics: true }), new TextRun({ text: sanitizeText(paper.subjectName || "").toUpperCase() })] })],
                         }),
                         new TableCell({
-                            children: [new Paragraph({ children: [new TextRun({ text: "Section: ", bold: true, italics: true }), new TextRun({ text: sanitizeText(paper.section || "A/B/C").toUpperCase() })] })],
+                            children: [new Paragraph({ children: [new TextRun({ text: "Semester: ", bold: true, italics: true }), new TextRun({ text: sanitizeText(paper.semester || "N/A") })] })],
                         }),
                     ],
                 }),
                 new TableRow({
                     children: [
                         new TableCell({
-                            children: [new Paragraph({ children: [new TextRun({ text: "Roll No: ", bold: true, italics: true }), new TextRun({ text: "........................................................................" })] })],
-                            columnSpan: 2
+                            children: [new Paragraph({ children: [new TextRun({ text: "Section: ", bold: true, italics: true }), new TextRun({ text: sanitizeText(paper.section || "A/B/C").toUpperCase() })] })],
+                        }),
+                        new TableCell({
+                            children: [new Paragraph({ children: [new TextRun({ text: "Roll No: ", bold: true, italics: true }), new TextRun({ text: "........................................." })] })],
                         }),
                     ],
                 }),

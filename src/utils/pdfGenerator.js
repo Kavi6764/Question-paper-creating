@@ -43,6 +43,8 @@ const sanitizeText = (text) => {
         .replace(/°/g, " degrees")
         .replace(/∝/g, "prop.to")
         .replace(/′/g, "'")
+        .replace(/φ|ϕ/g, "phi")
+        .replace(/Φ/g, "Phi")
         .replace(/•|\\bullet/g, "*") // Standard bullet
         // Superscripts
         .replace(/¹/g, "^1")
@@ -66,13 +68,31 @@ const sanitizeText = (text) => {
         .replace(/\\times/g, "x")
         .replace(/\\div/g, "/")
         .trim();
+        
+    const greekMap = {
+        'α': 'alpha',
+        'β': 'beta',
+        'γ': 'gamma',
+        'δ': 'delta',
+        'θ': 'theta',
+        'λ': 'lambda',
+        'μ': 'mu',
+        'π': 'pi',
+        'ρ': 'rho',
+        'σ': 'sigma',
+        'τ': 'tau',
+        'ω': 'omega',
+        'φ': 'phi',
+        'ϕ': 'phi',
+    };
 
+    sanitized = sanitized.replace(/[αβγδθλμπρστωφϕ]/g, ch => greekMap[ch] || ch);
     // Final pass for specific corruption: if & density is high (>25%), it's noise
     const ampersandCount = (sanitized.match(/&/g) || []).length;
     if (ampersandCount > sanitized.length * 0.25) {
         sanitized = sanitized.replace(/&/g, "");
     }
-
+    sanitized = sanitized.replace(/[^\x00-\x7F]/g, "");
     return sanitized;
 };
 
@@ -155,12 +175,12 @@ export const downloadPaperAsPDF = async (paper) => {
     const logoData = await loadImage(logo);
 
     // Header - University Name
-    doc.setFontSize(11);
+    doc.setFontSize(12);
     doc.setFont("times", 'bold');
     doc.text("Uttaranchal University", 105, yPos, { align: 'center' });
-    yPos += 5;
+    yPos += 5.5;
 
-    doc.setFontSize(10);
+    doc.setFontSize(10.5);
     doc.setFont("times", 'normal');
     doc.text("Uttaranchal Institute of Technology", 105, yPos, { align: 'center' });
     yPos += 5;
@@ -203,7 +223,8 @@ export const downloadPaperAsPDF = async (paper) => {
     doc.setFont("times", "bolditalic");
     doc.text("Programme:", 20, metaY);
     doc.setFont("times", 'normal');
-    doc.text(String(paper.program || "B.Tech"), 45, metaY);
+    const programName = String(paper.program || "B.Tech");
+    doc.text(programName, 45, metaY);
 
     doc.setFont("times", "bolditalic");
     doc.text("Course Code:", 120, metaY);
@@ -211,31 +232,41 @@ export const downloadPaperAsPDF = async (paper) => {
     const courseCode = (paper.subjectCode || "").toUpperCase();
     doc.text(courseCode, 145, metaY);
 
-    // Line 2
+    // Line 2 - Course (with wrapping)
     doc.setFont("times", "bolditalic");
-    doc.text("Course:", 20, metaY + 4);
+    doc.text("Course:", 20, metaY + 5);
     doc.setFont("times", 'normal');
     const courseName = (paper.subjectName || "").toUpperCase();
-    doc.text(courseName, 45, metaY + 4);
+    const courseLines = doc.splitTextToSize(courseName, 70); // Wrap within ~70mm
+    doc.text(courseLines, 45, metaY + 5);
 
     doc.setFont("times", "bolditalic");
-    doc.text("Section:", 120, metaY + 4);
+    doc.text("Semester:", 120, metaY + 5);
     doc.setFont("times", 'normal');
-    const paperSection = (paper.section || "A/B/C").toUpperCase();
-    doc.text(paperSection, 145, metaY + 4);
+    doc.text(String(paper.semester || "N/A"), 145, metaY + 5);
+
+    // Calculate dynamic offset if course name wraps
+    const courseOffset = (courseLines.length - 1) * 4;
+    const line3Y = metaY + 10 + courseOffset;
 
     // Line 3
     doc.setFont("times", "bolditalic");
-    doc.text("Roll No:", 20, metaY + 8);
+    doc.text("Section:", 20, line3Y);
     doc.setFont("times", 'normal');
-    doc.text("................................................................................", 45, metaY + 8);
+    const paperSection = (paper.section || "A/B/C").toUpperCase();
+    doc.text(paperSection, 45, line3Y);
+
+    doc.setFont("times", "bolditalic");
+    doc.text("Roll No:", 120, line3Y);
+    doc.setFont("times", 'normal');
+    doc.text("............................", 145, line3Y);
 
     // Line bottom of header
-    doc.line(15, metaY + 11, 195, metaY + 11);
+    doc.line(15, line3Y + 3, 195, line3Y + 3);
 
     // Instructions and meta
-    const afterBoxY = metaY + 16;
-    doc.setFontSize(9);
+    const afterBoxY = line3Y + 10;
+    doc.setFontSize(9.5);
     doc.setFont("times", 'bold');
 
     // Add Time and Max Marks
@@ -264,13 +295,13 @@ export const downloadPaperAsPDF = async (paper) => {
         const bloomTag = q.bloomLevel ? `[${q.bloomLevel}]` : "";
         const questionText = sanitizeText(q.question || '');
         const questionLines = doc.splitTextToSize(questionText, 115);
-        const lineHeight = 3.6;
+        const lineHeight = 3.9;
         let textHeight = questionLines.length * lineHeight;
 
         let orQuestionLines = [];
         if (q.orQuestion && q.orQuestion.question) {
             orQuestionLines = doc.splitTextToSize(sanitizeText(q.orQuestion.question), 115);
-            textHeight += (orQuestionLines.length * lineHeight) + 6;
+            textHeight += (orQuestionLines.length * lineHeight) + 7;
         }
         const optionsHeight = (q.options?.length || 0) * lineHeight;
 
@@ -314,15 +345,15 @@ export const downloadPaperAsPDF = async (paper) => {
             else if (q.marks <= 4) typeDesc = "Short Answer Type Questions";
             else typeDesc = "Long Answer Type Questions";
 
-            doc.setFontSize(10);
+            doc.setFontSize(11);
             doc.setFont("times", 'bold');
             doc.text(`Section- ${groupLabel} (${typeDesc})`, 105, contentY, { align: 'center' });
-            contentY += 5;
+            contentY += 5.5;
 
-            doc.setFontSize(9);
+            doc.setFontSize(10);
             doc.text(`Q. ${groupIndex + 1}: Attempt all Questions    ( ${q.marks} marks each )`, 20, contentY);
 
-            doc.setFontSize(8);
+            doc.setFontSize(8.5);
             doc.text("Course Outcome", 150, contentY, { align: 'center' });
             doc.text("BT", 185, contentY, { align: 'center' });
 
@@ -332,7 +363,7 @@ export const downloadPaperAsPDF = async (paper) => {
         }
 
         // Print Question
-        doc.setFontSize(9);
+        doc.setFontSize(10);
         doc.setFont("times", 'bold');
         doc.text(`${String.fromCharCode(97 + questionIndex)}.`, 20, contentY);
         questionIndex++;
@@ -348,27 +379,26 @@ export const downloadPaperAsPDF = async (paper) => {
         
         // Render each line of the question
         questionLines.forEach((line, idx) => {
-            doc.text(line, 28, contentY + (idx * 3.6));
+            doc.text(line, 28, contentY + (idx * 4.2));
         });
 
         // Reset color for identifiers
         doc.setTextColor(0, 0, 0);
 
         // Print CO and BT columns - align with the first line
-        const tagColor = hasUrl ? [59, 130, 246] : [0, 0, 0];
+        const tagColor = hasUrl ? [37, 99, 235] : [0, 0, 0];
         doc.setTextColor(tagColor[0], tagColor[1], tagColor[2]);
-        doc.setFontSize(9);
+        doc.setFontSize(9.5);
         doc.text(String(q.co || "CO1"), 150, contentY, { align: 'center' });
         doc.text(String(q.bloomLevel || 'RE').toUpperCase(), 185, contentY, { align: 'center' });
         doc.setTextColor(0, 0, 0);
-        doc.setFontSize(9);
-
+        doc.setFontSize(10);
 
         if (q.orQuestion && q.orQuestion.question) {
-            let currentBaseY = contentY + (questionLines.length * 3.6) + 1;
+            let currentBaseY = contentY + (questionLines.length * 4.2) + 2;
             doc.setFont("times", 'bold');
             doc.text("OR", 105, currentBaseY, { align: 'center' });
-            currentBaseY += 4;
+            currentBaseY += 5;
             doc.setFont("times", 'normal');
             
             const orHasUrl = /(https?:\/\/[^\s]+)/.test(q.orQuestion.question || "");
@@ -377,33 +407,33 @@ export const downloadPaperAsPDF = async (paper) => {
             }
             
             orQuestionLines.forEach((line, idx) => {
-                doc.text(line, 28, currentBaseY + (idx * 3.6));
+                doc.text(line, 28, currentBaseY + (idx * 4.2));
             });
             
             doc.setTextColor(0, 0, 0);
 
             // Print OR question CO and BT columns
-            const orTagColor = orHasUrl ? [59, 130, 246] : [0, 0, 0];
+            const orTagColor = orHasUrl ? [37, 99, 235] : [0, 0, 0];
             doc.setTextColor(orTagColor[0], orTagColor[1], orTagColor[2]);
-            doc.setFontSize(9);
+            doc.setFontSize(9.5);
             doc.text(String(q.orQuestion.co || "CO1"), 150, currentBaseY, { align: 'center' });
             doc.text(String(q.orQuestion.bloomLevel || 'RE').toUpperCase(), 185, currentBaseY, { align: 'center' });
             doc.setTextColor(0, 0, 0);
-            doc.setFontSize(9);
+            doc.setFontSize(10);
         }
 
-        contentY += textHeight + 1;
+        contentY += textHeight + 2;
 
         // Print Options
         if (q.options && q.options.length > 0) {
-            doc.setFontSize(8);
+            doc.setFontSize(9);
             q.options.forEach((opt, optIdx) => {
                 if (contentY > 285) {
                     doc.addPage();
                     contentY = 20;
                 }
-                doc.text(`${String.fromCharCode(65 + optIdx)}) ${opt}`, 40, contentY);
-                contentY += lineHeight;
+                doc.text(`${String.fromCharCode(65 + optIdx)}) ${sanitizeText(opt)}`, 40, contentY);
+                contentY += 4.2;
             });
         }
 
