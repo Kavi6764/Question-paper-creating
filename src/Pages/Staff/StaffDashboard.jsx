@@ -1148,6 +1148,12 @@ export default function StaffDashboard() {
                     </div>
                 )}
             </PageContainer>
+            <footer className="py-6 mt-8 border-t border-gray-100 text-center">
+                <p className="text-xs text-gray-500">
+                    © 2026 Developed by
+                    <span className="font-semibold text-gray-700"> SuryaRaj Thirumuruga</span> | UIT
+                </p>
+            </footer>
 
             <ConfirmationModal
                 isOpen={showSwitchModal}

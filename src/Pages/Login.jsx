@@ -135,12 +135,12 @@ export default function Login() {
 
   const findUserByUsername = async (username) => {
     const lowercaseUsername = username.toLowerCase();
-
+    
     try {
       const usersRef = collection(db, "users");
       const q = query(usersRef, where("username", "==", lowercaseUsername));
       const querySnapshot = await getDocs(q);
-
+      
       if (!querySnapshot.empty) {
         const userDoc = querySnapshot.docs[0];
         const userData = userDoc.data();
@@ -461,6 +461,9 @@ export default function Login() {
 
           <p className="text-center text-xs text-gray-500 mt-8">
             Contact administrator for account access
+          </p>
+          <p className="text-center text-[10px] text-gray-400 mt-4 font-medium opacity-60">
+            © 2026 Developed by SuryaRaj Thirumuruga, UIT
           </p>
         </div>
       </div>
