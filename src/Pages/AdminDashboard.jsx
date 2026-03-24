@@ -135,6 +135,7 @@ export default function AdminDashboard() {
     subjectCode: "",
     program: "B.Tech",
     semester: "",
+    paperType: "Mid Term",
     examDate: "",
     examTime: "09:30",
     duration: 3,
@@ -148,6 +149,20 @@ export default function AdminDashboard() {
     generationDate: "",
     department: "",
     section: ""
+  });
+
+  // Module Visibility State
+  const [moduleVisibility, setModuleVisibility] = useState({
+    'staff': true,
+    'subjects': true,
+    'question-bank': true,
+    'departments': true,
+    'schedule': true,
+    'generate': true,
+    'assign': true,
+    'papers': true,
+    'activities': true,
+    'settings': true
   });
 
   const [selectedQuestions, setSelectedQuestions] = useState([]);
@@ -202,7 +217,7 @@ export default function AdminDashboard() {
             const userData = userSnap.data();
             if (userData.role !== "hod" && userData.role !== "dean" && userData.role !== "admin") {
               toast.error("Access denied. Admin access required.");
-              navigate("/uploadQuestions");
+              navigate("/staff-portal");
               return;
             }
             setUserData({
@@ -225,7 +240,35 @@ export default function AdminDashboard() {
         navigate("/");
       }
     });
-    return () => unsubscribe();
+
+    // Real-time listener for Module Visibility
+    const moduleVisibilityRef = doc(db, "settings", "moduleVisibility");
+    const unsubModules = onSnapshot(moduleVisibilityRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setModuleVisibility(docSnap.data());
+      } else {
+        // Initialize if not exists
+        const initial = {
+          'staff': true,
+          'subjects': true,
+          'question-bank': true,
+          'departments': true,
+          'schedule': true,
+          'generate': true,
+          'assign': true,
+          'papers': true,
+          'activities': true,
+          'settings': true
+        };
+        setDoc(moduleVisibilityRef, initial);
+        setModuleVisibility(initial);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      unsubModules();
+    };
   }, [navigate]);
 
   const loadData = async () => {
@@ -366,10 +409,36 @@ export default function AdminDashboard() {
     return scheduledPapers;
   }, [scheduledPapers, userData]);
 
-  // Calculate total questions and marks
+  // 1. Calculate question distribution based on Paper Type
   useEffect(() => {
-    const totalQuestions = paperForm.oneMarkQuestions + paperForm.fourMarkQuestions + paperForm.sixMarkQuestions + paperForm.eightMarkQuestions;
-    const totalMarks = (paperForm.oneMarkQuestions * 1) + (paperForm.fourMarkQuestions * 4) + (paperForm.sixMarkQuestions * 6) + (paperForm.eightMarkQuestions * 8);
+    if (paperForm.paperType === 'Mid Term') {
+      setPaperForm(prev => ({
+        ...prev,
+        oneMarkQuestions: 6,
+        fourMarkQuestions: 3,
+        sixMarkQuestions: 2,
+        eightMarkQuestions: 0
+      }));
+    } else if (paperForm.paperType === 'End Term') {
+      setPaperForm(prev => ({
+        ...prev,
+        oneMarkQuestions: 12,
+        fourMarkQuestions: 6,
+        sixMarkQuestions: 4,
+        eightMarkQuestions: 0
+      }));
+    }
+  }, [paperForm.paperType]);
+
+  // 2. Calculate total questions and marks
+  useEffect(() => {
+    const one = Number(paperForm.oneMarkQuestions) || 0;
+    const four = Number(paperForm.fourMarkQuestions) || 0;
+    const six = Number(paperForm.sixMarkQuestions) || 0;
+    const eight = Number(paperForm.eightMarkQuestions || 0) || 0;
+
+    const totalQuestions = one + four + six + eight;
+    const totalMarks = (one * 1) + (four * 4) + (six * 6) + (eight * 8);
 
     setPaperForm(prev => ({
       ...prev,
@@ -1632,20 +1701,22 @@ export default function AdminDashboard() {
               { id: 'staff', icon: Users, label: 'Staff Management' },
               { id: 'subjects', icon: Book, label: 'Subject Management' },
               { id: 'question-bank', icon: Layers, label: 'Question Bank' },
-              ...(userData?.role === 'dean' ? [
-                { id: 'departments', icon: Building2, label: 'Dept Management' },
-                { id: 'schedule', icon: Timer, label: 'Schedule Papers' },
-                { id: 'generate', icon: FileText, label: 'Generate Papers' },
-                { id: 'assign', icon: GraduationCap, label: 'HOD/Dean Assign' },
-              ] : []),
-              ...(userData?.role === 'dean' || userData?.role === 'hod' ? [
-                { id: 'papers', icon: BookOpen, label: 'Generated Papers' },
-              ] : []),
+              { id: 'departments', icon: Building2, label: 'Dept Management' },
+              { id: 'schedule', icon: Timer, label: 'Schedule Papers' },
+              { id: 'generate', icon: FileText, label: 'Generate Papers' },
+              { id: 'assign', icon: GraduationCap, label: 'HOD/Dean Assign' },
+              { id: 'papers', icon: BookOpen, label: 'Generated Papers' },
               { id: 'activities', icon: BarChart3, label: 'Staff Activities' },
               { id: 'settings', icon: Building, label: 'Settings' },
-              // { id: 'backup', icon: DatabaseIcon, label: 'Backup & Restore' },
               ...(userData?.role === 'hod' || userData?.role === 'dean' ? [{ id: 'staff-view', icon: User, label: 'Switch to Staff Portal' }] : [])
-            ].map((item, index) => {
+            ].filter(item => {
+              // Dean sees everything
+              if (userData?.role === 'dean') return true;
+              // If it's a switch to staff view, always show
+              if (item.id === 'staff-view') return true;
+              // Otherwise check moduleVisibility
+              return moduleVisibility[item.id] !== false;
+            }).map((item, index) => {
               const Icon = item.icon;
               return (
                 <li key={item.id} className="animate-slide-up" style={{ animationDelay: `${index * 0.05}s` }}>
@@ -1807,7 +1878,7 @@ export default function AdminDashboard() {
               />
             )}
 
-            {activeTab === "departments" && userData?.role === 'dean' && (
+            {activeTab === "departments" && (userData?.role === 'dean' || moduleVisibility['departments'] !== false) && (
               <DepartmentManagement
                 departments={departments}
                 staffList={staffList}
@@ -1820,7 +1891,7 @@ export default function AdminDashboard() {
               />
             )}
 
-            {activeTab === "schedule" && userData?.role === 'dean' && (
+            {activeTab === "schedule" && (userData?.role === 'dean' || moduleVisibility['schedule'] !== false) && (
               <ScheduledPapers
                 scheduledPapers={filteredScheduledPapersForRole}
                 setPaperForm={setPaperForm}
@@ -1829,7 +1900,7 @@ export default function AdminDashboard() {
               />
             )}
 
-            {activeTab === "generate" && userData?.role === 'dean' && (
+            {activeTab === "generate" && (userData?.role === 'dean' || moduleVisibility['generate'] !== false) && (
               <PaperGeneration
                 paperForm={paperForm}
                 setPaperForm={setPaperForm}
@@ -1848,8 +1919,7 @@ export default function AdminDashboard() {
                 handleSchedulePaper={handleSchedulePaper}
               />
             )}
-
-            {activeTab === "papers" && (userData?.role === 'dean' || userData?.role === 'hod') && (
+            {activeTab === "papers" && (userData?.role === 'dean' || moduleVisibility['papers'] !== false) && (
               <GeneratedPapers
                 questionPapers={filteredPapersForRole}
                 loading={loading}
@@ -1866,21 +1936,21 @@ export default function AdminDashboard() {
               />
             )}
 
-            {activeTab === "settings" && (
+            {activeTab === "settings" && (userData?.role === 'dean' || moduleVisibility['settings'] !== false) && (
               <CollegeSettings
                 onUpdate={setCollegeDetails}
                 userData={userData}
               />
             )}
 
-            {activeTab === "activities" && (
+            {activeTab === "activities" && (userData?.role === 'dean' || moduleVisibility['activities'] !== false) && (
               <StaffActivities
                 allSubjects={filteredSubjectsForRole}
                 staffList={filteredStaffForRole}
               />
             )}
 
-            {activeTab === "assign" && (
+            {activeTab === "assign" && (userData?.role === 'dean' || moduleVisibility['assign'] !== false) && (
               <HodDeanAssignment
                 hodDeanAssignment={hodDeanAssignment}
                 setHodDeanAssignment={setHodDeanAssignment}
@@ -1895,11 +1965,9 @@ export default function AdminDashboard() {
               />
             )}
 
-            {activeTab === "question-bank" && (
+            {activeTab === "question-bank" && (userData?.role === 'dean' || moduleVisibility['question-bank'] !== false) && (
               <QuestionBank
                 allSubjects={allSubjects}
-                userData={userData}
-                onDeleteUnit={handleDeleteUnitQuestions}
               />
             )}
 
@@ -1908,17 +1976,29 @@ export default function AdminDashboard() {
             )}
           </div>
         </PageContainer>
+        <footer className="py-6 mt-8 border-t border-gray-100 text-center">
+          <p className="text-xs text-gray-500">
+            © 2026 Developed by
+            <span className="font-semibold text-gray-700"> SuryaRaj Thirumuruga</span> | UIT
+          </p>
+        </footer>
       </div>
 
-      <ConfirmationModal
-        isOpen={showSwitchModal}
-        onClose={() => setShowSwitchModal(false)}
-        onConfirm={() => navigate("/staff-portal")}
-        title="Switch to Staff Portal"
-        message="You are about to switch to the Staff Portal. All unsaved changes in the Admin Dashboard might be lost. Do you want to continue?"
-        confirmText="Switch Portal"
-        type="info"
-      />
+      {showSwitchModal && (
+        <ConfirmationModal
+          isOpen={showSwitchModal}
+          onClose={() => setShowSwitchModal(false)}
+          onConfirm={() => {
+            setShowSwitchModal(false);
+            navigate("/staff-portal");
+          }}
+          title="Switch Portal"
+          message="Are you sure you want to switch to the staff portal?"
+          confirmText="Switch Now"
+          cancelText="Stay Here"
+          type="info"
+        />
+      )}
     </div>
   );
 }

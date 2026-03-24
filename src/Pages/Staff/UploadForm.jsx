@@ -473,17 +473,6 @@ export default function UploadForm({
                         </form>
                     </div>
 
-                    {/* Footer */}
-                    <div className="px-8 py-4 bg-slate-50 border-t border-slate-100">
-                        <div className="flex items-center justify-between text-xs text-slate-400">
-                            <span>© 2024 Question Bank System</span>
-                            <div className="flex items-center gap-4">
-                                <span>Need help?</span>
-                                <span>Format guide</span>
-                                <span>Support</span>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

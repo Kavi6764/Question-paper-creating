@@ -1,6 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Building, MapPin, Phone, Mail, Globe, Save, User, Lock, Shield } from 'lucide-react';
-import { doc, getDoc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { 
+    Building, 
+    MapPin, 
+    Phone, 
+    Mail, 
+    Globe, 
+    Save, 
+    User, 
+    Lock, 
+    Shield, 
+    Users, 
+    Book, 
+    Layers, 
+    Building2, 
+    Timer, 
+    FileText, 
+    GraduationCap, 
+    BookOpen, 
+    BarChart3 
+} from 'lucide-react';
+import { doc, getDoc, setDoc, serverTimestamp, updateDoc, onSnapshot } from 'firebase/firestore';
 import { db, auth } from '../../../fireBaseConfig';
 import { updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
 import toast from 'react-hot-toast';
@@ -8,6 +27,7 @@ import toast from 'react-hot-toast';
 export default function CollegeSettings({ onUpdate, userData }) {
     const [activeTab, setActiveTab] = useState("college");
     const [loading, setLoading] = useState(false);
+    const [modulesState, setModulesState] = useState({});
 
     // College Settings State
     const [formData, setFormData] = useState({
@@ -41,6 +61,18 @@ export default function CollegeSettings({ onUpdate, userData }) {
         fetchSettings();
     }, []);
 
+    useEffect(() => {
+        if (activeTab === 'controls') {
+            const docRef = doc(db, 'settings', 'moduleVisibility');
+            const unsub = onSnapshot(docRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    setModulesState(docSnap.data());
+                }
+            });
+            return () => unsub();
+        }
+    }, [activeTab]);
+
     const fetchSettings = async () => {
         try {
             setLoading(true);
@@ -56,9 +88,21 @@ export default function CollegeSettings({ onUpdate, userData }) {
             }
         } catch (error) {
             console.error("Error fetching settings:", error);
-            // Don't show error toast on initial load as it might be empty
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleVisibilityToggle = async (moduleId, value) => {
+        try {
+            const docRef = doc(db, 'settings', 'moduleVisibility');
+            await updateDoc(docRef, {
+                [moduleId]: value
+            });
+            toast.success(`Visibility updated for ${moduleId}`);
+        } catch (error) {
+            console.error("Error updating visibility:", error);
+            toast.error("Failed to update visibility");
         }
     };
 
@@ -72,7 +116,6 @@ export default function CollegeSettings({ onUpdate, userData }) {
 
     const handleCollegeSubmit = async (e) => {
         e.preventDefault();
-
         if (!formData.collegeName) {
             toast.error("College Name is required");
             return;
@@ -81,22 +124,13 @@ export default function CollegeSettings({ onUpdate, userData }) {
         try {
             setLoading(true);
             const docRef = doc(db, 'Address', 'college_settings');
-
-            // Sanitize data to remove undefined values
             const cleanData = Object.fromEntries(
                 Object.entries(formData).map(([key, value]) => [key, value === undefined ? '' : value])
             );
-
-            const dataToSave = {
-                ...cleanData,
-                updatedAt: serverTimestamp()
-            };
-
+            const dataToSave = { ...cleanData, updatedAt: serverTimestamp() };
             await setDoc(docRef, dataToSave);
-
             toast.success("College details saved successfully");
             if (onUpdate) onUpdate(dataToSave);
-
         } catch (error) {
             console.error("Error saving settings:", error);
             toast.error("Error saving settings");
@@ -108,25 +142,14 @@ export default function CollegeSettings({ onUpdate, userData }) {
     const handleProfileUpdate = async (e) => {
         e.preventDefault();
         setLoading(true);
-
         try {
             const user = auth.currentUser;
             if (!user) throw new Error("No user logged in");
-
-            // Update Auth Profile
             if (user.displayName !== profileForm.fullName) {
-                await updateProfile(user, {
-                    displayName: profileForm.fullName
-                });
+                await updateProfile(user, { displayName: profileForm.fullName });
             }
-
-            // Update Firestore Document
             const userRef = doc(db, "users", user.uid);
-            await updateDoc(userRef, {
-                fullName: profileForm.fullName,
-                name: profileForm.fullName // Keep legacy field if needed
-            });
-
+            await updateDoc(userRef, { fullName: profileForm.fullName, name: profileForm.fullName });
             toast.success("Profile updated successfully!");
         } catch (error) {
             console.error("Profile update error:", error);
@@ -138,39 +161,26 @@ export default function CollegeSettings({ onUpdate, userData }) {
 
     const handlePasswordUpdate = async (e) => {
         e.preventDefault();
-
         if (passwordForm.newPassword !== passwordForm.confirmPassword) {
             toast.error("New passwords do not match");
             return;
         }
-
         if (passwordForm.newPassword.length < 6) {
             toast.error("Password must be at least 6 characters");
             return;
         }
-
         setLoading(true);
-
         try {
             const user = auth.currentUser;
             if (!user) throw new Error("No user logged in");
-
-            // Re-authenticate first
             const credential = EmailAuthProvider.credential(user.email, passwordForm.currentPassword);
             await reauthenticateWithCredential(user, credential);
-
-            // Update Password
             await updatePassword(user, passwordForm.newPassword);
-
             toast.success("Password updated successfully!");
             setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
         } catch (error) {
             console.error("Password update error:", error);
-            if (error.code === 'auth/wrong-password') {
-                toast.error("Incorrect current password");
-            } else {
-                toast.error("Failed to update password: " + error.message);
-            }
+            toast.error("Failed to update password: " + error.message);
         } finally {
             setLoading(false);
         }
@@ -189,10 +199,7 @@ export default function CollegeSettings({ onUpdate, userData }) {
                     <nav className="space-y-1.5">
                         <button
                             onClick={() => setActiveTab("college")}
-                            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold rounded-xl transition-all ${activeTab === "college"
-                                ? "bg-blue-600 text-white shadow-md shadow-blue-100"
-                                : "text-gray-600 hover:bg-white hover:text-gray-900 border border-transparent hover:border-gray-100"
-                                }`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold rounded-xl transition-all ${activeTab === "college" ? "bg-blue-600 text-white shadow-md shadow-blue-100" : "text-gray-600 hover:bg-white hover:text-gray-900 border border-transparent hover:border-gray-100"}`}
                         >
                             <Building className="w-4 h-4" />
                             <span>College Profile</span>
@@ -200,10 +207,7 @@ export default function CollegeSettings({ onUpdate, userData }) {
 
                         <button
                             onClick={() => setActiveTab("account")}
-                            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold rounded-xl transition-all ${activeTab === "account"
-                                ? "bg-blue-600 text-white shadow-md shadow-blue-100"
-                                : "text-gray-600 hover:bg-white hover:text-gray-900 border border-transparent hover:border-gray-100"
-                                }`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold rounded-xl transition-all ${activeTab === "account" ? "bg-blue-600 text-white shadow-md shadow-blue-100" : "text-gray-600 hover:bg-white hover:text-gray-900 border border-transparent hover:border-gray-100"}`}
                         >
                             <User className="w-4 h-4" />
                             <span>My Account</span>
@@ -211,17 +215,22 @@ export default function CollegeSettings({ onUpdate, userData }) {
 
                         <button
                             onClick={() => setActiveTab("security")}
-                            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold rounded-xl transition-all ${activeTab === "security"
-                                ? "bg-blue-600 text-white shadow-md shadow-blue-100"
-                                : "text-gray-600 hover:bg-white hover:text-gray-900 border border-transparent hover:border-gray-100"
-                                }`}
+                            className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold rounded-xl transition-all ${activeTab === "security" ? "bg-blue-600 text-white shadow-md shadow-blue-100" : "text-gray-600 hover:bg-white hover:text-gray-900 border border-transparent hover:border-gray-100"}`}
                         >
                             <Lock className="w-4 h-4" />
                             <span>Security</span>
                         </button>
+
+                        {userData?.role === 'dean' && (
+                            <button
+                                onClick={() => setActiveTab("controls")}
+                                className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-bold rounded-xl transition-all ${activeTab === "controls" ? "bg-purple-600 text-white shadow-md shadow-purple-100" : "text-gray-600 hover:bg-white hover:text-gray-900 border border-transparent hover:border-gray-100"}`}
+                            >
+                                <Shield className="w-4 h-4" />
+                                <span>Role Controls</span>
+                            </button>
+                        )}
                     </nav>
-
-
                 </div>
 
                 {/* Content Area */}
@@ -232,128 +241,47 @@ export default function CollegeSettings({ onUpdate, userData }) {
                                 <h3 className="text-xl font-bold text-gray-900 tracking-tight">College Profile</h3>
                                 <p className="text-sm text-gray-500 font-medium mt-1">Configure institutional details for official documents</p>
                             </div>
-
                             <form onSubmit={handleCollegeSubmit} className="space-y-6 max-w-3xl">
                                 <div className="space-y-5">
                                     <div className="space-y-2">
                                         <label className="text-sm font-semibold text-gray-700 ml-1">Full College Name</label>
                                         <div className="relative">
                                             <Building className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                            <input
-                                                type="text"
-                                                name="collegeName"
-                                                value={formData.collegeName}
-                                                onChange={handleChange}
-                                                placeholder="Enter college name"
-                                                className="w-full pl-11 pr-5 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all font-semibold text-gray-800"
-                                            />
+                                            <input type="text" name="collegeName" value={formData.collegeName} onChange={handleChange} placeholder="Enter college name" className="w-full pl-11 pr-5 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all font-semibold text-gray-800" />
                                         </div>
                                     </div>
-
                                     <div className="space-y-2">
                                         <label className="text-sm font-semibold text-gray-700 ml-1">Location Address</label>
                                         <div className="space-y-3">
                                             <div className="relative">
                                                 <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                                <input
-                                                    type="text"
-                                                    name="addressLine1"
-                                                    value={formData.addressLine1}
-                                                    onChange={handleChange}
-                                                    placeholder="Address Line 1"
-                                                    className="w-full pl-11 pr-5 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all font-semibold text-gray-800"
-                                                />
+                                                <input type="text" name="addressLine1" value={formData.addressLine1} onChange={handleChange} placeholder="Address Line 1" className="w-full pl-11 pr-5 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all font-semibold text-gray-800" />
                                             </div>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                                <input
-                                                    type="text"
-                                                    name="addressLine2"
-                                                    value={formData.addressLine2}
-                                                    onChange={handleChange}
-                                                    placeholder="Address Line 2"
-                                                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all font-semibold text-gray-800"
-                                                />
-                                                <input
-                                                    type="text"
-                                                    name="city"
-                                                    value={formData.city}
-                                                    onChange={handleChange}
-                                                    placeholder="City"
-                                                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all font-semibold text-gray-800"
-                                                />
-                                                <input
-                                                    type="text"
-                                                    name="state"
-                                                    value={formData.state}
-                                                    onChange={handleChange}
-                                                    placeholder="State"
-                                                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all font-semibold text-gray-800"
-                                                />
-                                                <input
-                                                    type="text"
-                                                    name="pincode"
-                                                    value={formData.pincode}
-                                                    onChange={handleChange}
-                                                    placeholder="Pincode"
-                                                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all font-semibold text-gray-800"
-                                                />
+                                                <input type="text" name="addressLine2" value={formData.addressLine2} onChange={handleChange} placeholder="Address Line 2" className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all font-semibold text-gray-800" />
+                                                <input type="text" name="city" value={formData.city} onChange={handleChange} placeholder="City" className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all font-semibold text-gray-800" />
+                                                <input type="text" name="state" value={formData.state} onChange={handleChange} placeholder="State" className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all font-semibold text-gray-800" />
+                                                <input type="text" name="pincode" value={formData.pincode} onChange={handleChange} placeholder="Pincode" className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all font-semibold text-gray-800" />
                                             </div>
                                         </div>
                                     </div>
-
-                                    <div className="space-y-3 pt-4 border-t border-gray-50">
-                                        <label className="text-sm font-semibold text-gray-700 ml-1">Contact Information</label>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                                            <div className="relative">
-                                                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                                <input
-                                                    type="text"
-                                                    name="phone"
-                                                    value={formData.phone}
-                                                    onChange={handleChange}
-                                                    placeholder="Phone"
-                                                    className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all font-semibold text-gray-800"
-                                                />
-                                            </div>
-                                            <div className="relative">
-                                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                                <input
-                                                    type="email"
-                                                    name="email"
-                                                    value={formData.email}
-                                                    onChange={handleChange}
-                                                    placeholder="Email"
-                                                    className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all font-semibold text-gray-800"
-                                                />
-                                            </div>
-                                            <div className="relative">
-                                                <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                                <input
-                                                    type="text"
-                                                    name="website"
-                                                    value={formData.website}
-                                                    onChange={handleChange}
-                                                    placeholder="Website"
-                                                    className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all font-semibold text-gray-800"
-                                                />
-                                            </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                        <div className="relative">
+                                            <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                            <input type="text" name="phone" value={formData.phone} onChange={handleChange} placeholder="Phone" className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl font-semibold outline-none" />
+                                        </div>
+                                        <div className="relative">
+                                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                            <input type="email" name="email" value={formData.email} onChange={handleChange} placeholder="Email" className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl font-semibold outline-none" />
+                                        </div>
+                                        <div className="relative">
+                                            <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                            <input type="text" name="website" value={formData.website} onChange={handleChange} placeholder="Website" className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl font-semibold outline-none" />
                                         </div>
                                     </div>
                                 </div>
-
                                 <div className="pt-8 flex justify-end">
-                                    <button
-                                        type="submit"
-                                        disabled={loading}
-                                        className="inline-flex items-center px-6 py-3 bg-gray-900 hover:bg-black text-white rounded-xl font-bold shadow-lg shadow-gray-200 transition-all active:scale-95 disabled:opacity-50"
-                                    >
-                                        {loading ? (
-                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                                        ) : (
-                                            <Save className="w-4 h-4 mr-2.5" />
-                                        )}
-                                        Save College Profile
-                                    </button>
+                                    <button type="submit" disabled={loading} className="px-6 py-3 bg-gray-900 text-white rounded-xl font-bold shadow-lg">Save Profile</button>
                                 </div>
                             </form>
                         </div>
@@ -362,68 +290,30 @@ export default function CollegeSettings({ onUpdate, userData }) {
                     {activeTab === "account" && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-2 duration-400">
                             <div className="pb-4 border-b border-gray-50">
-                                <h3 className="text-xl font-bold text-gray-900 tracking-tight">Account Information</h3>
-                                <p className="text-sm text-gray-500 font-medium mt-1">Manage your administrative profile details</p>
+                                <h3 className="text-xl font-bold text-gray-900">Account Information</h3>
+                                <p className="text-sm text-gray-500">Manage your administrative profile details</p>
                             </div>
-
                             <form onSubmit={handleProfileUpdate} className="space-y-6 max-w-2xl">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                     <div className="space-y-2">
-                                        <label className="text-sm font-semibold text-gray-700 ml-1">Full Name</label>
-                                        <div className="relative">
-                                            <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                            <input
-                                                type="text"
-                                                value={profileForm.fullName}
-                                                onChange={(e) => setProfileForm({ ...profileForm, fullName: e.target.value })}
-                                                className="w-full pl-11 pr-5 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all font-semibold text-gray-800"
-                                            />
-                                        </div>
+                                        <label className="text-sm font-semibold text-gray-700">Full Name</label>
+                                        <input type="text" value={profileForm.fullName} onChange={(e) => setProfileForm({ ...profileForm, fullName: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-semibold outline-none" />
                                     </div>
-
                                     <div className="space-y-2">
-                                        <label className="text-sm font-semibold text-gray-700 ml-1">Email Address</label>
-                                        <div className="relative">
-                                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                            <input
-                                                type="email"
-                                                value={profileForm.email}
-                                                disabled
-                                                className="w-full pl-11 pr-5 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-500 font-semibold cursor-not-allowed"
-                                            />
-                                        </div>
+                                        <label className="text-sm font-semibold text-gray-700">Email Address</label>
+                                        <input type="email" value={profileForm.email} disabled className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-500 font-semibold cursor-not-allowed" />
                                     </div>
-
                                     <div className="space-y-2">
-                                        <label className="text-sm font-semibold text-gray-700 ml-1">Department</label>
-                                        <input
-                                            type="text"
-                                            value={profileForm.department}
-                                            disabled
-                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-500 font-semibold cursor-not-allowed"
-                                        />
+                                        <label className="text-sm font-semibold text-gray-700">Department</label>
+                                        <input type="text" value={profileForm.department} disabled className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-500 cursor-not-allowed" />
                                     </div>
-
                                     <div className="space-y-2">
-                                        <label className="text-sm font-semibold text-gray-700 ml-1">Access Role</label>
-                                        <input
-                                            type="text"
-                                            value={profileForm.role.toUpperCase()}
-                                            disabled
-                                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 font-bold cursor-not-allowed"
-                                        />
+                                        <label className="text-sm font-semibold text-gray-700">Access Role</label>
+                                        <input type="text" value={profileForm.role.toUpperCase()} disabled className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-700 font-bold" />
                                     </div>
                                 </div>
-
                                 <div className="pt-8 flex justify-end">
-                                    <button
-                                        type="submit"
-                                        disabled={loading}
-                                        className="inline-flex items-center px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-lg shadow-blue-100 transition-all active:scale-95 disabled:opacity-50"
-                                    >
-                                        <Save className="w-4 h-4 mr-2.5" />
-                                        Update Details
-                                    </button>
+                                    <button type="submit" disabled={loading} className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold">Update Details</button>
                                 </div>
                             </form>
                         </div>
@@ -432,63 +322,76 @@ export default function CollegeSettings({ onUpdate, userData }) {
                     {activeTab === "security" && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-2 duration-400">
                             <div className="pb-4 border-b border-gray-50">
-                                <h3 className="text-xl font-bold text-gray-900 tracking-tight">Security & Password</h3>
-                                <p className="text-sm text-gray-500 font-medium mt-1">Keep your account secure with regular password updates</p>
+                                <h3 className="text-xl font-bold text-gray-900">Security & Password</h3>
+                                <p className="text-sm text-gray-500">Keep your account secure with regular password updates</p>
                             </div>
-
                             <form onSubmit={handlePasswordUpdate} className="space-y-6 max-w-2xl">
                                 <div className="space-y-5">
                                     <div className="space-y-2">
-                                        <label className="text-sm font-semibold text-gray-700 ml-1">Current Password</label>
-                                        <div className="relative">
-                                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                            <input
-                                                type="password"
-                                                required
-                                                value={passwordForm.currentPassword}
-                                                onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
-                                                className="w-full pl-11 pr-5 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-red-500/5 focus:border-red-500 outline-none transition-all font-semibold text-gray-800"
-                                            />
-                                        </div>
+                                        <label className="text-sm font-semibold text-gray-700">Current Password</label>
+                                        <input type="password" required value={passwordForm.currentPassword} onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-semibold outline-none" />
                                     </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-50">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <label className="text-sm font-semibold text-gray-700 ml-1">New Password</label>
-                                            <input
-                                                type="password"
-                                                required
-                                                minLength={6}
-                                                value={passwordForm.newPassword}
-                                                onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                                                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all font-semibold text-gray-800"
-                                            />
+                                            <label className="text-sm font-semibold text-gray-700">New Password</label>
+                                            <input type="password" required minLength={6} value={passwordForm.newPassword} onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl outline-none" />
                                         </div>
                                         <div className="space-y-2">
-                                            <label className="text-sm font-semibold text-gray-700 ml-1">Confirm New Password</label>
-                                            <input
-                                                type="password"
-                                                required
-                                                minLength={6}
-                                                value={passwordForm.confirmPassword}
-                                                onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                                                className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500 outline-none transition-all font-semibold text-gray-800"
-                                            />
+                                            <label className="text-sm font-semibold text-gray-700">Confirm Password</label>
+                                            <input type="password" required minLength={6} value={passwordForm.confirmPassword} onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl outline-none" />
                                         </div>
                                     </div>
                                 </div>
-
                                 <div className="pt-8 flex justify-end">
-                                    <button
-                                        type="submit"
-                                        disabled={loading}
-                                        className="inline-flex items-center px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-lg shadow-red-100 transition-all active:scale-95 disabled:opacity-50"
-                                    >
-                                        <Shield className="w-4 h-4 mr-2.5" />
-                                        Update Security
-                                    </button>
+                                    <button type="submit" disabled={loading} className="px-6 py-3 bg-red-600 text-white rounded-xl font-bold">Update Security</button>
                                 </div>
                             </form>
+                        </div>
+                    )}
+
+                    {activeTab === "controls" && userData?.role === 'dean' && (
+                        <div className="space-y-8 animate-in fade-in slide-in-from-right-2 duration-400">
+                            <div className="pb-4 border-b border-gray-50 flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-xl font-bold text-gray-900 tracking-tight">Role-Based Visibility Controls</h3>
+                                    <p className="text-sm text-gray-500 font-medium mt-1">Control which modules are visible to HOD and other roles</p>
+                                </div>
+                                <div className="px-3 py-1 bg-purple-50 text-purple-700 rounded-lg text-xs font-bold border border-purple-100 italic">Dean Access Only</div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {[
+                                    { id: 'staff', label: 'Staff Management', icon: Users },
+                                    { id: 'subjects', label: 'Subject Management', icon: Book },
+                                    { id: 'question-bank', label: 'Question Bank', icon: Layers },
+                                    { id: 'departments', label: 'Dept Management', icon: Building2 },
+                                    { id: 'schedule', label: 'Schedule Papers', icon: Timer },
+                                    { id: 'generate', label: 'Generate Papers', icon: FileText },
+                                    { id: 'assign', label: 'HOD/Dean Assign', icon: GraduationCap },
+                                    { id: 'papers', label: 'Generated Papers', icon: BookOpen },
+                                    { id: 'activities', label: 'Staff Activities', icon: BarChart3 },
+                                    { id: 'settings', label: 'Settings Panel', icon: Building },
+                                ].map((mod) => (
+                                    <div key={mod.id} className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${modulesState[mod.id] !== false ? 'bg-white border-purple-100 shadow-sm' : 'bg-gray-50 border-gray-100'}`}>
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-2 rounded-lg ${modulesState[mod.id] !== false ? 'bg-purple-100 text-purple-600' : 'bg-gray-200 text-gray-400'}`}>
+                                                <mod.icon className="w-4 h-4" />
+                                            </div>
+                                            <div>
+                                                <p className={`text-sm font-bold ${modulesState[mod.id] !== false ? 'text-gray-900' : 'text-gray-400'}`}>{mod.label}</p>
+                                                <p className="text-[10px] text-gray-500">Visible to roles: HOD, Admin</p>
+                                            </div>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" checked={modulesState[mod.id] !== false} onChange={(e) => handleVisibilityToggle(mod.id, e.target.checked)} className="sr-only peer" />
+                                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none ring-0 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                                        </label>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex gap-3">
+                                <Shield className="w-5 h-5 text-amber-600 shrink-0" />
+                                <div className="text-xs text-amber-800 leading-relaxed font-medium"><strong>Important:</strong> These settings control if the module tabs appear in the sidebar for other users. As a Dean, you will always see all modules.</div>
+                            </div>
                         </div>
                     )}
                 </div>

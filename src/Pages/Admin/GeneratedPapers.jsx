@@ -26,10 +26,19 @@ export default function GeneratedPapers({
 }) {
     const [currentPage, setCurrentPage] = useState(1);
     const [searchTerm, setSearchTerm] = useState("");
+    const [selectedDepartment, setSelectedDepartment] = useState("");
+    const [selectedSemester, setSelectedSemester] = useState("");
     const [editingPaper, setEditingPaper] = useState(null);
     const [replacingQuestion, setReplacingQuestion] = useState(null);
     const [editingQuestion, setEditingQuestion] = useState(null);
     const itemsPerPage = 8;
+    
+    // Auto-set department for HOD
+    React.useEffect(() => {
+        if (userData?.role === 'hod' && userData?.department) {
+            setSelectedDepartment(userData.department);
+        }
+    }, [userData]);
 
     // Filter logic
     const filteredPapers = useMemo(() => {
@@ -39,6 +48,15 @@ export default function GeneratedPapers({
                 // If user is HOD, they only see papers from their department
                 if (userData?.role === 'hod' && userData?.department) {
                     return paper.department === userData.department;
+                }
+                if (selectedDepartment) {
+                    return paper.department === selectedDepartment;
+                }
+                return true;
+            })
+            .filter(paper => {
+                if (selectedSemester) {
+                    return paper.semester === selectedSemester;
                 }
                 return true;
             })
@@ -56,7 +74,44 @@ export default function GeneratedPapers({
                 const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : (b.createdAt?.seconds ? b.createdAt.seconds * 1000 : b.createdAt || 0);
                 return timeB - timeA;
             });
-    }, [questionPapers, searchTerm]);
+    }, [questionPapers, searchTerm, selectedDepartment, selectedSemester, userData]);
+
+    const departmentsList = useMemo(() => {
+        const depts = new Set();
+        questionPapers.forEach(p => {
+            if (p.department && p.status === "generated") {
+                // If user is HOD, they only see their department
+                if (userData?.role === 'hod' && userData?.department) {
+                    if (p.department === userData.department) depts.add(p.department);
+                } else {
+                    depts.add(p.department);
+                }
+            }
+        });
+        return Array.from(depts).sort();
+    }, [questionPapers, userData]);
+
+    const semestersList = useMemo(() => {
+        const sems = new Set();
+        questionPapers.forEach(p => {
+            if (p.semester && p.status === "generated") {
+                // Filter by department if one is selected or if user is HOD
+                if (userData?.role === 'hod' && userData?.department) {
+                    if (p.department === userData.department) sems.add(p.semester.toString());
+                } else if (selectedDepartment) {
+                    if (p.department === selectedDepartment) sems.add(p.semester.toString());
+                } else {
+                    sems.add(p.semester.toString());
+                }
+            }
+        });
+        return Array.from(sems).sort((a, b) => {
+            const numA = parseInt(a);
+            const numB = parseInt(b);
+            if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+            return a.localeCompare(b);
+        });
+    }, [questionPapers, selectedDepartment, userData]);
 
     // Pagination logic
     const totalPages = Math.ceil(filteredPapers.length / itemsPerPage);
@@ -64,10 +119,10 @@ export default function GeneratedPapers({
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     const currentPapers = filteredPapers.slice(indexOfFirstItem, indexOfLastItem);
 
-    // Reset to page 1 if papers change significantly or search is updated
+    // Reset to page 1 if filters change
     React.useEffect(() => {
         setCurrentPage(1);
-    }, [filteredPapers.length, searchTerm]);
+    }, [filteredPapers.length, searchTerm, selectedDepartment, selectedSemester]);
 
     const handleUpdatePaper = async (paperId, updatedData) => {
         try {
@@ -204,12 +259,35 @@ export default function GeneratedPapers({
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input
                             type="text"
-                            placeholder="Search papers/subjects..."
+                            placeholder="Search papers..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none w-full sm:w-64"
+                            className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none w-full sm:w-48"
                         />
                     </div>
+
+                    <select
+                        value={selectedDepartment}
+                        onChange={(e) => setSelectedDepartment(e.target.value)}
+                        disabled={userData?.role === 'hod'}
+                        className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none min-w-[140px]"
+                    >
+                        <option value="">All Departments</option>
+                        {departmentsList.map(dept => (
+                            <option key={dept} value={dept}>{dept}</option>
+                        ))}
+                    </select>
+
+                    <select
+                        value={selectedSemester}
+                        onChange={(e) => setSelectedSemester(e.target.value)}
+                        className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none min-w-[140px]"
+                    >
+                        <option value="">All Semesters</option>
+                        {semestersList.map(sem => (
+                            <option key={sem} value={sem}>{sem}</option>
+                        ))}
+                    </select>
                     {userData?.role === 'dean' && (
                         <button
                             onClick={() => setActiveTab("generate")}
