@@ -332,131 +332,237 @@ export const downloadPaperAsWord = async (paper) => {
                     new Paragraph({
                         alignment: AlignmentType.CENTER,
                         children: [new TextRun({ text: `Section- ${sectionChar} (${sectionType} Type Questions)`, bold: true, size: 26 })],
-                        spacing: { before: 400, after: 200 },
+                        spacing: { before: 800, after: 300 },
                     }),
                     new Paragraph({
                         children: [
                             new TextRun({ text: `Q. ${groupIndex + 1}: Attempt all questions (${q.marks} marks each)`, bold: true, size: 20 }),
-                            new TextRun({ text: "\t\t\t\t\t\tCourse Outcome\tBT", bold: true, size: 18 })
                         ],
-                        spacing: { after: 200 },
+                    }),
+                    new Table({
+                        width: { size: 100, type: WidthType.PERCENTAGE },
+                        borders: {
+                            top: { style: BorderStyle.NONE },
+                            bottom: { style: BorderStyle.NONE },
+                            left: { style: BorderStyle.NONE },
+                            right: { style: BorderStyle.NONE },
+                            insideHorizontal: { style: BorderStyle.NONE },
+                            insideVertical: { style: BorderStyle.NONE },
+                        },
+                        rows: [
+                            new TableRow({
+                                children: [
+                                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "", size: 18 })] })], width: { size: 5, type: WidthType.PERCENTAGE } }),
+                                    new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: "", size: 18 })] })], width: { size: 65, type: WidthType.PERCENTAGE } }),
+                                    new TableCell({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "Course Outcome", bold: true, size: 18 })] })], width: { size: 15, type: WidthType.PERCENTAGE } }),
+                                    new TableCell({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "BT", bold: true, size: 18 })] })], width: { size: 15, type: WidthType.PERCENTAGE } }),
+                                ]
+                            })
+                        ],
+                        spacing: { after: 200 }
                     })
                 );
                 groupIndex++;
                 questionCounter = 0;
             }
 
-            const hasUrl = /https?:\/\//.test(q.question || "");
-
-            docChildren.push(
-                new Paragraph({
-                    children: [
-                        new TextRun({ text: `${String.fromCharCode(97 + questionCounter)}. `, bold: true, size: 20 }),
-                        new TextRun({ 
-                            text: sanitizeText(q.question || ""), 
-                            size: 20,
-                            color: hasUrl ? "2563EB" : undefined
-                        }),
-                    ],
-                    spacing: { before: 100 },
-                }),
-                new Paragraph({
-                    alignment: AlignmentType.RIGHT,
-                    children: [
-                        new TextRun({
-                            text: `${String(q.co || "CO1")}\t\t${String(q.bloomLevel || "RE").toUpperCase()}`,
-                            bold: true,
-                            size: 18,
-                            color: "000000"
-                        }),
-                    ],
-                    spacing: { after: 100 },
-                })
-            );
-            questionCounter++;
-
-            if (q.orQuestion?.question) {
-                const orHasUrl = /https?:\/\//.test(q.orQuestion.question || "");
-                docChildren.push(
-                    new Paragraph({ 
-                        alignment: AlignmentType.CENTER, 
-                        children: [new TextRun({ text: "OR", bold: true, size: 24 })], 
-                        spacing: { before: 200, after: 200 }
-                    }),
-                    new Paragraph({ 
-                        children: [new TextRun({ 
-                            text: sanitizeText(q.orQuestion.question), 
-                            size: 20,
-                            color: orHasUrl ? "2563EB" : undefined
-                        })] 
-                    }),
+            const questionNumber = String.fromCharCode(97 + questionCounter);
+            
+            // Helper function to create a question row
+            const createQuestionRow = async (num, text, co, bt, isOr = false) => {
+                const contentChildren = [
                     new Paragraph({
-                        alignment: AlignmentType.RIGHT,
                         children: [
-                            new TextRun({
-                                text: `${String(q.orQuestion.co || "CO1")}\t\t${String(q.orQuestion.bloomLevel || "RE").toUpperCase()}`,
-                                bold: true,
-                                size: 18,
-                                color:q.orQuestion.imageURL ? "3B82F6" : "555555"
-                            }),
+                            new TextRun({ 
+                                text: sanitizeText(text || ""), 
+                                size: 20,
+                                italics: isOr
+                            })
                         ],
-                        spacing: { after: 100 },
+                        spacing: { before: 100, after: 100 }
                     })
-                );
+                ];
 
-                if (q.orQuestion.imageURL) {
-                    try {
-                        const orImgBuffer = await loadImageAsBase64(q.orQuestion.imageURL);
-                        if (orImgBuffer) {
-                            docChildren.push(
+                return new TableRow({
+                    children: [
+                        new TableCell({ 
+                            children: [new Paragraph({ children: [new TextRun({ text: `${num}.`, bold: true, size: 20 })] })], 
+                            width: { size: 5, type: WidthType.PERCENTAGE } 
+                        }),
+                        new TableCell({ 
+                            children: contentChildren,
+                            width: { size: 65, type: WidthType.PERCENTAGE } 
+                        }),
+                        new TableCell({ 
+                            children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: String(co || "CO1"), bold: true, size: 18 })] })], 
+                            width: { size: 15, type: WidthType.PERCENTAGE } 
+                        }),
+                        new TableCell({ 
+                            children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: String(bt || "RE").toUpperCase(), bold: true, size: 18 })] })], 
+                            width: { size: 15, type: WidthType.PERCENTAGE } 
+                        }),
+                    ]
+                });
+            };
+
+            const questionTableRows = [];
+            
+            // Main Question Row
+            questionTableRows.push(await createQuestionRow(questionNumber, q.question, q.co, q.bloomLevel));
+
+            // Options Row (if any)
+            if (q.options?.length > 0) {
+                questionTableRows.push(new TableRow({
+                    children: [
+                        new TableCell({ children: [new Paragraph({ text: "" })] }),
+                        new TableCell({
+                            children: q.options.map((opt, idx) => 
                                 new Paragraph({
-                                    alignment: AlignmentType.CENTER,
-                                    children: [
-                                        new ImageRun({
-                                            data: orImgBuffer,
-                                            transformation: { width: 300, height: 200 },
-                                            type: 'png',
+                                    children: [new TextRun({ text: `    ${String.fromCharCode(65 + idx)}) ${opt}`, size: 18 })],
+                                    spacing: { before: 50 }
+                                })
+                            )
+                        }),
+                        new TableCell({ children: [new Paragraph({ text: "" })] }),
+                        new TableCell({ children: [new Paragraph({ text: "" })] }),
+                    ]
+                }));
+            }
+
+            // Image Row (if any)
+            if (q.imageURL) {
+                const imgBuffer = await loadImageAsBase64(q.imageURL);
+                if (imgBuffer) {
+                    questionTableRows.push(new TableRow({
+                        children: [
+                            new TableCell({ children: [new Paragraph({ text: "" })] }),
+                            new TableCell({
+                                children: [
+                                    new Paragraph({
+                                        alignment: AlignmentType.CENTER,
+                                        children: [
+                                            new ImageRun({
+                                                data: imgBuffer,
+                                                transformation: { width: 300, height: 200 },
+                                                type: 'png',
+                                            })
+                                        ],
+                                        spacing: { before: 200, after: 200 }
+                                    })
+                                ]
+                            }),
+                            new TableCell({ children: [new Paragraph({ text: "" })] }),
+                            new TableCell({ children: [new Paragraph({ text: "" })] }),
+                        ]
+                    }));
+                }
+            }
+
+            // OR Part
+            if (q.orQuestion?.question) {
+                // OR Separator Row
+                questionTableRows.push(new TableRow({
+                    children: [
+                        new TableCell({ children: [new Paragraph({ text: "" })] }),
+                        new TableCell({
+                            children: [
+                                new Table({
+                                    width: { size: 100, type: WidthType.PERCENTAGE },
+                                    borders: {
+                                        top: { style: BorderStyle.NONE },
+                                        bottom: { style: BorderStyle.NONE },
+                                        left: { style: BorderStyle.NONE },
+                                        right: { style: BorderStyle.NONE },
+                                        insideHorizontal: { style: BorderStyle.NONE },
+                                        insideVertical: { style: BorderStyle.NONE },
+                                    },
+                                    rows: [
+                                        new TableRow({
+                                            children: [
+                                                new TableCell({ children: [new Paragraph({ text: "" })], width: { size: 40, type: WidthType.PERCENTAGE } }),
+                                                new TableCell({ 
+                                                    children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "OR", bold: true, size: 24 })] })], 
+                                                    width: { size: 20, type: WidthType.PERCENTAGE } 
+                                                }),
+                                                new TableCell({ children: [new Paragraph({ text: "" })], width: { size: 40, type: WidthType.PERCENTAGE } }),
+                                            ]
                                         })
                                     ],
                                     spacing: { before: 200, after: 200 }
                                 })
-                            );
-                        }
-                    } catch (err) {
-                        console.warn("Could not load OR image:", err);
-                    }
-                }
-            }
+                            ]
+                        }),
+                        new TableCell({ children: [new Paragraph({ text: "" })] }),
+                        new TableCell({ children: [new Paragraph({ text: "" })] }),
+                    ]
+                }));
 
-            if (q.options?.length > 0) {
-                q.options.forEach((opt, idx) => {
-                    docChildren.push(new Paragraph({ children: [new TextRun({ text: `    ${String.fromCharCode(65 + idx)}) ${opt}`, size: 18 })] }));
-                });
-            }
+                // OR Question Row
+                questionTableRows.push(await createQuestionRow(questionNumber, q.orQuestion.question, q.orQuestion.co, q.orQuestion.bloomLevel, true));
 
-            // Load and add question image if exists
-            if (q.imageURL) {
-                try {
-                    const imgBuffer = await loadImageAsBase64(q.imageURL);
-                    if (imgBuffer) {
-                        docChildren.push(
-                            new Paragraph({
-                                alignment: AlignmentType.CENTER,
-                                children: [
-                                    new ImageRun({
-                                        data: imgBuffer,
-                                        transformation: { width: 300, height: 200 },
-                                        type: 'png',
+                // OR Options/Images if needed (though not commonly used in OR, but for completeness)
+                if (q.orQuestion.options?.length > 0) {
+                    questionTableRows.push(new TableRow({
+                        children: [
+                            new TableCell({ children: [new Paragraph({ text: "" })] }),
+                            new TableCell({
+                                children: q.orQuestion.options.map((opt, idx) => 
+                                    new Paragraph({
+                                        children: [new TextRun({ text: `    ${String.fromCharCode(65 + idx)}) ${opt}`, size: 18 })],
+                                        spacing: { before: 50 }
                                     })
-                                ],
-                                spacing: { before: 200, after: 200 }
-                            })
-                        );
+                                )
+                            }),
+                            new TableCell({ children: [new Paragraph({ text: "" })] }),
+                            new TableCell({ children: [new Paragraph({ text: "" })] }),
+                        ]
+                    }));
+                }
+
+                if (q.orQuestion.imageURL) {
+                    const orImgBuffer = await loadImageAsBase64(q.orQuestion.imageURL);
+                    if (orImgBuffer) {
+                        questionTableRows.push(new TableRow({
+                            children: [
+                                new TableCell({ children: [new Paragraph({ text: "" })] }),
+                                new TableCell({
+                                    children: [
+                                        new Paragraph({
+                                            alignment: AlignmentType.CENTER,
+                                            children: [
+                                                new ImageRun({
+                                                    data: orImgBuffer,
+                                                    transformation: { width: 300, height: 200 },
+                                                    type: 'png',
+                                                })
+                                            ],
+                                            spacing: { before: 200, after: 200 }
+                                        })
+                                    ]
+                                }),
+                                new TableCell({ children: [new Paragraph({ text: "" })] }),
+                                new TableCell({ children: [new Paragraph({ text: "" })] }),
+                            ]
+                        }));
                     }
-                } catch (imgError) {
-                    console.warn(`Could not load image for question ${i}:`, imgError);
                 }
             }
+
+            // Create and add the question table to document
+            docChildren.push(new Table({
+                width: { size: 100, type: WidthType.PERCENTAGE },
+                borders: {
+                    top: { style: BorderStyle.NONE },
+                    bottom: { style: BorderStyle.NONE },
+                    left: { style: BorderStyle.NONE },
+                    right: { style: BorderStyle.NONE },
+                    insideHorizontal: { style: BorderStyle.NONE },
+                    insideVertical: { style: BorderStyle.NONE },
+                },
+                rows: questionTableRows
+            }));
+
+            questionCounter++;
         }
 
         docChildren.push(
