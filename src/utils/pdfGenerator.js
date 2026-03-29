@@ -362,110 +362,118 @@ export const downloadPaperAsPDF = async (paper) => {
             questionIndex = 0;
         }
 
-        // Print Question
+        // Print Question Number
         doc.setFontSize(10);
         doc.setFont("times", 'bold');
-        doc.text(`${String.fromCharCode(97 + questionIndex)}.`, 20, contentY);
-        questionIndex++;
-
+        const qNumText = `${String.fromCharCode(97 + questionIndex)}.`;
+        doc.text(qNumText, 20, contentY);
+        
         doc.setFont("times", 'normal');
         
-        // Use a non-global regex for the test to avoid lastIndex issues in loops
+        // Render Main Question Text
         const hasUrl = /(https?:\/\/[^\s]+)/.test(q.question || "");
+        if (hasUrl) doc.setTextColor(37, 99, 235);
         
-        if (hasUrl) {
-            doc.setTextColor(37, 99, 235); // Blue-600
-        }
-        
-        // Render each line of the question
         questionLines.forEach((line, idx) => {
             doc.text(line, 28, contentY + (idx * 4.2));
         });
-
-        // Reset color for identifiers
         doc.setTextColor(0, 0, 0);
 
-        // Print CO and BT columns - align with the first line
-        const tagColor = hasUrl ? [37, 99, 235] : [0, 0, 0];
-        doc.setTextColor(tagColor[0], tagColor[1], tagColor[2]);
+        // Print Main Metadata
         doc.setFontSize(9.5);
+        doc.setFont("times", 'bold');
         doc.text(String(q.co || "CO1"), 150, contentY, { align: 'center' });
         doc.text(String(q.bloomLevel || 'RE').toUpperCase(), 185, contentY, { align: 'center' });
-        doc.setTextColor(0, 0, 0);
+        doc.setFont("times", 'normal');
         doc.setFontSize(10);
 
-        if (q.orQuestion && q.orQuestion.question) {
-            let currentBaseY = contentY + (questionLines.length * 4.2) + 2;
-            doc.setFont("times", 'bold');
-            doc.text("OR", 105, currentBaseY, { align: 'center' });
-            currentBaseY += 5;
-            doc.setFont("times", 'normal');
-            
-            const orHasUrl = /(https?:\/\/[^\s]+)/.test(q.orQuestion.question || "");
-            if (orHasUrl) {
-                doc.setTextColor(37, 99, 235);
-            }
-            
-            orQuestionLines.forEach((line, idx) => {
-                doc.text(line, 28, currentBaseY + (idx * 4.2));
-            });
-            
-            doc.setTextColor(0, 0, 0);
+        let currentY = contentY + (questionLines.length * 4.2);
 
-            // Print OR question CO and BT columns
-            const orTagColor = orHasUrl ? [37, 99, 235] : [0, 0, 0];
-            doc.setTextColor(orTagColor[0], orTagColor[1], orTagColor[2]);
-            doc.setFontSize(9.5);
-            doc.text(String(q.orQuestion.co || "CO1"), 150, currentBaseY, { align: 'center' });
-            doc.text(String(q.orQuestion.bloomLevel || 'RE').toUpperCase(), 185, currentBaseY, { align: 'center' });
-            doc.setTextColor(0, 0, 0);
+        // Print Main Options
+        if (q.options && q.options.length > 0) {
+            currentY += 2;
+            doc.setFontSize(9);
+            q.options.forEach((opt, optIdx) => {
+                if (currentY > 280) { doc.addPage(); currentY = 20; }
+                doc.text(`${String.fromCharCode(65 + optIdx)}) ${sanitizeText(opt)}`, 32, currentY);
+                currentY += 4.2;
+            });
             doc.setFontSize(10);
         }
 
-        contentY += textHeight + 2;
-
-        // Print Options
-        if (q.options && q.options.length > 0) {
-            doc.setFontSize(9);
-            q.options.forEach((opt, optIdx) => {
-                if (contentY > 285) {
-                    doc.addPage();
-                    contentY = 20;
-                }
-                doc.text(`${String.fromCharCode(65 + optIdx)}) ${sanitizeText(opt)}`, 40, contentY);
-                contentY += 4.2;
-            });
-        }
-
-        // Print Image
+        // Print Main Image
         if (imageData) {
-            if (contentY + imageHeight > 285) {
-                doc.addPage();
-                contentY = 20;
-            }
-            doc.addImage(imageData.data, 'JPEG', 40, contentY, imageData.displayW, imageHeight);
-            contentY += imageHeight + 8;
+            currentY += 2;
+            if (currentY + imageHeight > 280) { doc.addPage(); currentY = 20; }
+            doc.addImage(imageData.data, 'JPEG', 32, currentY, imageData.displayW, imageHeight);
+            currentY += imageHeight + 5;
         }
 
-        // Print OR Image if exists
-        if (q.orQuestion?.imageURL) {
-            const orImageData = await loadImage(q.orQuestion.imageURL);
-            if (orImageData) {
-                const maxW = 100;
-                const ratio = orImageData.height / orImageData.width;
-                const orImageHeight = Math.min(60, maxW * ratio);
-                const orDisplayW = orImageHeight / ratio;
+        // Handle OR Question
+        if (q.orQuestion && q.orQuestion.question) {
+            // OR Separator
+            currentY += 4;
+            if (currentY > 280) { doc.addPage(); currentY = 20; }
+            
+            doc.setFont("times", 'bold');
+            doc.text("OR", 105, currentY, { align: 'center' });
+            currentY += 7;
 
-                if (contentY + orImageHeight > 285) {
-                    doc.addPage();
-                    contentY = 20;
+            // Repeated Question Number for OR
+            doc.setFont("times", 'bold');
+            doc.text(qNumText, 20, currentY);
+            doc.setFont("times", 'italic');
+
+            const orQuestionLines = doc.splitTextToSize(sanitizeText(q.orQuestion.question), 115);
+            const orHasUrl = /(https?:\/\/[^\s]+)/.test(q.orQuestion.question || "");
+            if (orHasUrl) doc.setTextColor(37, 99, 235);
+
+            orQuestionLines.forEach((line, idx) => {
+                doc.text(line, 28, currentY + (idx * 4.2));
+            });
+            doc.setTextColor(0, 0, 0);
+
+            // OR Metadata
+            doc.setFontSize(9.5);
+            doc.setFont("times", 'bold');
+            doc.text(String(q.orQuestion.co || "CO1"), 150, currentY, { align: 'center' });
+            doc.text(String(q.orQuestion.bloomLevel || 'RE').toUpperCase(), 185, currentY, { align: 'center' });
+            doc.setFont("times", 'normal');
+            doc.setFontSize(10);
+
+            currentY += (orQuestionLines.length * 4.2);
+
+            // OR Options
+            if (q.orQuestion.options && q.orQuestion.options.length > 0) {
+                currentY += 2;
+                doc.setFontSize(9);
+                q.orQuestion.options.forEach((opt, optIdx) => {
+                    if (currentY > 280) { doc.addPage(); currentY = 20; }
+                    doc.text(`${String.fromCharCode(65 + optIdx)}) ${sanitizeText(opt)}`, 32, currentY);
+                    currentY += 4.2;
+                });
+                doc.setFontSize(10);
+            }
+
+            // OR Image
+            if (q.orQuestion.imageURL) {
+                const orImgData = await loadImage(q.orQuestion.imageURL);
+                if (orImgData) {
+                    const maxW = 100;
+                    const ratio = orImgData.height / orImgData.width;
+                    const orImgH = Math.min(60, maxW * ratio);
+                    const orImgW = orImgH / ratio;
+
+                    currentY += 2;
+                    if (currentY + orImgH > 280) { doc.addPage(); currentY = 20; }
+                    doc.addImage(orImgData.data, 'JPEG', 32, currentY, orImgW, orImgH);
+                    currentY += orImgH + 5;
                 }
-                doc.addImage(orImageData.data, 'JPEG', 40, contentY, orDisplayW, orImageHeight);
-                contentY += orImageHeight + 8;
             }
         }
 
-        contentY += 2; // Spacing between questions
+        contentY = currentY + 5;
+        questionIndex++;
     }
 
     // Finalize: Add watermark to all pages before saving

@@ -707,124 +707,144 @@ export default function GeneratedPapers({
                                             return (
                                                 <div key={question.id || question.globalIndex} className="mb-8 group relative break-inside-avoid">
                                                     {/* Main Question Container */}
-                                                    <div className="relative">
-                                                        {/* Question Content */}
-                                                        <div className="flex gap-4">
+                                                    <div className="relative space-y-4">
+                                                        {/* Main Question Part */}
+                                                        <div className="flex gap-4 items-start">
                                                             {/* Question Number */}
-                                                            <span className="font-bold font-serif text-gray-900 w-10 text-[15px] pt-1">
+                                                            <span className="font-bold font-serif text-gray-900 w-10 text-[15px] pt-1 shrink-0">
                                                                 {questionNumber}.
                                                             </span>
 
-                                                            <div className="flex-1">
-                                                                {/* Question Text */}
-                                                                <div className="flex items-start gap-4">
-                                                                    <div className="flex-1">
-                                                                        <p className="font-serif text-gray-900 text-[15px] leading-relaxed text-left whitespace-pre-line">
-                                                                            {highlightUrls(question.question)}
-                                                                        </p>
+                                                            {/* Question Text & Metadata */}
+                                                            <div className="flex-1 flex items-start gap-4">
+                                                                <div className="flex-1">
+                                                                    <p className="font-serif text-gray-900 text-[15px] leading-relaxed text-left whitespace-pre-line">
+                                                                        {highlightUrls(question.question)}
+                                                                    </p>
 
-                                                                        {/* Options (if any) */}
-                                                                        {question.options && question.options.length > 0 && (
-                                                                            <div className="grid grid-cols-2 gap-x-12 gap-y-2 mt-4 ml-2">
-                                                                                {question.options.map((opt, i) => (
-                                                                                    <div key={i} className="font-serif text-[14px] text-gray-800">
-                                                                                        <span className="font-bold mr-2">{String.fromCharCode(65 + i)}.</span> {opt}
-                                                                                    </div>
-                                                                                ))}
-                                                                            </div>
-                                                                        )}
+                                                                    {/* Options (if any) */}
+                                                                    {question.options && question.options.length > 0 && (
+                                                                        <div className="grid grid-cols-2 gap-x-12 gap-y-2 mt-4 ml-2">
+                                                                            {question.options.map((opt, i) => (
+                                                                                <div key={i} className="font-serif text-[14px] text-gray-800">
+                                                                                    <span className="font-bold mr-2">{String.fromCharCode(65 + i)}.</span> {opt}
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
 
-                                                                        {/* Image (if any) */}
-                                                                        {question.imageURL && (
-                                                                            <div className="mt-4 relative max-w-lg">
-                                                                                <img
-                                                                                    src={handleGoogleDriveUrl(question.imageURL)}
-                                                                                    alt="Question diagram"
-                                                                                    className="max-h-64 rounded-lg border border-gray-200 shadow-sm object-contain"
-                                                                                    onError={(e) => { e.target.style.display = 'none'; }}
-                                                                                />
-                                                                            </div>
-                                                                        )}
+                                                                    {/* Image (if any) */}
+                                                                    {question.imageURL && (
+                                                                        <div className="mt-4 relative max-w-lg">
+                                                                            <img
+                                                                                src={handleGoogleDriveUrl(question.imageURL)}
+                                                                                alt="Question diagram"
+                                                                                className="max-h-64 rounded-lg border border-gray-200 shadow-sm object-contain"
+                                                                                onError={(e) => { e.target.style.display = 'none'; }}
+                                                                            />
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+
+                                                                {/* Metadata Columns */}
+                                                                <div className="flex items-start font-serif text-[14px] text-gray-800 font-bold shrink-0">
+                                                                    <span className="w-24 text-center">{question.co || 'CO1'}</span>
+                                                                    <span className="w-16 text-center uppercase">{question.bloomLevel || 'RE'}</span>
+                                                                </div>
+
+                                                                {/* Action Buttons */}
+                                                                <div className="w-24 ml-4 flex flex-col gap-1 print:hidden opacity-0 group-hover:opacity-100 transition-all duration-200 shrink-0">
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); setEditingQuestion(question); }}
+                                                                        className="flex items-center justify-center gap-1.5 px-2 py-1 bg-white text-blue-600 border border-blue-200 rounded-lg text-[10px] font-bold hover:bg-blue-600 hover:text-white transition-colors shadow-sm"
+                                                                    >
+                                                                        <PenTool className="w-3 h-3" /> Edit
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={(e) => { e.stopPropagation(); setReplacingQuestion(question); }}
+                                                                        className="flex items-center justify-center gap-1.5 px-2 py-1 bg-white text-orange-600 border border-orange-200 rounded-lg text-[10px] font-bold hover:bg-orange-600 hover:text-white transition-colors shadow-sm"
+                                                                    >
+                                                                        <RefreshCw className="w-3 h-3" /> Replace
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* OR Question */}
+                                                        {question.orQuestion && (
+                                                            <div className="space-y-4">
+                                                                {/* OR Separator */}
+                                                                <div className="relative flex items-center justify-center my-6 ml-14">
+                                                                    <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                                                                        <div className="w-full border-t border-gray-200"></div>
                                                                     </div>
-
-                                                                    {/* Metadata Columns */}
-                                                                    <div className="flex items-start font-serif text-[14px] text-gray-800 font-bold">
-                                                                        <span className="w-24 text-center">{question.co || 'CO1'}</span>
-                                                                        <span className="w-16 text-center uppercase">{question.bloomLevel || 'RE'}</span>
-                                                                    </div>
-
-                                                                    {/* Action Buttons - Only ONE set per question */}
-                                                                    <div className="w-24 ml-4 flex flex-col gap-1 print:hidden opacity-0 group-hover:opacity-100 transition-all duration-200">
-                                                                        <button
-                                                                            onClick={(e) => { e.stopPropagation(); setEditingQuestion(question); }}
-                                                                            className="flex items-center justify-center gap-1.5 px-2 py-1 bg-white text-blue-600 border border-blue-200 rounded-lg text-[10px] font-bold hover:bg-blue-600 hover:text-white transition-colors shadow-sm"
-                                                                        >
-                                                                            <PenTool className="w-3 h-3" /> Edit
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={(e) => { e.stopPropagation(); setReplacingQuestion(question); }}
-                                                                            className="flex items-center justify-center gap-1.5 px-2 py-1 bg-white text-orange-600 border border-orange-200 rounded-lg text-[10px] font-bold hover:bg-orange-600 hover:text-white transition-colors shadow-sm"
-                                                                        >
-                                                                            <RefreshCw className="w-3 h-3" /> Replace
-                                                                        </button>
+                                                                    <div className="relative bg-white px-8">
+                                                                        <span className="text-sm font-bold text-gray-800 tracking-widest uppercase">OR</span>
                                                                     </div>
                                                                 </div>
 
-                                                                {/* OR Question */}
-                                                                {question.orQuestion && (
-                                                                    <div className="mt-6">
-                                                                        {/* OR Separator */}
-                                                                        <div className="relative flex items-center justify-center my-4">
-                                                                            <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                                                                                <div className="w-full border-t border-gray-200"></div>
-                                                                            </div>
-                                                                            <div className="relative bg-white px-8">
-                                                                                <span className="text-sm font-bold text-gray-800 tracking-widest uppercase">OR</span>
-                                                                            </div>
+                                                                {/* OR Question Content */}
+                                                                <div className="flex gap-4 items-start">
+                                                                    {/* Repeated Question Number */}
+                                                                    <span className="font-bold font-serif text-gray-900 w-10 text-[15px] pt-1 shrink-0">
+                                                                        {questionNumber}.
+                                                                    </span>
+
+                                                                    <div className="flex-1 flex items-start gap-4">
+                                                                        <div className="flex-1">
+                                                                            <p className="font-serif text-gray-900 text-[15px] leading-relaxed text-left italic whitespace-pre-line">
+                                                                                {highlightUrls(question.orQuestion.question)}
+                                                                            </p>
+
+                                                                            {/* OR Options (if any) */}
+                                                                            {question.orQuestion.options && question.orQuestion.options.length > 0 && (
+                                                                                <div className="grid grid-cols-2 gap-x-12 gap-y-2 mt-4 ml-2">
+                                                                                    {question.orQuestion.options.map((opt, i) => (
+                                                                                        <div key={i} className="font-serif text-[14px] text-gray-800">
+                                                                                            <span className="font-bold mr-2">{String.fromCharCode(65 + i)}.</span> {opt}
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
+
+                                                                            {/* OR Image (if any) */}
+                                                                            {question.orQuestion.imageURL && (
+                                                                                <div className="mt-4 relative max-w-lg">
+                                                                                    <img
+                                                                                        src={handleGoogleDriveUrl(question.orQuestion.imageURL)}
+                                                                                        alt="OR Question diagram"
+                                                                                        className="max-h-64 rounded-lg border border-gray-200 shadow-sm object-contain"
+                                                                                        onError={(e) => { e.target.style.display = 'none'; }}
+                                                                                    />
+                                                                                </div>
+                                                                            )}
                                                                         </div>
 
-                                                                        {/* OR Question Content */}
-                                                                        <div className="flex gap-4 mt-2">
-                                                                            <span className="font-bold font-serif text-gray-900 w-10 text-[15px] pt-1">
-                                                                                {questionNumber}.
-                                                                            </span>
+                                                                        {/* OR Metadata Columns */}
+                                                                        <div className="flex items-start font-serif text-[14px] text-gray-800 font-bold shrink-0">
+                                                                            <span className="w-24 text-center">{question.orQuestion.co || 'CO1'}</span>
+                                                                            <span className="w-16 text-center uppercase">{question.orQuestion.bloomLevel || 'RE'}</span>
+                                                                        </div>
 
-                                                                            <div className="flex-1">
-                                                                                <div className="flex items-start gap-4">
-                                                                                    <div className="flex-1">
-                                                                                        <p className="font-serif text-gray-900 text-[15px] leading-relaxed text-left italic whitespace-pre-line">
-                                                                                            {highlightUrls(question.orQuestion.question)}
-                                                                                        </p>
-                                                                                    </div>
-
-                                                                                    {/* OR Question Metadata */}
-                                                                                    <div className="flex items-start font-serif text-[14px] text-gray-800 font-bold">
-                                                                                        <span className="w-24 text-center">{question.orQuestion.co || 'CO1'}</span>
-                                                                                        <span className="w-16 text-center uppercase">{question.orQuestion.bloomLevel || 'RE'}</span>
-                                                                                    </div>
-
-                                                                                    {/* OR Question Action Buttons */}
-                                                                                    <div className="w-24 ml-4 flex flex-col gap-1 print:hidden opacity-0 group-hover:opacity-100 transition-all duration-200">
-                                                                                        <button
-                                                                                            onClick={(e) => { e.stopPropagation(); setEditingQuestion({ ...question.orQuestion, parentId: question.id, isOrQuestion: true }); }}
-                                                                                            className="flex items-center justify-center gap-1.5 px-2 py-1 bg-white text-blue-600 border border-blue-200 rounded-lg text-[10px] font-bold hover:bg-blue-600 hover:text-white transition-colors shadow-sm"
-                                                                                        >
-                                                                                            <PenTool className="w-3 h-3" /> Edit
-                                                                                        </button>
-                                                                                        <button
-                                                                                            onClick={(e) => { e.stopPropagation(); setReplacingQuestion({ ...question.orQuestion, parentId: question.id, isOrQuestion: true }); }}
-                                                                                            className="flex items-center justify-center gap-1.5 px-2 py-1 bg-white text-orange-600 border border-orange-200 rounded-lg text-[10px] font-bold hover:bg-orange-600 hover:text-white transition-colors shadow-sm"
-                                                                                        >
-                                                                                            <RefreshCw className="w-3 h-3" /> Replace
-                                                                                        </button>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div>
+                                                                        {/* OR Action Buttons */}
+                                                                        <div className="w-24 ml-4 flex flex-col gap-1 print:hidden opacity-0 group-hover:opacity-100 transition-all duration-200 shrink-0">
+                                                                            <button
+                                                                                onClick={(e) => { e.stopPropagation(); setEditingQuestion({ ...question.orQuestion, parentId: question.id, isOrQuestion: true }); }}
+                                                                                className="flex items-center justify-center gap-1.5 px-2 py-1 bg-white text-blue-600 border border-blue-200 rounded-lg text-[10px] font-bold hover:bg-blue-600 hover:text-white transition-colors shadow-sm"
+                                                                            >
+                                                                                <PenTool className="w-3 h-3" /> Edit
+                                                                            </button>
+                                                                            <button
+                                                                                onClick={(e) => { e.stopPropagation(); setReplacingQuestion({ ...question.orQuestion, parentId: question.id, isOrQuestion: true }); }}
+                                                                                className="flex items-center justify-center gap-1.5 px-2 py-1 bg-white text-orange-600 border border-orange-200 rounded-lg text-[10px] font-bold hover:bg-orange-600 hover:text-white transition-colors shadow-sm"
+                                                                            >
+                                                                                <RefreshCw className="w-3 h-3" /> Replace
+                                                                            </button>
                                                                         </div>
                                                                     </div>
-                                                                )}
+                                                                </div>
                                                             </div>
-                                                        </div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             );
