@@ -28,6 +28,7 @@ export default function CollegeSettings({ onUpdate, userData }) {
     const [activeTab, setActiveTab] = useState("college");
     const [loading, setLoading] = useState(false);
     const [modulesState, setModulesState] = useState({});
+    const [examConfig, setExamConfig] = useState({ isEndTerm: false });
 
     // College Settings State
     const [formData, setFormData] = useState({
@@ -69,7 +70,16 @@ export default function CollegeSettings({ onUpdate, userData }) {
                     setModulesState(docSnap.data());
                 }
             });
-            return () => unsub();
+            const examRef = doc(db, 'settings', 'examConfig');
+            const unsubExam = onSnapshot(examRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    setExamConfig(docSnap.data());
+                }
+            });
+            return () => {
+                unsub();
+                unsubExam();
+            };
         }
     }, [activeTab]);
 
@@ -96,13 +106,22 @@ export default function CollegeSettings({ onUpdate, userData }) {
     const handleVisibilityToggle = async (moduleId, value) => {
         try {
             const docRef = doc(db, 'settings', 'moduleVisibility');
-            await updateDoc(docRef, {
-                [moduleId]: value
-            });
+            await setDoc(docRef, { [moduleId]: value }, { merge: true });
             toast.success(`Visibility updated for ${moduleId}`);
         } catch (error) {
             console.error("Error updating visibility:", error);
             toast.error("Failed to update visibility");
+        }
+    };
+
+    const handleExamConfigToggle = async (isEndTerm) => {
+        try {
+            const docRef = doc(db, 'settings', 'examConfig');
+            await setDoc(docRef, { isEndTerm }, { merge: true });
+            toast.success(`Exam Type set to ${isEndTerm ? 'End Term' : 'Mid Term'}`);
+        } catch (error) {
+            console.error("Error updating exam config:", error);
+            toast.error("Failed to update exam configuration");
         }
     };
 
@@ -390,12 +409,38 @@ export default function CollegeSettings({ onUpdate, userData }) {
                             </div>
                             <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex gap-3">
                                 <Shield className="w-5 h-5 text-amber-600 shrink-0" />
-                                <div className="text-xs text-amber-800 leading-relaxed font-medium"><strong>Important:</strong> These settings control if the module tabs appear in the sidebar for other users. As a Dean, you will always see all modules.</div>
+                                    <div className="text-xs text-amber-800 leading-relaxed font-medium"><strong>Important:</strong> These settings control if the module tabs appear in the sidebar for other users. As a Dean, you will always see all modules.</div>
+                                </div>
+
+                                {/* Exam Type Section */}
+                                <div className="mt-8">
+                                    <div className="pb-4 border-b border-gray-50 flex items-center justify-between">
+                                        <div>
+                                            <h3 className="text-xl font-bold text-gray-900 tracking-tight">Global Exam Configuration</h3>
+                                            <p className="text-sm text-gray-500 font-medium mt-1">Dean Decision: Set the active exam type for the entire system</p>
+                                        </div>
+                                    </div>
+                                    <div className="mt-4 flex flex-col gap-4">
+                                        <label className="flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all hover:bg-gray-50 data-[active=true]:border-purple-500 data-[active=true]:bg-purple-50" data-active={!examConfig.isEndTerm}>
+                                            <input type="radio" name="examType" checked={!examConfig.isEndTerm} onChange={() => handleExamConfigToggle(false)} className="w-5 h-5 text-purple-600 focus:ring-purple-500" />
+                                            <div>
+                                                <div className="font-bold text-gray-900">Mid Term Examination</div>
+                                                <div className="text-xs text-gray-500">Template download excludes 8-mark questions. Generation defaults to Mid Term pattern.</div>
+                                            </div>
+                                        </label>
+                                        <label className="flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all hover:bg-gray-50 data-[active=true]:border-purple-500 data-[active=true]:bg-purple-50" data-active={examConfig.isEndTerm}>
+                                            <input type="radio" name="examType" checked={examConfig.isEndTerm} onChange={() => handleExamConfigToggle(true)} className="w-5 h-5 text-purple-600 focus:ring-purple-500" />
+                                            <div>
+                                                <div className="font-bold text-gray-900">End Term Examination</div>
+                                                <div className="text-xs text-gray-500">Template download includes 8-mark questions. Generation defaults to End Term pattern.</div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
-            </div>
         </div>
     );
 }

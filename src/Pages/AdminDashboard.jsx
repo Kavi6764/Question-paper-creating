@@ -165,6 +165,9 @@ export default function AdminDashboard() {
     'settings': true
   });
 
+  // Global Exam Config
+  const [globalExamConfig, setGlobalExamConfig] = useState({ isEndTerm: false });
+
   const [selectedQuestions, setSelectedQuestions] = useState([]);
   const [availableQuestions, setAvailableQuestions] = useState({
     oneMark: [],
@@ -265,9 +268,23 @@ export default function AdminDashboard() {
       }
     });
 
+    // Real-time listener for Exam Config
+    const examConfigRef = doc(db, "settings", "examConfig");
+    const unsubExamConfig = onSnapshot(examConfigRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setGlobalExamConfig(data);
+        setPaperForm(prev => ({
+          ...prev,
+          paperType: data.isEndTerm ? "End Term" : "Mid Term"
+        }));
+      }
+    });
+
     return () => {
       unsubscribe();
       unsubModules();
+      unsubExamConfig();
     };
   }, [navigate]);
 
@@ -413,19 +430,19 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (paperForm.paperType === 'Mid Term') {
       setPaperForm(prev => ({
-        ...prev,
-        oneMarkQuestions: 6,
-        fourMarkQuestions: 3,
-        sixMarkQuestions: 2,
-        eightMarkQuestions: 0
+          ...prev,
+          oneMarkQuestions: 6,
+          fourMarkQuestions: 3,
+          sixMarkQuestions: 2,
+          eightMarkQuestions: 0
       }));
     } else if (paperForm.paperType === 'End Term') {
       setPaperForm(prev => ({
-        ...prev,
-        oneMarkQuestions: 12,
-        fourMarkQuestions: 6,
-        sixMarkQuestions: 4,
-        eightMarkQuestions: 0
+          ...prev,
+          oneMarkQuestions: 12,
+          fourMarkQuestions: 6,
+          sixMarkQuestions: 0,
+          eightMarkQuestions: 3
       }));
     }
   }, [paperForm.paperType]);
@@ -1307,14 +1324,17 @@ export default function AdminDashboard() {
       return candidates[0] || null;
     };
 
-    const markConfigs = [
+    const isEndTerm = form.paperType === 'End Term';
+    
+    // Final logic: NO ORs for anyone except 8 Mark in End Term. 
+    const finalConfigs = [
       { m: 1, count: form.oneMarkQuestions, hasOr: false },
-      { m: 4, count: form.fourMarkQuestions, hasOr: true },
-      { m: 6, count: form.sixMarkQuestions, hasOr: true },
-      { m: 8, count: form.eightMarkQuestions || 0, hasOr: true }
+      { m: 4, count: form.fourMarkQuestions, hasOr: false },
+      { m: 6, count: form.sixMarkQuestions, hasOr: false },
+      { m: 8, count: form.eightMarkQuestions || 0, hasOr: isEndTerm }
     ];
 
-    for (const config of markConfigs) {
+    for (const config of finalConfigs) {
       for (let i = 0; i < config.count; i++) {
         // Distribute units: cycle through available units
         const unit = availableUnits[i % availableUnits.length];
@@ -1338,6 +1358,10 @@ export default function AdminDashboard() {
             coCounts[co2] = (coCounts[co2] || 0) + 1;
             selected.push({ ...q1, orQuestion: q2 });
           } else {
+            // End term strictly requires OR choice for 8 mark questions. If not found in the same unit, fail.
+            if (isEndTerm && config.m === 8) {
+               return { error: "Insufficient questions for End-Term generation. Missing internal choice pairing." };
+            }
             selected.push(q1);
           }
         } else {
@@ -1353,6 +1377,9 @@ export default function AdminDashboard() {
                         Number(form.eightMarkQuestions || 0);
 
     if (selected.length < targetCount) {
+      if (isEndTerm) {
+         return { error: "Insufficient questions for End-Term generation" };
+      }
       return { error: "Insufficient unique questions in the question bank to meet distribution rules" };
     }
 
