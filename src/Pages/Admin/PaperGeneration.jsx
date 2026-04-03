@@ -17,19 +17,24 @@ export default function PaperGeneration({
     handleSchedulePaper,
     handleGeneratePaper,
     clearAllQuestions,
-    loading
+    loading,
+    globalExamConfig
 }) {
     const isPatternFulfilled = React.useMemo(() => {
         if (!paperForm.subjectCode) return false;
-        const reqOne = paperForm.oneMarkQuestions;
-        const reqFour = paperForm.fourMarkQuestions * 2; // Need 2 for OR
-        const reqSix = paperForm.sixMarkQuestions * 2;   // Need 2 for OR
-        const reqEight = (paperForm.eightMarkQuestions || 0) * 2;
+        
+        const isEndTerm = paperForm.paperType === 'End Term';
 
-        return questionStats.oneMark.available >= reqOne &&
-               questionStats.fourMark.available >= reqFour &&
-               questionStats.sixMark.available >= reqSix &&
-               questionStats.eightMark.available >= reqEight;
+        const reqOne = paperForm.oneMarkQuestions;
+        const reqFour = paperForm.fourMarkQuestions; 
+        const reqSix = paperForm.sixMarkQuestions;
+        // For End Term, 8 mark needs internal choice (2 questions per slot)
+        const reqEight = (paperForm.eightMarkQuestions || 0) * (isEndTerm ? 2 : 1);
+
+        return (questionStats.oneMark?.available || 0) >= reqOne &&
+               (questionStats.fourMark?.available || 0) >= reqFour &&
+               (isEndTerm || (questionStats.sixMark?.available || 0) >= reqSix) &&
+               (!isEndTerm || (questionStats.eightMark?.available || 0) >= reqEight);
     }, [paperForm, questionStats]);
 
     const [subjectSearch, setSubjectSearch] = React.useState('');
@@ -245,6 +250,23 @@ export default function PaperGeneration({
                                     />
                                 </div>
                                 <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Paper Type <span className="text-red-500">*</span></label>
+                                    <div className="relative">
+                                        <select
+                                            value={paperForm.paperType || 'Mid Term'}
+                                            disabled={true}
+                                            className="w-full border border-gray-200 bg-gray-50 rounded-xl px-4 py-2.5 text-gray-500 font-medium outline-none transition-all appearance-none cursor-not-allowed"
+                                        >
+                                            <option value="Mid Term">Mid-Term</option>
+                                            <option value="End Term">End-Term</option>
+                                        </select>
+                                        <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
+                                            <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" /></svg>
+                                        </div>
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 mt-1.5 italic font-medium">Set globally by Dean</p>
+                                </div>
+                                <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Semester</label>
                                     <div className="relative">
                                         <select
@@ -355,8 +377,9 @@ export default function PaperGeneration({
                                 <div>
                                     <p className="text-sm font-bold text-red-800">Pattern Not Fulfilled</p>
                                     <p className="text-xs text-red-600 mt-0.5 leading-relaxed">
-                                        Question paper cannot be scheduled because required questions are not added yet. 
-                                        Note: 4, 6, and 8-mark slots require 2 available questions each for OR pairing.
+                                        {paperForm.paperType === 'End Term' 
+                                            ? "Insufficient questions for End-Term generation. 8-mark slots require 2 available questions each for OR pairing."
+                                            : "Question paper cannot be generated because required questions are not available."}
                                     </p>
                                 </div>
                             </div>
@@ -386,10 +409,17 @@ export default function PaperGeneration({
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {[
-                                { label: "1-Mark", key: "oneMarkQuestions", statsKey: "oneMark", color: "blue", multiplier: 1 },
-                                { label: "4-Mark", key: "fourMarkQuestions", statsKey: "fourMark", color: "green", multiplier: 4 },
-                                { label: "6-Mark", key: "sixMarkQuestions", statsKey: "sixMark", color: "purple", multiplier: 6 },
-                            ].map((item) => (
+                                { label: "1-Mark", key: "oneMarkQuestions", statsKey: "oneMark", color: "blue", multiplier: 1, type: "both" },
+                                { label: "4-Mark", key: "fourMarkQuestions", statsKey: "fourMark", color: "green", multiplier: 4, type: "both" },
+                                { label: "6-Mark", key: "sixMarkQuestions", statsKey: "sixMark", color: "purple", multiplier: 6, type: "Mid Term" },
+                                { label: "8-Mark", key: "eightMarkQuestions", statsKey: "eightMark", color: "orange", multiplier: 8, type: "End Term" },
+                            ].filter(item => item.type === "both" || item.type === paperForm.paperType).map((item) => {
+                                const needsOr = paperForm.paperType === 'End Term' && item.key === 'eightMarkQuestions';
+                                const requiredCount = (paperForm[item.key] || 0) * (needsOr ? 2 : 1);
+                                const currentAvail = questionStats[item.statsKey]?.available || 0;
+                                const isInsufficient = currentAvail < requiredCount;
+
+                                return (
                                 <div key={item.key} className={`bg-white p-6 rounded-2xl border border-gray-100 hover:border-${item.color}-300 transition-all shadow-sm hover:shadow-md group flex flex-col gap-5`}>
                                     <div className="flex items-center justify-between">
                                         <div>
@@ -408,7 +438,7 @@ export default function PaperGeneration({
                                             type="number"
                                             min="0"
                                             max="50"
-                                            value={paperForm[item.key]}
+                                            value={paperForm[item.key] || 0}
                                             onChange={(e) => setPaperForm({ ...paperForm, [item.key]: parseInt(e.target.value) || 0 })}
                                             className="w-full border-2 border-gray-100 bg-gray-50/30 rounded-xl px-4 py-3 text-center font-black text-gray-900 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none text-xl"
                                         />
@@ -420,16 +450,16 @@ export default function PaperGeneration({
                                     <div className="space-y-3">
                                         <div className="flex justify-between items-center text-[11px]">
                                             <span className="text-gray-500 font-bold">Availability</span>
-                                            <span className="font-black text-gray-900">{questionStats[item.statsKey].available} / {(paperForm[item.key] * (item.statsKey === 'oneMark' ? 1 : 2))}</span>
+                                            <span className="font-black text-gray-900">{currentAvail} / {requiredCount}</span>
                                         </div>
                                         <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
                                             <div
-                                                className={`h-full rounded-full transition-all duration-1000 ease-out ${questionStats[item.statsKey].available < (paperForm[item.key] * (item.statsKey === 'oneMark' ? 1 : 2)) ? 'bg-red-500' : `bg-${item.color}-500`
+                                                className={`h-full rounded-full transition-all duration-1000 ease-out ${isInsufficient ? 'bg-red-500' : `bg-${item.color}-500`
                                                     }`}
-                                                style={{ width: `${Math.min(100, (questionStats[item.statsKey].available / (Math.max(1, paperForm[item.key] * (item.statsKey === 'oneMark' ? 1 : 2)))) * 100)}%` }}
+                                                style={{ width: `${Math.min(100, (currentAvail / (Math.max(1, requiredCount))) * 100)}%` }}
                                             ></div>
                                         </div>
-                                        {questionStats[item.statsKey].available < (paperForm[item.key] * (item.statsKey === 'oneMark' ? 1 : 2)) && (
+                                        {isInsufficient && (
                                             <div className="flex items-center gap-1.5 text-red-500">
                                                 <AlertCircle className="w-3.5 h-3.5" />
                                                 <span className="text-[10px] font-bold animate-pulse">Insufficient available for pattern</span>
@@ -437,7 +467,7 @@ export default function PaperGeneration({
                                         )}
                                     </div>
                                 </div>
-                            ))}
+                            )})}
                         </div>
                     </section>
                 </div>

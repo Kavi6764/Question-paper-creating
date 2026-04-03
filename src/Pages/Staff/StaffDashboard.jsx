@@ -88,6 +88,7 @@ export default function StaffDashboard() {
     const [questionPapers, setQuestionPapers] = useState([]); // Store visible question papers
     const [loadingPapers, setLoadingPapers] = useState(true);
     const [searchTerm, setSearchTerm] = useState(""); // Only used for File Preview now
+    const [globalExamConfig, setGlobalExamConfig] = useState({ isEndTerm: false });
 
     const itemsPerPage = 5;
     const fileInputRef = useRef(null);
@@ -102,16 +103,33 @@ export default function StaffDashboard() {
             BloomLevel: i % 6 === 0 ? "RE" : i % 6 === 1 ? "UN" : i % 6 === 2 ? "AP" : i % 6 === 3 ? "AN" : i % 6 === 4 ? "CR" : "EV",
             Unit: 1,
             CO: `CO${(i % 3) + 1}`,
-            ImageURL: i === 0 ? "https://picsum.photos/400/300" : ""
+            ImageURL: i === 0 ? "https://picsum.photos/400/300" : "",
+            // ...(marks === 8 ? {
+            //     OrQuestion: `Or Sample Question ${i + 1} for ${marks} Marks`,
+            //     OrUnit: 1,
+            //     OrBloomLevel: i % 6 === 0 ? "RE" : i % 6 === 1 ? "UN" : i % 6 === 2 ? "AP" : i % 6 === 3 ? "AN" : i % 6 === 4 ? "CR" : "EV",
+            //     OrCO: `CO${(i % 3) + 1}`,
+            //     OrImageURL: ""
+            // } : {})
         }));
     };
 
     const downloadTemplate = () => {
-        const itemTiers = [
-            { marks: 1, limit: 20 },
-            { marks: 4, limit: 15 },
-            { marks: 6, limit: 10 }
-        ];
+        let itemTiers = [];
+        if (globalExamConfig?.isEndTerm) {
+            itemTiers = [
+                { marks: 1, limit: 20 },
+                { marks: 4, limit: 15 },
+                { marks: 8, limit: 5 }
+            ];
+        } else {
+            itemTiers = [
+                { marks: 1, limit: 20 },
+                { marks: 4, limit: 15 },
+                { marks: 6, limit: 10 }
+            ];
+        }
+        
         const wb = XLSX.utils.book_new();
 
         itemTiers.forEach(({ marks, limit }) => {
@@ -121,7 +139,7 @@ export default function StaffDashboard() {
         });
 
         XLSX.writeFile(wb, "question_bank_template.xlsx");
-        toast.success("Template downloaded successfully!");
+        toast.success(`Template (${globalExamConfig?.isEndTerm ? 'End Term' : 'Mid Term'}) downloaded successfully!`);
     };
 
     // Load staff data and setup real-time listeners
@@ -130,6 +148,15 @@ export default function StaffDashboard() {
         let unsubscribeUploads;
         let unsubscribeSubjects;
         let unsubscribeToday;
+        let unsubscribeExamConfig;
+
+        // Fetch Exam Config globally
+        const examRef = doc(db, 'settings', 'examConfig');
+        unsubscribeExamConfig = onSnapshot(examRef, (docSnap) => {
+            if (docSnap.exists()) {
+                setGlobalExamConfig(docSnap.data());
+            }
+        });
 
         const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
             if (user) {
@@ -352,6 +379,7 @@ export default function StaffDashboard() {
             if (unsubscribeUploads) unsubscribeUploads();
             if (unsubscribeSubjects) unsubscribeSubjects();
             if (unsubscribeToday) unsubscribeToday();
+            if (unsubscribeExamConfig) unsubscribeExamConfig();
         };
     }, [navigate, location]);
 
@@ -478,8 +506,8 @@ export default function StaffDashboard() {
                 }
 
                 const marksVal = row.Marks !== undefined ? Number(row.Marks) : null;
-                if (marksVal === null || ![1, 2, 4, 6].includes(marksVal)) {
-                    missingFields.push("Marks (must be 1, 2, 4, or 6)");
+                if (marksVal === null || ![1, 2, 4, 6, 8].includes(marksVal)) {
+                    missingFields.push("Marks (must be 1, 2, 4, 6, or 8)");
                 }
 
                 const unit = row.Unit !== undefined && row.Unit !== "" ? String(row.Unit).trim() : "";
@@ -557,7 +585,7 @@ export default function StaffDashboard() {
             return;
         }
 
-        // Check for 225-question limit across all units (per-staff)
+        // Check for 250-question limit across all units (per-staff)
         const currentSubject = mySubjects.find(s => s.subjectCode === subjectCode);
         const allUnits = currentSubject?.units || {};
         const currentStaffTotalCount = Object.values(allUnits).reduce((total, unitData) => {
@@ -565,8 +593,8 @@ export default function StaffDashboard() {
             return total + staffQuestions.length;
         }, 0);
 
-        if (currentStaffTotalCount >= 225) {
-            toast.error(`You have already uploaded the maximum limit of 225 questions for ${subjectCode}.`);
+        if (currentStaffTotalCount >= 250) {
+            toast.error(`You have already uploaded the maximum limit of 250 questions for ${subjectCode}.`);
             return;
         }
 
@@ -578,7 +606,7 @@ export default function StaffDashboard() {
         if (uploadedUnits[subjectCode]?.includes(unit)) {
             const confirm = window.confirm(
                 `Unit ${unit} for ${subjectCode} already has ${currentUnitStaffCount} of your questions.\n` +
-                `Your total questions for this subject is ${currentStaffTotalCount}/225.\n\n` +
+                `Your total questions for this subject is ${currentStaffTotalCount}/250.\n\n` +
                 `Do you want to continue?`
             );
             if (!confirm) return;
@@ -611,8 +639,11 @@ export default function StaffDashboard() {
             }, 200);
 
             let allRows = previewData;
-            const REQ = { 1: 20, 4: 15, 6: 10 };
-            const UNIT_TOTAL = 45;
+            
+            const isEndTerm = globalExamConfig?.isEndTerm;
+            const REQ = isEndTerm ? { 1: 20, 4: 15, 8: 5 } : { 1: 20, 4: 15, 6: 10 };
+            const UNIT_TOTAL = isEndTerm ? 40 : 45;
+            const ALL_MARKS = isEndTerm ? [1, 4, 8] : [1, 4, 6];
 
             // Helper to find existing questions
             const getExistingUnitQuestions = (data, u) => {
@@ -633,7 +664,7 @@ export default function StaffDashboard() {
                 const results = { ok: true, errors: [] };
                 const merged = [...existing, ...incoming];
 
-                [1, 4, 6].forEach(m => {
+                ALL_MARKS.forEach(m => {
                     const count = countMark(merged, m);
                     if (count !== REQ[m]) {
                         results.ok = false;
@@ -647,10 +678,10 @@ export default function StaffDashboard() {
                 }
 
                 // Fail-safe: Check for invalid marks that shouldn't be there
-                const invalidMarks = merged.filter(q => ![1, 4, 6].includes(Number(q.marks)));
+                const invalidMarks = merged.filter(q => !ALL_MARKS.includes(Number(q.marks)));
                 if (invalidMarks.length > 0) {
                     results.ok = false;
-                    results.errors.push(`${invalidMarks.length} questions have invalid marks (only 1, 4, 6 allowed)`);
+                    results.errors.push(`${invalidMarks.length} questions have invalid marks (only ${ALL_MARKS.join(', ')} allowed)`);
                 }
 
                 return results;
@@ -741,7 +772,10 @@ export default function StaffDashboard() {
 
             if (validationErrors.length > 0) {
                 clearInterval(progressInterval);
-                window.alert(`❌ UPLOAD REJECTED - INCOMPLETE UNIT DATA\n\nEach unit must contain exactly:\n- 20 questions (1 Mark)\n- 15 questions (4 Marks)\n- 10 questions (6 Marks)\n\nDiscrepancies found:\n\n${validationErrors.join('\n\n')}`);
+                const requirementsStr = isEndTerm 
+                    ? '- 20 questions (1 Mark)\n- 15 questions (4 Marks)\n- 5 questions (8 Marks)'
+                    : '- 20 questions (1 Mark)\n- 15 questions (4 Marks)\n- 10 questions (6 Marks)';
+                window.alert(`❌ UPLOAD REJECTED - INCOMPLETE UNIT DATA\n\nEach unit must contain exactly:\n${requirementsStr}\n\nDiscrepancies found:\n\n${validationErrors.join('\n\n')}`);
                 setLoading(false);
                 setUploadStatus("error");
                 throw new Error("Validation failed - blocking upload"); // Fail-safe to prevent any DB writes
