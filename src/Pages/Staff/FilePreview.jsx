@@ -2,7 +2,9 @@ import React from 'react';
 import { Download, Info, FileSpreadsheet, Eye, ChevronLeft, ChevronRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import toast from "react-hot-toast";
 
-export default function FilePreview({ file, previewData, previewPage, setPreviewPage, totalPreviewPages, paginatedPreview, downloadTemplate }) {
+export default function FilePreview({ file, previewData, previewPage, setPreviewPage, totalPreviewPages, paginatedPreview, downloadTemplate, globalExamConfig }) {
+     const isEndTerm = globalExamConfig?.isEndTerm;
+     const targetMarks = isEndTerm ? 8 : 6;
 
     // Template download handled by parent component
 
@@ -230,7 +232,7 @@ export default function FilePreview({ file, previewData, previewPage, setPreview
                                     <div className="space-y-1">
                                         <p className="text-xs font-medium text-blue-700">Template Format</p>
                                         <p className="text-xs text-blue-600/70">
-                                            Includes separate sheets for 2, 4, and 6 marks questions {/* and 8 marks */}
+                                            Includes separate sheets for 1, 4, and {targetMarks} marks questions
                                         </p>
                                     </div>
                                 </div>

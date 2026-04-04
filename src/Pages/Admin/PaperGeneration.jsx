@@ -26,20 +26,21 @@ export default function PaperGeneration({
         const isEndTerm = paperForm.paperType === 'End Term';
 
         const reqOne = paperForm.oneMarkQuestions;
-        const reqFour = paperForm.fourMarkQuestions; 
-        const reqSix = paperForm.sixMarkQuestions;
-        // For End Term, 8 mark needs internal choice (2 questions per slot)
-        const reqEight = (paperForm.eightMarkQuestions || 0) * (isEndTerm ? 2 : 1);
+        const reqFour = paperForm.fourMarkQuestions * 2; 
+        const reqSix = paperForm.sixMarkQuestions * 2;
+        const reqEight = (paperForm.eightMarkQuestions || 0) * 2;
 
         return (questionStats.oneMark?.available || 0) >= reqOne &&
                (questionStats.fourMark?.available || 0) >= reqFour &&
-               (isEndTerm || (questionStats.sixMark?.available || 0) >= reqSix) &&
-               (!isEndTerm || (questionStats.eightMark?.available || 0) >= reqEight);
+               (questionStats.sixMark?.available || 0) >= reqSix &&
+               (questionStats.eightMark?.available || 0) >= reqEight;
     }, [paperForm, questionStats]);
 
     const [subjectSearch, setSubjectSearch] = React.useState('');
     const [showSubjectDropdown, setShowSubjectDropdown] = React.useState(false);
     const dropdownRef = React.useRef(null);
+    const titleDropdownRef = React.useRef(null);
+    const [showTitleDropdown, setShowTitleDropdown] = React.useState(false);
     
     // Refs for smooth scrolling
     const configSectionRef = React.useRef(null);
@@ -62,11 +63,14 @@ export default function PaperGeneration({
         sub.code.toLowerCase().includes(subjectSearch.toLowerCase())
     );
 
-    // Handle clicks outside dropdown to close it
+    // Handle clicks outside dropdowns to close them
     React.useEffect(() => {
         const handleClickOutside = (event) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
                 setShowSubjectDropdown(false);
+            }
+            if (titleDropdownRef.current && !titleDropdownRef.current.contains(event.target)) {
+                setShowTitleDropdown(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -126,14 +130,59 @@ export default function PaperGeneration({
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Paper Title <span className="text-red-500">*</span></label>
-                                    <input
-                                        type="text"
-                                        value={paperForm.title}
-                                        required
-                                        onChange={(e) => setPaperForm({ ...paperForm, title: e.target.value })}
-                                        placeholder="e.g., Mid Term Examination Even Semester 2025-26"
-                                        className="w-full border border-gray-200 bg-white rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                                    />
+                                    <div className="relative group/title" ref={titleDropdownRef}>
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                value={paperForm.title}
+                                                required
+                                                onChange={(e) => setPaperForm({ ...paperForm, title: e.target.value })}
+                                                onFocus={() => setShowTitleDropdown(true)}
+                                                placeholder="Select or type paper title..."
+                                                className="w-full border border-gray-200 bg-white rounded-xl px-4 py-2.5 pr-10 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all hover:border-blue-300 font-medium"
+                                            />
+                                            <button 
+                                                type="button"
+                                                onClick={() => setShowTitleDropdown(!showTitleDropdown)}
+                                                className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-blue-500 transition-colors"
+                                            >
+                                                <svg className={`w-5 h-5 fill-current transition-transform duration-300 ${showTitleDropdown ? 'rotate-180' : ''}`} viewBox="0 0 20 20">
+                                                    <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                                                </svg>
+                                            </button>
+                                        </div>
+
+                                        {showTitleDropdown && (
+                                            <div className="absolute top-full left-0 w-full mt-2 bg-white rounded-xl shadow-2xl border border-gray-100 z-[1001] max-h-[250px] overflow-y-auto animate-scale-in origin-top">
+                                                <div className="p-1">
+                                                    {(globalExamConfig?.isEndTerm ? [
+                                                        "End term Examination odd Semester 2027",
+                                                        "End term Examination Even Semester 2026"
+                                                    ] : [
+                                                        "Mid term Examination odd Semester 2027",
+                                                        "Mid term Examination Even Semester 2026",
+                                                        "Mock Examination odd Semester 2027",
+                                                        "Mock Examination Even Semester 2026"
+                                                    ]).map((title, idx) => (
+                                                        <button
+                                                            key={idx}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setPaperForm({ ...paperForm, title });
+                                                                setShowTitleDropdown(false);
+                                                            }}
+                                                            className={`w-full text-left px-4 py-3 rounded-lg text-sm transition-all hover:bg-blue-50 group/item flex items-center justify-between ${paperForm.title === title ? 'bg-blue-50/50 text-blue-700 font-bold' : 'text-gray-700'}`}
+                                                        >
+                                                            {title}
+                                                            {paperForm.title === title && (
+                                                                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                                                            )}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="space-y-1.5 relative" ref={dropdownRef}>
                                     <label className="block text-sm font-medium text-gray-700">Select Subject <span className="text-red-500">*</span></label>
@@ -378,8 +427,8 @@ export default function PaperGeneration({
                                     <p className="text-sm font-bold text-red-800">Pattern Not Fulfilled</p>
                                     <p className="text-xs text-red-600 mt-0.5 leading-relaxed">
                                         {paperForm.paperType === 'End Term' 
-                                            ? "Insufficient questions for End-Term generation. 8-mark slots require 2 available questions each for OR pairing."
-                                            : "Question paper cannot be generated because required questions are not available."}
+                                            ? "Insufficient questions for End-Term generation. 4-mark and 8-mark slots require 2 available questions each for OR pairing."
+                                            : "Insufficient questions for Mid-Term generation. 4-mark and 6-mark slots require 2 available questions each for OR pairing."}
                                     </p>
                                 </div>
                             </div>
@@ -414,7 +463,7 @@ export default function PaperGeneration({
                                 { label: "6-Mark", key: "sixMarkQuestions", statsKey: "sixMark", color: "purple", multiplier: 6, type: "Mid Term" },
                                 { label: "8-Mark", key: "eightMarkQuestions", statsKey: "eightMark", color: "orange", multiplier: 8, type: "End Term" },
                             ].filter(item => item.type === "both" || item.type === paperForm.paperType).map((item) => {
-                                const needsOr = paperForm.paperType === 'End Term' && item.key === 'eightMarkQuestions';
+                                const needsOr = item.key === 'eightMarkQuestions' || item.key === 'sixMarkQuestions' || item.key === 'fourMarkQuestions';
                                 const requiredCount = (paperForm[item.key] || 0) * (needsOr ? 2 : 1);
                                 const currentAvail = questionStats[item.statsKey]?.available || 0;
                                 const isInsufficient = currentAvail < requiredCount;

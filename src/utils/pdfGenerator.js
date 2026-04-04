@@ -256,20 +256,31 @@ export const downloadPaperAsPDF = async (paper) => {
     const paperSection = (paper.section || "A/B/C").toUpperCase();
     doc.text(paperSection, 45, line3Y);
 
+
     doc.setFont("times", "bolditalic");
     doc.text("Roll No:", 120, line3Y);
     doc.setFont("times", 'normal');
     doc.text("............................", 145, line3Y);
 
     // Line bottom of header
-    doc.line(15, line3Y + 3, 195, line3Y + 3);
+    let headerBottomY = line3Y + 3;
+    if (paper.examDate) {
+        const dateY = line3Y + 5;
+        doc.setFont("times", "bolditalic");
+        doc.text("Date:", 20, dateY);
+        doc.setFont("times", 'normal');
+        doc.text(paper.examDate, 45, dateY);
+        
+        headerBottomY = dateY + 3;
+    }
+    doc.line(15, headerBottomY, 195, headerBottomY);
+    yPos = headerBottomY;
 
     // Instructions and meta
-    const afterBoxY = line3Y + 10;
+    const afterBoxY = headerBottomY + 7;
     doc.setFontSize(9.5);
     doc.setFont("times", 'bold');
 
-    // Add Time and Max Marks
     const formatDurationInMinutes = (duration) => {
         const val = parseFloat(duration) || 0;
         return Math.round(val * 60);
@@ -421,8 +432,8 @@ export const downloadPaperAsPDF = async (paper) => {
 
             // Repeated Question Number for OR
             doc.setFont("times", 'bold');
-            doc.text(qNumText, 20, currentY);
-            doc.setFont("times", 'italic');
+            // doc.text(qNumText, 20, currentY);
+            doc.setFont("times", 'normal');
 
             const orQuestionLines = doc.splitTextToSize(sanitizeText(q.orQuestion.question), 115);
             const orHasUrl = /(https?:\/\/[^\s]+)/.test(q.orQuestion.question || "");

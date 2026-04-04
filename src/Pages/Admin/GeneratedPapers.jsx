@@ -571,7 +571,20 @@ export default function GeneratedPapers({
                                 const qLen = q.question?.length || 0;
                                 const qLines = Math.ceil(qLen / 85) || 1;
                                 const optLines = q.options?.length || 0;
-                                const estHeight = 80 + (qLines * 24) + (optLines * 24);
+                                let estHeight = 80 + (qLines * 24) + (optLines * 24);
+
+                                // Add height for image
+                                if (q.imageURL) estHeight += 60;
+
+                                // Add height for OR question
+                                if (q.orQuestion) {
+                                    estHeight += 40; // OR separator
+                                    const orLen = q.orQuestion.question?.length || 0;
+                                    const orLines = Math.ceil(orLen / 85) || 1;
+                                    const orOptLines = q.orQuestion.options?.length || 0;
+                                    estHeight += 60 + (orLines * 24) + (orOptLines * 24);
+                                    if (q.orQuestion.imageURL) estHeight += 60;
+                                }
 
                                 if (currentHeight + estHeight > MAX_PAGE_HEIGHT) {
                                     pages.push(currentPageQuestions);
@@ -684,7 +697,7 @@ export default function GeneratedPapers({
                                         {pageQuestions.map((item) => {
                                             if (item.type === 'header') {
                                                 return (
-                                                    <div key={item.id}>
+                                                    <div key={`header-${pageIndex}-${item.id}`}>
                                                         <h3 className="font-bold text-lg mb-2 uppercase pt-8 text-center w-full border-b-2 border-gray-900 pb-2">
                                                             {item.label}
                                                         </h3>
@@ -705,7 +718,7 @@ export default function GeneratedPapers({
                                             const questionNumber = question.globalIndex + 1;
 
                                             return (
-                                                <div key={question.id || question.globalIndex} className="mb-8 group relative break-inside-avoid">
+                                                <div key={`q-${pageIndex}-${question.globalIndex}-${question.id}`} className="mb-8 group relative break-inside-avoid">
                                                     {/* Main Question Container */}
                                                     <div className="relative space-y-4">
                                                         {/* Main Question Part */}

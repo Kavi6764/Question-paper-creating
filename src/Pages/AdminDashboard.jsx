@@ -431,6 +431,7 @@ export default function AdminDashboard() {
     if (paperForm.paperType === 'Mid Term') {
       setPaperForm(prev => ({
           ...prev,
+          title: "Mid term Examination odd Semester 2027",
           oneMarkQuestions: 6,
           fourMarkQuestions: 3,
           sixMarkQuestions: 2,
@@ -439,6 +440,7 @@ export default function AdminDashboard() {
     } else if (paperForm.paperType === 'End Term') {
       setPaperForm(prev => ({
           ...prev,
+          title: "End term Examination odd Semester 2027",
           oneMarkQuestions: 12,
           fourMarkQuestions: 6,
           sixMarkQuestions: 0,
@@ -1327,11 +1329,12 @@ export default function AdminDashboard() {
     const isEndTerm = form.paperType === 'End Term';
     
     // Final logic: NO ORs for anyone except 8 Mark in End Term. 
+    // Final logic: Always require ORs for 4, 6, and 8 Mark questions across both terms.
     const finalConfigs = [
       { m: 1, count: form.oneMarkQuestions, hasOr: false },
-      { m: 4, count: form.fourMarkQuestions, hasOr: false },
-      { m: 6, count: form.sixMarkQuestions, hasOr: false },
-      { m: 8, count: form.eightMarkQuestions || 0, hasOr: isEndTerm }
+      { m: 4, count: form.fourMarkQuestions, hasOr: true },
+      { m: 6, count: form.sixMarkQuestions, hasOr: true },
+      { m: 8, count: form.eightMarkQuestions || 0, hasOr: true }
     ];
 
     for (const config of finalConfigs) {
@@ -1358,9 +1361,9 @@ export default function AdminDashboard() {
             coCounts[co2] = (coCounts[co2] || 0) + 1;
             selected.push({ ...q1, orQuestion: q2 });
           } else {
-            // End term strictly requires OR choice for 8 mark questions. If not found in the same unit, fail.
-            if (isEndTerm && config.m === 8) {
-               return { error: "Insufficient questions for End-Term generation. Missing internal choice pairing." };
+            // Strictly require OR choice for 4, 6, and 8 mark questions. If not found in the same unit, fail.
+            if (config.m >= 4) {
+               return { error: `Insufficient questions for generation. Missing internal choice pairing for ${config.m}-mark question.` };
             }
             selected.push(q1);
           }
@@ -1496,26 +1499,18 @@ export default function AdminDashboard() {
 
       toast.success("Question papers (Set A & Set B) generated successfully!");
 
-      // Reset form
-      setPaperForm({
-        title: "Mid Term Examination Even Semester 2025-26 - Set A",
+      // Reset form but keep common metadata
+      setPaperForm(prev => ({
+        ...prev,
         subjectCode: "",
-        program: "B.Tech",
-        semester: "",
         examDate: "",
-        examTime: "09:30",
-        duration: 3,
-        oneMarkQuestions: 6,
-        fourMarkQuestions: 3,
-        sixMarkQuestions: 2,
-        eightMarkQuestions: 0,
-        totalQuestions: 11,
-        totalMarks: 30,
+        // Preserve title, program, semester, duration, examTime
+        // and distribution settings for faster multi-subject generation
         generationTime: "",
         generationDate: "",
         department: "",
         section: ""
-      });
+      }));
       setSelectedQuestions([]);
       setAvailableQuestions({
         oneMark: [],
@@ -1995,6 +1990,8 @@ export default function AdminDashboard() {
             {activeTab === "question-bank" && (userData?.role === 'dean' || moduleVisibility['question-bank'] !== false) && (
               <QuestionBank
                 allSubjects={allSubjects}
+                userData={userData}
+                onDeleteUnit={handleDeleteUnitQuestions}
               />
             )}
 
