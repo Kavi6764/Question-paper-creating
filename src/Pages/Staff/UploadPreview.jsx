@@ -3,14 +3,20 @@ import { CheckCircle2, XCircle, FileText, AlertCircle, Trash2, Edit3, Save, Info
 import { handleGoogleDriveUrl, highlightUrls } from '../../utils/imageHandler.jsx';
 import toast from 'react-hot-toast';
 
-export default function UploadPreview({ previewData, setPreviewData, unit, subjectName, onConfirm, onCancel, loading }) {
+export default function UploadPreview({ previewData, setPreviewData, unit, subjectName, onConfirm, onCancel, loading, globalExamConfig }) {
+    const isEndTerm = globalExamConfig?.isEndTerm;
+    const targetMarks = isEndTerm ? 8 : 6;
+    const targetTotal = isEndTerm ? 45 : 45;
+    const targetLong = isEndTerm ? 10 : 10;
+    const validMarks = [1, 4, targetMarks];
+
     const totalQuestions = previewData.length;
     const [editingId, setEditingId] = useState(null);
 
     // Group by Question Type
     const mcqCount = previewData.filter(q => Number(q.marks) === 1).length;
     const shortCount = previewData.filter(q => Number(q.marks) === 4).length;
-    const longCount = previewData.filter(q => Number(q.marks) === 6).length;
+    const longCount = previewData.filter(q => Number(q.marks) === targetMarks).length;
 
     const hasGlobalErrors = previewData.some(q => q.hasError);
 
@@ -24,8 +30,8 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
                 if (!updated.question || updated.question.toString().trim() === "") missingFields.push("Question");
 
                 const marksVal = updated.marks !== undefined ? Number(updated.marks) : null;
-                if (marksVal === null || ![1, 4, 6].includes(marksVal)) {
-                    missingFields.push("Marks (must be 1, 4, or 6)");
+                if (marksVal === null || !validMarks.includes(marksVal)) {
+                    missingFields.push(`Marks (must be 1, 4, or ${targetMarks})`);
                 }
 
                 if (!updated.unit) missingFields.push("Unit");
@@ -38,7 +44,7 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
                 // Update questionType based on marks
                 if (marksVal === 1) updated.questionType = 'MCQ';
                 else if (marksVal === 4) updated.questionType = 'Short';
-                else if (marksVal === 6) updated.questionType = 'Long';
+                else if (marksVal === targetMarks) updated.questionType = 'Long';
                 else updated.questionType = 'Unknown';
 
                 return updated;
@@ -111,9 +117,9 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
 
             {/* Summary Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <div className={`p-4 rounded-2xl text-center border ${totalQuestions === 45 ? 'bg-blue-50 border-blue-100' : 'bg-slate-50 border-slate-100'}`}>
+                <div className={`p-4 rounded-2xl text-center border ${totalQuestions === targetTotal ? 'bg-blue-50 border-blue-100' : 'bg-slate-50 border-slate-100'}`}>
                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Questions</p>
-                    <p className={`text-2xl font-bold mt-1 ${totalQuestions === 45 ? 'text-blue-700' : 'text-slate-900'}`}>{totalQuestions} / 45</p>
+                    <p className={`text-2xl font-bold mt-1 ${totalQuestions === targetTotal ? 'text-blue-700' : 'text-slate-900'}`}>{totalQuestions} / {targetTotal}</p>
                 </div>
                 <div className={`p-4 rounded-2xl text-center border ${mcqCount === 20 ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-100'}`}>
                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">1 Mark</p>
@@ -123,9 +129,9 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
                     <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">4 Marks</p>
                     <p className={`text-2xl font-bold mt-1 ${shortCount === 15 ? 'text-amber-700' : 'text-slate-900'}`}>{shortCount} / 15</p>
                 </div>
-                <div className={`p-4 rounded-2xl text-center border ${longCount === 10 ? 'bg-purple-50 border-purple-100' : 'bg-slate-50 border-slate-100'}`}>
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">6 Marks</p>
-                    <p className={`text-2xl font-bold mt-1 ${longCount === 10 ? 'text-purple-700' : 'text-slate-900'}`}>{longCount} / 10</p>
+                <div className={`p-4 rounded-2xl text-center border ${longCount === targetLong ? 'bg-purple-50 border-purple-100' : 'bg-slate-50 border-slate-100'}`}>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{targetMarks} Marks</p>
+                    <p className={`text-2xl font-bold mt-1 ${longCount === targetLong ? 'text-purple-700' : 'text-slate-900'}`}>{longCount} / {targetLong}</p>
                 </div>
             </div>
 
@@ -288,13 +294,13 @@ export default function UploadPreview({ previewData, setPreviewData, unit, subje
                                                 <select
                                                     value={item.marks}
                                                     onChange={(e) => handleUpdateRow(item.id, 'marks', e.target.value)}
-                                                    className={`w-full text-xs font-bold p-1 rounded border ${item.missingFields?.includes('Marks (must be 1, 4, or 6)') ? 'border-red-300' : 'border-slate-200'}`}
+                                                    className={`w-full text-xs font-bold p-1 rounded border ${item.missingFields?.includes(`Marks (must be 1, 4, or ${targetMarks})`) ? 'border-red-300' : 'border-slate-200'}`}
                                                 >
                                                     <option value="">Marks</option>
-                                                    {[1, 4, 6].map(m => <option key={m} value={m}>{m}</option>)}
+                                                    {validMarks.map(m => <option key={m} value={m}>{m}</option>)}
                                                 </select>
                                             ) : (
-                                                <span className={`text-lg font-black ${item.hasError && (item.marks === null || ![1, 4, 6].includes(Number(item.marks))) ? 'text-red-500' : 'text-slate-800'}`}>
+                                                <span className={`text-lg font-black ${item.hasError && (item.marks === null || !validMarks.includes(Number(item.marks))) ? 'text-red-500' : 'text-slate-800'}`}>
                                                     {item.marks || '!!'}
                                                 </span>
                                             )}

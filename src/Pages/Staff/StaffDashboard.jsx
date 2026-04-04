@@ -641,8 +641,8 @@ export default function StaffDashboard() {
             let allRows = previewData;
             
             const isEndTerm = globalExamConfig?.isEndTerm;
-            const REQ = isEndTerm ? { 1: 20, 4: 15, 8: 5 } : { 1: 20, 4: 15, 6: 10 };
-            const UNIT_TOTAL = isEndTerm ? 40 : 45;
+            const REQ = isEndTerm ? { 1: 20, 4: 15, 8: 10 } : { 1: 20, 4: 15, 6: 10 };
+            const UNIT_TOTAL = isEndTerm ? 45 : 45;
             const ALL_MARKS = isEndTerm ? [1, 4, 8] : [1, 4, 6];
 
             // Helper to find existing questions
@@ -1077,6 +1077,7 @@ export default function StaffDashboard() {
                             onConfirm={handleConfirmUpload}
                             onCancel={() => setShowPreviewMode(false)}
                             loading={loading}
+                            globalExamConfig={globalExamConfig}
                         />
                     </div>
                 ) : (
@@ -1127,6 +1128,7 @@ export default function StaffDashboard() {
                                         previewData={previewData}
                                         fileInputRef={fileInputRef}
                                         downloadTemplate={downloadTemplate}
+                                        globalExamConfig={globalExamConfig}
                                     />
                                 </div>
                             )}
@@ -1177,6 +1179,7 @@ export default function StaffDashboard() {
                                 totalPreviewPages={totalPreviewPages}
                                 clearFile={clearFile}
                                 downloadTemplate={downloadTemplate}
+                                globalExamConfig={globalExamConfig}
                             />
                         </div>
                     </div>

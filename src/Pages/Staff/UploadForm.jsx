@@ -36,7 +36,8 @@ export default function UploadForm({
     previewData,
     fileInputRef,
     downloadTemplate,
-    staffId
+    staffId,
+    globalExamConfig
 }) {
     // Helper to check if unit is uploaded
     const isUnitUploaded = (unitNum) => {
@@ -185,8 +186,12 @@ export default function UploadForm({
                                         <div className="flex flex-wrap gap-2 text-[10px] mt-1 text-slate-500 font-normal">
                                             <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">1 Mark: Max 20</span>
                                             <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">4 Marks: Max 15</span>
-                                            <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">6 Marks: Max 10</span>
-                                            <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">8 Marks: Max 5</span>
+                                            {!globalExamConfig?.isEndTerm && (
+                                                <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">6 Marks: Max 10</span>
+                                            )}
+                                            {globalExamConfig?.isEndTerm && (
+                                                <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">8 Marks: Max 10</span>
+                                            )}
                                         </div>
                                         {uploadedUnits[subjectCode] && (
                                             <div className="ml-auto flex items-center gap-3 mt-[-24px]">

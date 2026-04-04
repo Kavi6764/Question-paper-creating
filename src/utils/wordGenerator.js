@@ -274,6 +274,16 @@ export const downloadPaperAsWord = async (paper) => {
                         }),
                     ],
                 }),
+                ...(paper.examDate ? [
+                    new TableRow({
+                        children: [
+                            new TableCell({
+                                children: [new Paragraph({ children: [new TextRun({ text: "Date: ", bold: true, italics: true }), new TextRun({ text: paper.examDate })] })],
+                                columnSpan: 2
+                            })
+                        ]
+                    })
+                ] : []),
             ],
         });
         docChildren.push(headerTable);
